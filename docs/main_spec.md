@@ -85,3 +85,6 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [001: Python 3.12 기본 및 레거시 런타임 격리](./adr/001-python-runtime.md)
 - [002: Replayable SSE를 위한 Redis Streams 채택](./adr/002-redis-streams.md)
 - [003: ArtifactRef 기반 Storage 추상화](./adr/003-storage-abstraction.md)
+
+### Reports (작업 결과보고서)
+- [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
