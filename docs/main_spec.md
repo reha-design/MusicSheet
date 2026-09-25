@@ -78,16 +78,17 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ### Infrastructure
 - **Python 런타임 전략:** [docs/infrastructure/runtime.md](./infrastructure/runtime.md)
-  - Python 3.12 기본 런타임 + 격리된 Python 3.10 레거시 런타임, `uv` 가이드
+  - Python 3.12 단일 표준 런타임 및 `uv` 가이드
 - **컨테이너 환경:** [docs/infrastructure/docker.md](./infrastructure/docker.md)
   - `docker-compose.yml` 및 로컬 개발용 서비스 구성
 - **헬스 체크 & 관측성:** [docs/infrastructure/health-check.md](./infrastructure/health-check.md)
   - `/health/live`, `/health/ready`, `/health/detail`, 가중치 사전 검증
 
 ### ADR (Architecture Decision Records)
-- [001: Python 3.12 기본 및 레거시 런타임 격리](./adr/001-python-runtime.md)
+- [001: Python 3.12 단일 표준 런타임 채택](./adr/001-python-runtime.md)
 - [002: Replayable SSE를 위한 Redis Streams 채택](./adr/002-redis-streams.md)
 - [003: ArtifactRef 기반 Storage 추상화](./adr/003-storage-abstraction.md)
 
 ### Reports (작업 결과보고서)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
+- [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)

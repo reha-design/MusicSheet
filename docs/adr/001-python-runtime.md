@@ -1,16 +1,17 @@
-# ADR 001: Python 3.12 기본 런타임 및 레거시 모델 격리
+# ADR 001: Python 3.12 단일 표준 런타임 채택
 
-> **상태:** 승인됨 (Accepted)  
+> **상태:** 승인됨 (Accepted - 개정)  
 > **일자:** 2026-09-25  
 
 ## 배경
-- Python 3.10은 2026년 10월 EOL을 앞두고 있으며, 최신 MIR 핵심 라이브러리(`librosa 1.0+`, 최신 NumPy/SciPy/PyTorch)는 Python $\ge$ 3.12를 요구한다.
-- 반면 피아노 전사 오픈소스인 ByteDance `piano_transcription_inference`는 Python 3.7/PyTorch 1.x 시절에 아카이빙된 레거시 모델이다.
+- Python 3.10은 2026년 10월 공식 EOL(End of Life)을 앞두고 있으며, 최신 MIR 핵심 라이브러리(`librosa 1.0+`, 최신 NumPy/SciPy/PyTorch)는 Python $\ge$ 3.12를 요구한다.
+- 피아노 전사 모델(ByteDance Piano AMT 및 Spotify Basic Pitch)의 호환성을 검증한 결과, PyTorch 2.x 네이티브 가중치 로딩 및 `onnxruntime` 경량 추론 엔진을 통해 Python 3.12 환경에서 완벽히 구동 가능함을 확인하였다.
 
 ## 결정
-1. 프로젝트 전체의 기본 런타임은 **Python 3.12**를 사용한다.
-2. ByteDance 등 레거시 모델은 전체 스택을 낮추지 않고, `uv`를 활용한 독립 Worker 환경(Python 3.10 + `numpy==1.26.4`)으로 완전 격리한다.
+1. 프로젝트 전체의 런타임을 **Python 3.12 단일 표준 런타임**으로 일원화한다.
+2. 불필요한 Python 3.10 레거시 격리 환경 및 `legacy_amt_queue`를 완전히 제거하고, 모든 AI 추론(Demucs 분리 및 피아노 AMT 전사)을 `gpu_ai_queue` 단일 워커로 통합한다.
 
 ## 결과
-- 메인 웹/API 및 최신 MIR 생태계의 성능과 장기 지속성을 보장한다.
-- 레거시 패키지로 인한 의존성 지옥(Dependency Hell)을 원천 분리한다.
+- 멀티 파이썬 설치(`uv python install 3.10`) 및 워커 프로세스 중복 실행에 따른 개발/운영 복잡도를 원천 제거한다.
+- 단일 `python:3.12-slim` 컨테이너 기반으로 Docker 배포 이미지 크기 및 빌드 오버헤드를 대폭 절감한다.
+- EOL이 임박한 구버전 Python 의존성을 조기 차단하여 장기적인 유지보수 안정성을 확보한다.

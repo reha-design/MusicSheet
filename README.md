@@ -5,7 +5,7 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.10-3776AB?style=flat-square&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![uv](https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=flat-square&logo=astral&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.4+-37814A?style=flat-square&logo=celery&logoColor=white)
@@ -23,7 +23,7 @@
 
 | 영역 | 기술 스택 | 세부 구성 및 역할 |
 | :--- | :--- | :--- |
-| **언어 & 런타임** | **Python 3.12** (기본) / **3.10** (레거시 격리) | Astral `uv` 기반 초고속 멀티 런타임 및 의존성 격리 관리 |
+| **언어 & 런타임** | **Python 3.12** (단일 표준 런타임) | Astral `uv` 기반 초고속 통합 패키지 및 가상환경 관리 |
 | **백엔드 API** | **FastAPI**, Pydantic v2 | 비동기 고성능 REST API 및 Replayable SSE 스트리밍 |
 | **작업 큐 & 메시징**| **Celery**, **Redis 7 Streams** | CPU/GPU 물리적 분리 큐, 멱등성 보장(`acks_late`), 이벤트 스트림 |
 | **데이터베이스** | **PostgreSQL 16** | 작업 상태 머신(`jobs`), 실행/재시도 이력(`stage_attempts`) 영속화 |
@@ -44,7 +44,7 @@
 - **다단계 신뢰도(Confidence Fusion):** 음원 분리 품질, 전사 신뢰도, 리듬 적합도를 음표별로 영구 추적하여 에러 누적 차단 및 향후 Human-in-the-loop 에디터 지원.
 - **비동기 큐 & 분리 워커:** 단일 GPU(RTX 3060 12GB) 환경 최적화를 위해 **CPU I/O 큐, GPU AI 큐, CPU 렌더 큐**를 물리적으로 분리한 고성능 아키텍처.
 - **재접속 복원 실시간 스트리밍:** Redis Streams (`XADD`) 기반 SSE(Server-Sent Events)를 통해 브라우저 단절 시에도 진행률 유실 없이 복구.
-- **초고속 패키지 관리 (`uv`):** Astral `uv` 기반 워크스페이스를 채택하고, 최신 생태계(Python 3.12)와 레거시 모델(Python 3.10)의 런타임 분리 실행.
+- **초고속 패키지 관리 (`uv`):** Astral `uv` 기반 워크스페이스를 채택하고, Python 3.12 단일 런타임으로 전체 AI/백엔드 스택 일원화.
 
 ---
 
@@ -81,7 +81,7 @@ flowchart TD
     API -.->|"실시간 진행률 스트리밍"| FE
 
     REDIS -->|"cpu_io_queue / cpu_render_queue"| CPU_W
-    REDIS -->|"gpu_ai_queue / legacy_amt_queue"| GPU_W
+    REDIS -->|"gpu_ai_queue"| GPU_W
 
     CPU_W -->|"중간 / 최종 아티팩트 저장"| STORAGE
     GPU_W -->|"분리 오디오 / 전사 노트 저장"| STORAGE
@@ -107,8 +107,8 @@ flowchart TD
 git clone https://github.com/reha-design/MusicSheet.git
 cd MusicSheet
 
-# 메인(3.12) 및 레거시 모델용(3.10) 파이썬 자동 설치
-uv python install 3.12 3.10
+# Python 3.12 표준 런타임 자동 설치
+uv python install 3.12
 
 # 메인 가상환경 생성 및 의존성 동기화
 uv venv --python 3.12
@@ -137,11 +137,8 @@ uv run --python 3.12 uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --relo
 # 터미널 2: CPU Worker (I/O, 비트분석, 악보 렌더링)
 uv run --python 3.12 celery -A packages.pipeline.workers.celery_app worker -Q cpu_io_queue,cpu_render_queue -c 4 -l info
 
-# 터미널 3: GPU AI Worker (Demucs 음원 분리, Basic Pitch)
+# 터미널 3: GPU AI Worker (Demucs 음원 분리, Piano AMT 전사)
 uv run --python 3.12 celery -A packages.pipeline.workers.celery_app worker -Q gpu_ai_queue -c 1 -l info
-
-# 터미널 4: Legacy AMT Worker (ByteDance Piano 격리 워커)
-uv run --python 3.10 celery -A packages.pipeline.workers.legacy_amt_worker worker -Q legacy_amt_queue -c 1 -l info
 ```
 
 ### 5. 헬스 체크 확인

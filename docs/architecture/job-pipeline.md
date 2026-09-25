@@ -21,7 +21,7 @@ GPU(RTX 3060 12GB)가 YouTube 다운로드나 PDF 렌더링 같은 CPU/Network �
    ▼ (gpu_ai_queue)
 [Stage 3: SEPARATE] ── Demucs v4 음원 분리 및 Solo Piano QC / Bypass 검사
    │
-   ▼ (gpu_ai_queue 또는 legacy_amt_queue)
+   ▼ (gpu_ai_queue)
 [Stage 4: TRANSCRIBE] ── AMT 추론 (Raw Note Events & Pedal 추출)
    │
    ▼ (cpu_render_queue)
@@ -40,8 +40,7 @@ GPU(RTX 3060 12GB)가 YouTube 다운로드나 PDF 렌더링 같은 CPU/Network �
 | Queue 이름 | 담당 태스크 | Worker Concurrency | 자원 제약 |
 | :--- | :--- | :--- | :--- |
 | `cpu_io_queue` | `download_source`, `preprocess_audio` | 4~8 | Network I/O, 디스크 쓰기 |
-| `gpu_ai_queue` | `separate_audio`, `transcribe_amt` (Basic Pitch) | 1 | CUDA VRAM (최대 12GB 안전 한도 유지) |
-| `legacy_amt_queue` | `transcribe_amt_bytedance` (Isolated) | 1 | Python 3.10 격리 런타임, VRAM ~3GB |
+| `gpu_ai_queue` | `separate_audio`, `transcribe_amt` (ByteDance / Basic Pitch) | 1 | CUDA VRAM (최대 12GB 안전 한도 유지) |
 | `cpu_render_queue` | `quantize_and_score`, `render_pdf` | 2~4 | CPU Multi-core, 메모리 |
 
 ---

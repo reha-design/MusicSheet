@@ -7,10 +7,10 @@
 
 ## 1. AMT 모델 비교 및 선정
 
-| 모델 | 대상 악기 | 주요 특징 | 권장 실행 런타임 |
+| 모델 | 대상 악기 | 주요 특징 | 실행 방식 및 큐 |
 | :--- | :--- | :--- | :--- |
-| **ByteDance Piano AMT** (Kong et al.) | 피아노 전용 | SOTA급 화음 분해, 벨로시티 및 서스테인 페달 지원 | **Python 3.10 격리 런타임** (`legacy_amt_queue`) |
-| **Spotify Basic Pitch** | 범용 악기 / 피아노 | 가볍고 빠름, 피치 벤딩 지원, 최신 환경 호환 | **Python 3.12 메인 런타임** (`gpu_ai_queue`) |
+| **ByteDance Piano AMT** (Kong et al.) | 피아노 전용 | SOTA급 화음 분해, 벨로시티 및 서스테인 페달 지원 | PyTorch 2.x 네이티브 추론 (`gpu_ai_queue`) |
+| **Spotify Basic Pitch** | 범용 악기 / 피아노 | 가볍고 빠름, 피치 벤딩 지원, 경량 ONNX 추론 | ONNX Runtime (`gpu_ai_queue`) |
 
 ---
 

@@ -38,7 +38,7 @@ flowchart TD
     API -.->|"실시간 진행률 스트리밍"| FE
 
     REDIS -->|"cpu_io_queue / cpu_render_queue"| CPU_W
-    REDIS -->|"gpu_ai_queue / legacy_amt_queue"| GPU_W
+    REDIS -->|"gpu_ai_queue"| GPU_W
 
     CPU_W -->|"중간 / 최종 아티팩트 저장"| STORAGE
     GPU_W -->|"분리 오디오 / 전사 노트 저장"| STORAGE
@@ -55,5 +55,5 @@ flowchart TD
 | **State DB** | PostgreSQL 16 | 작업의 단일 진실 소스(Job Status, Stage Attempts, Artifact 메타데이터) 영속화 |
 | **Event / Queue Broker**| Redis 7 (Streams + Celery Broker) | 작업 큐 메시징, 재생 가능한(Replayable) 진행률 이벤트 스트리밍 |
 | **CPU Worker** | Python 3.12, Celery | I/O 중심 작업(다운로드, 리샘플링), 비트 분석, 퀀타이즈, MuseScore 악보 렌더링 |
-| **GPU Worker** | Python 3.12 (Modern) / Python 3.10 (Legacy), PyTorch | Demucs 음원 분리 추론, ByteDance/BasicPitch AMT 고부하 신경망 연산 |
+| **GPU Worker** | Python 3.12, PyTorch, onnxruntime | Demucs 음원 분리 추론, ByteDance/BasicPitch AMT 고부하 신경망 연산 |
 | **Artifact Storage** | LocalStorage (MVP) ➔ S3Storage | 단계별 중간 음원, JSON 노트, 완성된 MIDI/MusicXML/PDF 영속 파일 저장 |

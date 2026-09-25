@@ -24,7 +24,6 @@ celery_app.conf.update(
         "pipeline.tasks.preprocess": {"queue": "cpu_io_queue"},
         "pipeline.tasks.separate": {"queue": "gpu_ai_queue"},
         "pipeline.tasks.transcribe": {"queue": "gpu_ai_queue"},
-        "pipeline.tasks.transcribe_legacy": {"queue": "legacy_amt_queue"},
         "pipeline.tasks.postprocess": {"queue": "cpu_render_queue"},
         "pipeline.tasks.render": {"queue": "cpu_render_queue"},
     }
