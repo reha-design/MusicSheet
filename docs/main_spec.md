@@ -4,6 +4,12 @@
 
 AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 작업과 관련된 세부 Canonical Spec(2~4개)만 선택적으로 로드**하여 작업한다.
 
+## 현재 구현 상태와 사양의 범위
+
+현재 저장소에는 Python 3.12 uv workspace, packages/common의 Pydantic 스키마, PostgreSQL·Redis용 Compose 설정, 기반 테스트가 있습니다. API, 스토리지 어댑터, Celery worker, AI provider, 프리페치 스크립트, 웹 앱은 아직 구현되지 않았습니다.
+
+이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
+
 ---
 
 ## 1. Agent Instructions & 작업 규약
@@ -92,3 +98,4 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 ### Reports (작업 결과보고서)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
 - [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)
+- [03: 문서 정합성 패치 보고서](./reports/documentation-alignment-report.md)

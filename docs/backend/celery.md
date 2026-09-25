@@ -2,6 +2,8 @@
 
 > **Canonical Owner:** `docs/backend/celery.md`  
 > **관련 문서:** [docs/architecture/job-pipeline.md](../architecture/job-pipeline.md)
+>
+> **구현 상태:** 아래 코드는 목표 설정 예시입니다. 현재 저장소에는 Celery 앱과 worker가 없습니다. Redis Streams는 SSE 이벤트용이며 Celery 브로커 큐와 별도 역할입니다. [Redis 이벤트 명세](./redis-streams.md)를 참조하세요.
 
 ---
 

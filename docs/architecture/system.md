@@ -2,58 +2,54 @@
 
 > **Canonical Owner:** `docs/architecture/system.md`  
 > **관련 문서:** [docs/architecture/job-pipeline.md](./job-pipeline.md), [docs/backend/api.md](../backend/api.md)
+>
+> **구현 상태:** 목표 시스템 구성입니다. 현재 구현된 것은 공용 스키마와 PostgreSQL·Redis 개발용 Compose까지이며 API·워커·저장소·웹 앱은 아직 없습니다.
 
 ---
 
-## 1. 시스템 물리 구성도
+## 1. 목표 시스템 구성
 
-```mermaid
-flowchart TD
-    subgraph Client ["Client Layer"]
-        FE["Next.js Frontend<br/>(URL 입력 / 오디오 업로드 / 실시간 SSE 진행률 / 악보 뷰어)"]
-    end
-
-    subgraph Gateway ["Gateway Layer"]
-        API["FastAPI Gateway<br/>(/health, /api/v1/jobs, SSE Event Replayer)"]
-    end
-
-    subgraph StateQueue ["State & Event Streaming"]
-        DB[("PostgreSQL 16<br/>- jobs<br/>- stage_attempts<br/>- artifacts")]
-        REDIS[("Redis 7 Streams<br/>- celery_queue (CPU/GPU)<br/>- job:{id}:events")]
-    end
-
-    subgraph Workers ["Decoupled Worker Queues"]
-        CPU_W["CPU Worker<br/>- yt-dlp (YouTube 다운로드)<br/>- FFmpeg (Canonical/Resample)<br/>- Beat / Tempo / Meter Tracking<br/>- Smart Quantizer & music21<br/>- MuseScore CLI (PDF 렌더링)"]
-        GPU_W["GPU Worker (RTX 3060 12GB)<br/>- AudioSeparator (Demucs v4)<br/>- AMTProvider (ByteDance / BasicPitch)<br/>- Separation QC & Solo Bypass"]
-    end
-
-    subgraph Storage ["Storage Layer"]
-        STORAGE[("ArtifactStorage<br/>(LocalStorage / S3Storage)<br/>outputs/{job_id}/")]
-    end
-
-    FE -->|"1. POST /api/v1/jobs"| API
-    API -->|"2. 상태 영속화"| DB
-    API -->|"3. 작업 발행 & 이벤트 스트림"| REDIS
-    REDIS -.->|"SSE Events (Last-Event-ID)"| API
-    API -.->|"실시간 진행률 스트리밍"| FE
-
-    REDIS -->|"cpu_io_queue / cpu_render_queue"| CPU_W
-    REDIS -->|"gpu_ai_queue"| GPU_W
-
-    CPU_W -->|"중간 / 최종 아티팩트 저장"| STORAGE
-    GPU_W -->|"분리 오디오 / 전사 노트 저장"| STORAGE
+```text
+┌─────────────────────────────┐
+│ Next.js Web (planned)       │
+└──────────────┬──────────────┘
+               │ REST / SSE
+               ▼
+┌─────────────────────────────┐       ┌──────────────────────┐
+│ FastAPI API (planned)       │◄─────►│ PostgreSQL           │
+└──────────┬──────────────────┘       │ job state / artifacts│
+           │                          └──────────────────────┘
+           │ task dispatch
+           ▼
+┌───────────────────────────────────────────┐
+│ Redis 7 (one server, separate functions)  │
+│ DB 0: Celery broker via Kombu transport   │
+│       (Redis-backed task queues)          │
+│ DB 1: Celery result backend               │
+│ DB 2: application Redis Streams for SSE   │
+└─────────────────────┬─────────────────────┘
+                      │
+             ┌────────┴────────┐
+             ▼                 ▼
+      CPU workers          GPU workers
+       (planned)            (planned)
+             └────────┬────────┘
+                      ▼
+            ArtifactStorage (planned)
 ```
 
+Celery task queue와 애플리케이션 이벤트 Stream은 같은 Redis 서버에 둘 수 있지만 서로 다른 기능입니다. Celery/Kombu Redis transport의 task queue가 이 문서의 SSE Stream을 사용하지 않습니다. 상세 설정은 [Redis 이벤트 명세](../backend/redis-streams.md)를 참조하세요.
+
 ---
 
-## 2. 컴포넌트별 책임
+## 2. 목표 컴포넌트 책임
 
-| 컴포넌트 | 기술 스택 | 주 책임 |
+| 컴포넌트 | 목표 기술 | 주 책임 |
 | :--- | :--- | :--- |
-| **Frontend** | Next.js (App Router), Vanilla CSS | 오디오/URL 입력 수신, SSE 기반 실시간 프로그레스 표시, MusicXML/PDF 뷰어 |
-| **API Gateway** | FastAPI (Python 3.12) | 작업 생성/조회/취소 REST API 제공, SSE 스트림 중계, 헬스체크 노출 |
-| **State DB** | PostgreSQL 16 | 작업의 단일 진실 소스(Job Status, Stage Attempts, Artifact 메타데이터) 영속화 |
-| **Event / Queue Broker**| Redis 7 (Streams + Celery Broker) | 작업 큐 메시징, 재생 가능한(Replayable) 진행률 이벤트 스트리밍 |
-| **CPU Worker** | Python 3.12, Celery | I/O 중심 작업(다운로드, 리샘플링), 비트 분석, 퀀타이즈, MuseScore 악보 렌더링 |
-| **GPU Worker** | Python 3.12, PyTorch, onnxruntime | Demucs 음원 분리 추론, ByteDance/BasicPitch AMT 고부하 신경망 연산 |
-| **Artifact Storage** | LocalStorage (MVP) ➔ S3Storage | 단계별 중간 음원, JSON 노트, 완성된 MIDI/MusicXML/PDF 영속 파일 저장 |
+| Frontend | Next.js, OSMD | 오디오/URL 입력, SSE 진행 표시, 악보 뷰어 |
+| API Gateway | FastAPI, Python 3.12 | 작업 생성·조회·취소, SSE 중계, 헬스체크 |
+| State DB | PostgreSQL 16 | 작업 상태, 단계 실행 이력, 아티팩트 메타데이터 |
+| Task broker | Celery + Kombu Redis transport | CPU·GPU 큐 작업 전달 |
+| Event store | 애플리케이션 Redis Streams | 제한된 SSE 이벤트 재생 |
+| CPU/GPU workers | Celery, Python, PyTorch | 다운로드·전처리·AI·후처리·렌더링 |
+| Artifact storage | LocalStorage (MVP), 이후 S3 | 중간 파일과 최종 산출물 저장 |

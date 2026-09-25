@@ -2,6 +2,8 @@
 
 > **Canonical Owner:** `docs/architecture/job-pipeline.md`  
 > **관련 문서:** [docs/domain/job-state.md](../domain/job-state.md), [docs/backend/celery.md](../backend/celery.md)
+>
+> **구현 상태:** 목표 파이프라인 설계입니다. 현재 저장소에는 pipeline worker가 없습니다.
 
 ---
 
