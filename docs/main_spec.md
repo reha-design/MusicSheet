@@ -13,6 +13,9 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 3. **Spec 우선 원칙:** 코드와 Spec이 충돌할 경우 Spec을 단일 진실 소스(Single Source of Truth)로 인정한다.
 4. **선 Spec 갱신, 후 구현:** 아키텍처나 스키마 변경이 필요한 경우, 코드를 수정하기 전에 관련 Spec 문서를 먼저 갱신한다.
 5. **단일 책임(Canonical Owner):** 하나의 규칙은 오직 하나의 문서에만 상세 정의하며, 다른 문서에서는 링크로 참조한다.
+6. **테스트 우선 검증 (TDD):** 구현 완료 후 반드시 자동화 테스트(`uv run pytest`)를 실행하여 `PASSED`를 확인한다. 테스트 실패 시 커밋하지 않는다.
+7. **결과보고서 작성 (`docs/reports/`):** 각 Task가 완료될 때마다 [docs/reports/](./reports/) 디렉터리에 커밋 단위 작업 결과보고서를 작성하고, `main_spec.md`의 Reports 색인을 갱신한다.
+8. **작업단위 원자적 커밋 (Atomic Commit):** 테스트 검증과 보고서 작성이 완료되면 관련 파일만 명시적으로 스테이징하여 Conventional Commit 규격으로 커밋한다.
 
 ---
 
