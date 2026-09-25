@@ -2,6 +2,8 @@
 
 > **Canonical Owner:** `docs/architecture/storage.md`  
 > **관련 문서:** [docs/domain/artifacts.md](../domain/artifacts.md), [docs/adr/003-storage-abstraction.md](../adr/003-storage-abstraction.md)
+>
+> **구현 상태:** 목표 인터페이스 예시입니다. 현재 저장소에는 `packages/storage` 구현이 없습니다.
 
 ---
 
@@ -36,7 +38,7 @@ outputs/{job_id}/
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import BinaryIO
-from packages.common.schemas.artifacts import ArtifactRef, ArtifactRole
+from musicsheet_common.schemas.artifacts import ArtifactRef, ArtifactRole
 
 class ArtifactStorage(ABC):
     @abstractmethod

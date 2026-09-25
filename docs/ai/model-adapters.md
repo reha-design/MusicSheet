@@ -2,6 +2,8 @@
 
 > **Canonical Owner:** `docs/ai/model-adapters.md`  
 > **관련 문서:** [docs/ai/separation.md](./separation.md), [docs/ai/transcription.md](./transcription.md)
+>
+> **구현 상태:** 목표 인터페이스 예시입니다. 현재 저장소에는 provider 구현 패키지가 없습니다.
 
 ---
 
@@ -28,9 +30,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
-from packages.common.schemas.notes import RawNoteEvent, PedalEvent
-from packages.common.schemas.beats import BeatGrid
-from packages.common.schemas.quality import SeparationQuality
+from musicsheet_common.schemas.note_events import RawNoteEvent, PedalEvent
+from musicsheet_common.schemas.beats import BeatGrid
+from musicsheet_common.schemas.quality import SeparationQuality
 
 # 1. Separator
 @dataclass
