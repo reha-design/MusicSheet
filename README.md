@@ -87,7 +87,7 @@ flowchart TD
 
 ### 1. 레포지토리 클론 및 Python 런타임 설치
 ```bash
-git clone https://github.com/your-org/MusicSheet.git
+git clone https://github.com/reha-design/MusicSheet.git
 cd MusicSheet
 
 # 메인(3.12) 및 레거시 모델용(3.10) 파이썬 자동 설치
@@ -188,6 +188,7 @@ AI Agent 및 개발자는 **[docs/main_spec.md](./docs/main_spec.md)**를 진입
 - **음원 분리 & Solo Bypass:** [docs/ai/separation.md](./docs/ai/separation.md)
 - **스마트 퀀타이즈 (비용함수):** [docs/ai/quantization.md](./docs/ai/quantization.md)
 - **Python 런타임 전략 (uv):** [docs/infrastructure/runtime.md](./docs/infrastructure/runtime.md)
+- **베이스라인 작업 결과보고서:** [docs/reports/baseline-execution-report.md](./docs/reports/baseline-execution-report.md)
 
 ---
 
