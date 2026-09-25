@@ -19,45 +19,41 @@
 
 ## 🏗️ 전체 시스템 아키텍처
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                      Next.js Frontend                       │
-│      (URL 입력 / 파일 업로드 / 실시간 SSE 진행률 / 악보 뷰어)     │
-└───────────────┬─────────────────────────────▲───────────────┘
-                │ POST /api/jobs              │ SSE Events
-                ▼                             │
-┌─────────────────────────────────────────────┴───────────────┐
-│                      FastAPI Gateway                        │
-│         (/health, /api/jobs, SSE Event Replayer)            │
-└───────────────┬─────────────────────────────┬───────────────┘
-                │                             │
-    상태 저장   │                             │ 작업 발행 및 이벤트 스트림
-                ▼                             ▼
-   ┌─────────────────────────┐   ┌────────────────────────────┐
-   │       PostgreSQL        │   │       Redis Streams        │
-   │  - jobs                 │   │  - celery_queue (CPU/GPU)  │
-   │  - stage_attempts       │   │  - job:{id}:events         │
-   │  - artifacts metadata   │   │    (Replayable Streams)    │
-   └─────────────────────────┘   └─────────────┬──────────────┘
-                                               │
-               ┌───────────────────────────────┴───────────────────────────────┐
-               ▼                                                               ▼
-┌─────────────────────────────┐                                 ┌─────────────────────────────┐
-│         CPU Worker          │                                 │         GPU Worker          │
-│ - yt-dlp (YouTube 다운로드)  │                                 │ - AudioSeparator (Demucs)   │
-│ - FFmpeg (Canonical/Resample)│                                │ - AMTProvider (ByteDance/   │
-│ - Beat/Tempo/Meter Tracking │                                 │   BasicPitch)               │
-│ - Smart Quantizer & music21 │                                 │ - Separation QC & Fallback  │
-│ - MuseScore CLI (PDF 렌더링) │                                 └──────────────┬──────────────┘
-└──────────────┬──────────────┘                                                │
-               │                                                               │
-               └───────────────────────────────┬───────────────────────────────┘
-                                               ▼
-                               ┌───────────────────────────────┐
-                               │        ArtifactStorage        │
-                               │   (LocalStorage / S3Storage)  │
-                               │        outputs/{job_id}/      │
-                               └───────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Client ["Client Layer"]
+        FE["Next.js Frontend<br/>(URL 입력 / 오디오 업로드 / 실시간 SSE 진행률 / 악보 뷰어)"]
+    end
+
+    subgraph Gateway ["Gateway Layer"]
+        API["FastAPI Gateway<br/>(/health, /api/v1/jobs, SSE Event Replayer)"]
+    end
+
+    subgraph StateQueue ["State & Event Streaming"]
+        DB[("PostgreSQL 16<br/>- jobs<br/>- stage_attempts<br/>- artifacts")]
+        REDIS[("Redis 7 Streams<br/>- celery_queue (CPU/GPU)<br/>- job:{id}:events")]
+    end
+
+    subgraph Workers ["Decoupled Worker Queues"]
+        CPU_W["CPU Worker<br/>- yt-dlp (YouTube 다운로드)<br/>- FFmpeg (Canonical/Resample)<br/>- Beat / Tempo / Meter Tracking<br/>- Smart Quantizer & music21<br/>- MuseScore CLI (PDF 렌더링)"]
+        GPU_W["GPU Worker (RTX 3060 12GB)<br/>- AudioSeparator (Demucs v4)<br/>- AMTProvider (ByteDance / BasicPitch)<br/>- Separation QC & Solo Bypass"]
+    end
+
+    subgraph Storage ["Storage Layer"]
+        STORAGE[("ArtifactStorage<br/>(LocalStorage / S3Storage)<br/>outputs/{job_id}/")]
+    end
+
+    FE -->|"1. POST /api/v1/jobs"| API
+    API -->|"2. 상태 영속화"| DB
+    API -->|"3. 작업 발행 & 이벤트 스트림"| REDIS
+    REDIS -.->|"SSE Events (Last-Event-ID)"| API
+    API -.->|"실시간 진행률 스트리밍"| FE
+
+    REDIS -->|"cpu_io_queue / cpu_render_queue"| CPU_W
+    REDIS -->|"gpu_ai_queue / legacy_amt_queue"| GPU_W
+
+    CPU_W -->|"중간 / 최종 아티팩트 저장"| STORAGE
+    GPU_W -->|"분리 오디오 / 전사 노트 저장"| STORAGE
 ```
 
 ---
