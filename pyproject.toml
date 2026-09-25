@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "AI-based audio source separation and automatic sheet music transcription system"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "musicsheet-common",
+]
 
 [dependency-groups]
 dev = [
@@ -12,7 +14,10 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = []
+members = ["packages/common"]
+
+[tool.uv.sources]
+musicsheet-common = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
