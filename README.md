@@ -3,6 +3,37 @@
 > **AI 기반 음원 분리 및 자동 악보 생성 시스템 (Audio-to-Score AI Pipeline)**  
 > YouTube URL 또는 오디오 파일을 입력받아, 대상 악기(피아노)를 분리하고 음표 단위로 정밀 전사하여 **출판급 PDF 악보, MusicXML, MIDI**를 자동 생성하는 엔지니어링 파이프라인.
 
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.10-3776AB?style=flat-square&logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=flat-square&logo=astral&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Celery](https://img.shields.io/badge/Celery-5.4+-37814A?style=flat-square&logo=celery&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7%20Streams-DC382D?style=flat-square&logo=redis&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-CUDA%2012.1-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose%20v2-2496ED?style=flat-square&logo=docker&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+
+</div>
+
+---
+
+## 🛠️ 기술 스택 (Tech Stack)
+
+| 영역 | 기술 스택 | 세부 구성 및 역할 |
+| :--- | :--- | :--- |
+| **언어 & 런타임** | **Python 3.12** (기본) / **3.10** (레거시 격리) | Astral `uv` 기반 초고속 멀티 런타임 및 의존성 격리 관리 |
+| **백엔드 API** | **FastAPI**, Pydantic v2 | 비동기 고성능 REST API 및 Replayable SSE 스트리밍 |
+| **작업 큐 & 메시징**| **Celery**, **Redis 7 Streams** | CPU/GPU 물리적 분리 큐, 멱등성 보장(`acks_late`), 이벤트 스트림 |
+| **데이터베이스** | **PostgreSQL 16** | 작업 상태 머신(`jobs`), 실행/재시도 이력(`stage_attempts`) 영속화 |
+| **음악 AI 모델** | **Demucs v4**, **ByteDance Piano AMT**, **Basic Pitch** | 6-Stem 음원 분리, 화음/벨로시티/페달 정밀 전사, 솔로 바이패스 |
+| **오디오 & 미디어** | **FFmpeg**, **yt-dlp**, **SoundFile** | YouTube 스트림 추출, 정규화(Canonical 44.1kHz), 파형 리샘플링 |
+| **음악이론 & 렌더링** | **music21**, **librosa 1.0+**, **MuseScore 4 CLI** | 동적 비트 그리드, 비용 함수 기반 퀀타이즈, 벡터 PDF 무인 렌더링 |
+| **프론트엔드** | **Next.js (App Router)**, Vanilla CSS, OSMD | 반응형 웹 UI, 실시간 SSE 프로그레스, 인터랙티브 악보 뷰어 |
+| **인프라 & 스토리지** | **Docker Compose**, LocalStorage ➔ S3 | 로컬 개발 인프라 컨테이너화 및 중간/최종 산출물 계층형 저장 |
+| **품질 & 테스트** | **pytest**, **Ruff** | TDD 기반 단위/통합 테스트 검증 및 정적 코드 분석 |
+
 ---
 
 ## 📌 주요 특징
@@ -55,20 +86,6 @@ flowchart TD
     CPU_W -->|"중간 / 최종 아티팩트 저장"| STORAGE
     GPU_W -->|"분리 오디오 / 전사 노트 저장"| STORAGE
 ```
-
----
-
-## 🛠️ 기술 스택 (Tech Stack)
-
-| 영역 | 기술 스택 | 설명 |
-| :--- | :--- | :--- |
-| **언어 & 런타임** | **Python 3.12** (기본) / **3.10** (레거시 격리) | Astral `uv` 멀티 런타임 패키지 관리 |
-| **백엔드 API** | **FastAPI**, Pydantic v2 | 비동기 고성능 REST API 및 SSE 엔드포인트 |
-| **작업 큐 & 오케스트레이션**| **Celery**, **Redis 7** (Streams + Broker) | CPU/GPU Worker 분리 큐, 멱등성 보장 (`acks_late`) |
-| **데이터베이스** | **PostgreSQL 16** | 작업 마스터(`jobs`), 재시도/실행 이력(`stage_attempts`) |
-| **음악 AI 모델** | **Demucs v4**, **ByteDance Piano AMT**, **Basic Pitch** | 음원 분리 및 고해상도 폴리포닉 전사 |
-| **음악이론 & 렌더링** | **music21**, **librosa 1.0+**, **MuseScore 4 CLI** | 비트 그리드, 비용 기반 퀀타이즈, 벡터 PDF 렌더링 |
-| **프론트엔드** | **Next.js (App Router)**, OSMD (확장 예정) | 반응형 웹 UI, 오디오 플레이어 및 악보 뷰어 |
 
 ---
 
