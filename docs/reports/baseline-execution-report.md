@@ -155,9 +155,11 @@
 
 ---
 
-## 5. 다음 마일스톤 제안 (Next Milestone)
+## 5. 다음 마일스톤 제안 (보고서 작성 당시 기록)
 
 초기 베이스라인 3단계가 100% 완결되었으므로, 다음 단계는 **서비스 및 어댑터 구현 계층**으로 진입합니다:
+
+이 절은 보고서 작성 당시의 제안 기록입니다. 현재 상태와 완료 기준은 [개발 작업목록](../roadmap.md)을 기준으로 확인합니다.
 
 1. **`packages/storage` 구현:**
    - [docs/architecture/storage.md](../architecture/storage.md)에 따른 `LocalStorage` 어댑터 구현 (`put`, `open_read`, `materialize`)

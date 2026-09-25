@@ -78,7 +78,7 @@ MusicSheet/
 
 ## 다음 개발 단계
 
-베이스라인 다음 단계는 [베이스라인 작업 보고서](docs/reports/baseline-execution-report.md)의 제안에 따라 LocalStorage와 API 헬스 체크를 구현하는 것입니다.
+현재 활성 작업과 완료 기준은 [개발 작업목록](docs/roadmap.md)에서 관리합니다.
 
 ## 라이선스
 

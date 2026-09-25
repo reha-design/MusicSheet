@@ -42,6 +42,9 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ## 3. Canonical Specs 인덱스
 
+### 개발 계획
+- **활성 작업목록:** [docs/roadmap.md](./roadmap.md)
+
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
   - 웹, API, DB, 큐, 워커의 전체 물리적 배치도 및 흐름
@@ -99,3 +102,4 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
 - [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)
 - [03: 문서 정합성 패치 보고서](./reports/documentation-alignment-report.md)
+- [04: 작업목록 문서 단일화 보고서](./reports/worklist-consolidation-report.md)
