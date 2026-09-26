@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.12 uv workspace, packages/common의 Pydantic 스키마, PostgreSQL·Redis용 Compose 설정, 기반 테스트가 있습니다. API, 스토리지 어댑터, Celery worker, AI provider, 프리페치 스크립트, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace, packages/common의 Pydantic 스키마, 스토리지 인터페이스와 LocalStorage 경로 resolver, PostgreSQL·Redis용 Compose 설정, 기반 테스트가 있습니다. 스토리지의 파일 입출력, API, Celery worker, AI provider, 프리페치 스크립트, 웹 앱은 아직 구현되지 않았습니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -41,6 +41,9 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 ---
 
 ## 3. Canonical Specs 인덱스
+
+### 개발 계획
+- **활성 작업목록:** [docs/roadmap.md](./roadmap.md)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -84,18 +87,21 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ### Infrastructure
 - **Python 런타임 전략:** [docs/infrastructure/runtime.md](./infrastructure/runtime.md)
-  - Python 3.12 단일 표준 런타임 및 `uv` 가이드
+  - Python 3.13 단일 표준 런타임 및 `uv` 가이드
 - **컨테이너 환경:** [docs/infrastructure/docker.md](./infrastructure/docker.md)
   - `docker-compose.yml` 및 로컬 개발용 서비스 구성
 - **헬스 체크 & 관측성:** [docs/infrastructure/health-check.md](./infrastructure/health-check.md)
   - `/health/live`, `/health/ready`, `/health/detail`, 가중치 사전 검증
 
 ### ADR (Architecture Decision Records)
-- [001: Python 3.12 단일 표준 런타임 채택](./adr/001-python-runtime.md)
+- [001: Python 3.12 단일 표준 런타임 채택 (ADR 004로 대체)](./adr/001-python-runtime.md)
 - [002: Replayable SSE를 위한 Redis Streams 채택](./adr/002-redis-streams.md)
 - [003: ArtifactRef 기반 Storage 추상화](./adr/003-storage-abstraction.md)
+- [004: Python 3.13 단일 표준 런타임 채택](./adr/004-python-313-runtime.md)
 
 ### Reports (작업 결과보고서)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
 - [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)
 - [03: 문서 정합성 패치 보고서](./reports/documentation-alignment-report.md)
+- [04: 작업목록 문서 단일화 보고서](./reports/worklist-consolidation-report.md)
+- [05: Python 3.13 런타임 전환 및 스토리지 패키지 기반 구현 보고서](./reports/python-313-and-storage-scaffold-report.md)
