@@ -1,6 +1,6 @@
 # LocalStorage 어댑터 함수 단위 점진적 구현 계획서
 
-> **문서 상태:** 계획 수립 완료 (진행 대기)  
+> **문서 상태:** 구현 완료 (Step 0–5, 전체 최종 리뷰 95/100)
 > **관련 사양:** [docs/architecture/storage.md](../architecture/storage.md), [docs/domain/artifacts.md](../domain/artifacts.md), [docs/roadmap.md](../roadmap.md)  
 > **진행 방식:** 한 번에 일괄 구현하지 않고, 함수 단위로 설계 ➔ 구현/TDD ➔ 사용자 코드 리뷰 ➔ 다음 함수 진행
 
@@ -74,6 +74,7 @@ flowchart TD
   - 대용량 오디오(WAV) 메모리 고갈 방지를 위해 64KB 청크 단위 스트리밍 복사
   - 실시간 SHA-256 해시 계산 및 파일 크기(`size_bytes`) 측정
   - MIME 타입 추론 및 `ArtifactRef` 객체 반환 (`id`는 UUID4 생성)
+  - 목적지 이름이 작업 폴더 안의 심볼릭 링크면 링크 대상이 작업 폴더 안인지 확인한 뒤 링크 이름을 원자적으로 교체하고, 대상 파일은 보존
 - **리뷰 포인트:** 스트리밍 I/O 안정성, 예외 처리, `ArtifactRef` 필드 무결성.
 
 ### Step 3: `LocalStorage.exists()` & `open_read()`
@@ -93,9 +94,10 @@ flowchart TD
   def materialize(self, artifact: ArtifactRef, temp_dir: Path) -> Path: ...
   ```
 - **구현 내용:**
-  - 로컬 파일시스템에 이미 파일이 존재하므로 디스크 I/O 최적화를 위해 원본 절대 경로 반환
-  - (옵션) `temp_dir`에 심볼릭 링크 생성 시도, 실패 시 원본 경로 반환하는 안전한 Fallback 적용
-- **리뷰 포인트:** Windows 권한 제약 대응 및 최적화 방식 확인.
+  - 저장소 URI·job ID·파일명 경계를 검증하고 원본 파일이 없으면 `FileNotFoundError` 발생
+  - `temp_dir` 아래에 충돌 없는 디렉터리와 파일 경로를 만들고, 원본을 가리키는 심볼릭 링크를 우선 사용
+  - Windows 권한 등으로 링크를 만들 수 없으면 `temp_dir`에 파일을 복사해 인터페이스 계약을 유지
+- **리뷰 포인트:** 임시 경로 격리, 파일명 안전성, symlink 실패 시 복사와 부분 파일 정리 확인.
 
 ### Step 5: 통합 테스트 & 결과보고서
 - `tests/unit/test_storage.py` 전체 테스트 스위트 구동 (`uv run pytest`)
