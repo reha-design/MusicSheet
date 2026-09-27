@@ -33,8 +33,8 @@ class ArtifactRef(BaseModel):
     mime_type: str
     size_bytes: int
     sha256: str                # 멱등성 및 무결성 검증용 해시
-    producer: str              # e.g., 'ByteDancePianoAMT'
-    producer_version: str
+    producer: str | None       # e.g., 'ByteDancePianoAMT'; nullable in PostgreSQL
+    producer_version: str | None
 ```
 
 `RAW_TRANSCRIPTION`은 provider provenance와 schema version, `RawNoteEvent[]`, `PedalEvent[]`를 담는 `TranscriptionResult` JSON envelope다. 저장 단계에서 기존 `CONTROL_EVENTS` artifact가 필요하면 해당 envelope의 pedal 목록을 별도 추출한다. 분리된 파일이 있더라도 envelope는 worker 결과의 검증 가능한 원본이다.

@@ -95,6 +95,24 @@ def test_artifact_ref_validation():
             producer_version="4.2",
         )
 
+
+def test_artifact_ref_accepts_null_producer_metadata():
+    artifact = ArtifactRef(
+        id="art-null-provenance",
+        job_id="job-123",
+        role=ArtifactRole.SOURCE_ORIGINAL,
+        filename="source.wav",
+        uri="file:///outputs/job-123/source.wav",
+        mime_type="audio/wav",
+        size_bytes=10,
+        sha256="a" * 64,
+        producer=None,
+        producer_version=None,
+    )
+
+    assert artifact.producer is None
+    assert artifact.producer_version is None
+
 # -------------------------------------------------------------
 # 3. Note Events & 3-Tier Hierarchy Tests
 # -------------------------------------------------------------

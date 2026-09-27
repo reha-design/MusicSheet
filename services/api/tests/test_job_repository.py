@@ -93,6 +93,31 @@ def test_create_job_preserves_null_target_instrument() -> None:
     assert connection.calls[0][1][-1] is None
 
 
+def test_create_job_accepts_preallocated_id_and_connection() -> None:
+    class NoAcquirePool:
+        def acquire(self) -> None:
+            raise AssertionError("a supplied transaction connection must be reused")
+
+    job_id = "22222222-2222-4222-8222-222222222222"
+    connection = FakeConnection({**ROW, "id": job_id})
+    repo = JobRepository(NoAcquirePool())  # type: ignore[arg-type]
+
+    record = asyncio.run(
+        repo.create_job(
+            source_type="UPLOAD",
+            source_url=None,
+            job_id=job_id,
+            connection=connection,  # type: ignore[arg-type]
+        )
+    )
+
+    assert record.id == job_id
+    query, args = connection.calls[0]
+    assert query.startswith("INSERT INTO jobs")
+    assert args[0] == job_id
+    assert args[2:5] == ("UPLOAD", None, "piano")
+
+
 def test_create_job_rejects_unknown_source_type() -> None:
     repo, connection = repository()
 

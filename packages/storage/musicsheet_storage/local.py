@@ -139,6 +139,35 @@ class LocalStorage(ArtifactStorage):
     def exists(self, artifact: ArtifactRef) -> bool:
         return self._resolve_artifact_path(artifact).is_file()
 
+    def delete(self, artifact: ArtifactRef) -> bool:
+        """Unlink only the artifact directory entry validated by its metadata."""
+        file_path = self._resolve_artifact_entry(artifact)
+        try:
+            file_path.unlink()
+        except FileNotFoundError:
+            return False
+        return True
+
+    def _resolve_artifact_entry(self, artifact: ArtifactRef) -> Path:
+        """Resolve and validate an artifact path without following its final link."""
+        parsed_uri = urlparse(artifact.uri)
+        if (
+            parsed_uri.scheme != "file"
+            or parsed_uri.netloc not in {"", "localhost"}
+            or parsed_uri.params
+            or parsed_uri.query
+            or parsed_uri.fragment
+        ):
+            raise ValueError("artifact URI must be a local file URI")
+
+        job_dir = self._resolve_job_dir(artifact.job_id, create=False)
+        filename = _validate_path_segment(artifact.filename, "filename")
+        expected_path = job_dir / filename
+        uri_path = Path(url2pathname(parsed_uri.path)).absolute()
+        if uri_path != expected_path.absolute():
+            raise ValueError("artifact URI does not match artifact job_id and filename")
+        return expected_path
+
     def materialize(self, artifact: ArtifactRef, temp_dir: Path) -> Path:
         """Create a temporary local path for tools that require a filesystem file."""
         file_path = self._resolve_artifact_path(artifact)
