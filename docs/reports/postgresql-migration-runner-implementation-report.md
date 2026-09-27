@@ -28,7 +28,8 @@
 | :--- | :--- | :--- |
 | TDD RED | `uv run --project services/api --python 3.13 pytest services/api/tests/test_migrations.py -q` | 테스트 수집 중 `ModuleNotFoundError: No module named 'musicsheet_api.migrations'`로 종료 코드 1. 구현 전 패키지 부재를 확인했습니다. |
 | TDD GREEN | 같은 명령 | 8 passed |
-| API 전체 테스트 | `uv run --project services/api --python 3.13 pytest -q` | 54 passed, 3 skipped, 4 deselected |
+| 저장소 루트 테스트 | `uv run --project services/api --python 3.13 pytest -q` (저장소 루트에서 실행) | 54 passed, 3 skipped, 4 deselected. 루트 `pyproject.toml`의 `testpaths = ["tests"]` 설정에 따라 API 테스트는 수집하지 않습니다. |
+| API 전체 테스트 | `uv run --project services/api --python 3.13 pytest services/api/tests -q` | 38 passed, StarletteDeprecationWarning 1건 |
 | 변경 검증 | `git diff --check` | 통과 |
 
 가짜 연결 테스트는 버전 정렬과 건너뛰기, 잠금 획득 순서, 단일 연결 사용, 트랜잭션 rollback, 실패 후 잠금 해제와 종료, CLI 오류 메시지의 비밀값 비노출을 검증합니다. 실DB 스키마 catalog와 재실행·동시성 검증은 계획의 Task 3 통합 테스트에서 수행합니다.
