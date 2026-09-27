@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -239,3 +241,126 @@ def test_separation_quality_and_solo_bypass():
 
     with pytest.raises(ValidationError):
         SeparationQuality(score=1.5)  # Invalid: > 1.0
+
+
+def _transcription_schema_types():
+    import musicsheet_common.schemas as schemas
+
+    assert hasattr(schemas, "ProviderMetadata"), "ProviderMetadata must be exported"
+    assert hasattr(schemas, "TranscriptionResult"), "TranscriptionResult must be exported"
+    return schemas.ProviderMetadata, schemas.TranscriptionResult
+
+
+def _valid_transcription_result_payload():
+    return {
+        "schema_version": 1,
+        "provider": {
+            "id": "spotify-basic-pitch",
+            "package_version": "0.4.0",
+            "source_commit": "0123456789abcdef0123456789abcdef01234567",
+            "model_asset": "nmp.onnx",
+            "supports_pedal": False,
+            "confidence_semantics": "uncalibrated_note_activation_mean",
+        },
+        "note_events": [
+            {
+                "note_id": "bp-000001",
+                "pitch": 60,
+                "onset_sec": 0.25,
+                "offset_sec": 0.5,
+                "activation": 0.7,
+                "velocity_prediction": None,
+                "amt_confidence": 0.7,
+                "source_chunk": None,
+            }
+        ],
+        "pedal_events": [],
+    }
+
+
+def test_transcription_result_accepts_v1_and_roundtrips_json():
+    _, TranscriptionResult = _transcription_schema_types()
+    payload = _valid_transcription_result_payload()
+
+    result = TranscriptionResult.model_validate(payload)
+
+    assert result.schema_version == 1
+    assert result.note_events[0].note_id == "bp-000001"
+    assert result.provider.confidence_semantics == "uncalibrated_note_activation_mean"
+    assert result.model_dump(mode="json") == payload
+    assert TranscriptionResult.model_validate_json(result.model_dump_json()) == result
+
+
+def test_transcription_result_rejects_unsupported_schema_version():
+    _, TranscriptionResult = _transcription_schema_types()
+    payload = _valid_transcription_result_payload()
+    payload["schema_version"] = 2
+
+    with pytest.raises(ValidationError):
+        TranscriptionResult.model_validate(payload)
+
+
+def test_transcription_result_rejects_boolean_schema_version():
+    _, TranscriptionResult = _transcription_schema_types()
+    payload = _valid_transcription_result_payload()
+    payload["schema_version"] = True
+
+    with pytest.raises(ValidationError):
+        TranscriptionResult.model_validate(payload)
+    with pytest.raises(ValidationError):
+        TranscriptionResult.model_validate_json(json.dumps(payload))
+
+
+def test_transcription_types_are_exported_from_package_root():
+    import musicsheet_common as common
+    import musicsheet_common.schemas as schemas
+
+    assert hasattr(common, "ProviderMetadata"), "ProviderMetadata must be a root export"
+    assert hasattr(common, "TranscriptionResult"), "TranscriptionResult must be a root export"
+    assert common.ProviderMetadata is schemas.ProviderMetadata
+    assert common.TranscriptionResult is schemas.TranscriptionResult
+
+
+def test_raw_note_event_rejects_offset_before_onset():
+    with pytest.raises(ValidationError):
+        RawNoteEvent(
+            note_id="n-reversed",
+            pitch=60,
+            onset_sec=1.0,
+            offset_sec=0.5,
+            amt_confidence=0.7,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("onset_sec", float("inf")),
+        ("offset_sec", float("inf")),
+        ("activation", float("nan")),
+        ("amt_confidence", float("nan")),
+    ],
+)
+def test_raw_note_event_rejects_non_finite_values(field, value):
+    payload = {
+        "note_id": "n-non-finite",
+        "pitch": 60,
+        "onset_sec": 1.0,
+        "offset_sec": 2.0,
+        "activation": 0.7,
+        "amt_confidence": 0.7,
+    }
+    payload[field] = value
+
+    with pytest.raises(ValidationError):
+        RawNoteEvent(**payload)
+
+
+def test_pedal_event_rejects_offset_before_onset():
+    with pytest.raises(ValidationError):
+        PedalEvent(onset_sec=1.0, offset_sec=0.5)
+
+
+def test_pedal_event_rejects_non_finite_values():
+    with pytest.raises(ValidationError):
+        PedalEvent(onset_sec=1.0, offset_sec=float("inf"))

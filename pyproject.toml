@@ -24,3 +24,5 @@ musicsheet-storage = { workspace = true }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+addopts = "-m 'not ml_integration'"
+markers = ["ml_integration: runs the isolated Basic Pitch model and requires its runtime"]

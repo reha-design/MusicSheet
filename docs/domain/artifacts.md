@@ -16,7 +16,7 @@ class ArtifactRole(str, Enum):
     CANONICAL_AUDIO = "CANONICAL_AUDIO"            # 44.1kHz Stereo 마스터 WAV
     MODEL_INPUT = "MODEL_INPUT"                    # 모델별 요구 규격 (16kHz, 22.05kHz Mono)
     SEPARATED_AUDIO = "SEPARATED_AUDIO"            # 분리된 피아노 오디오
-    RAW_TRANSCRIPTION = "RAW_TRANSCRIPTION"        # RawNoteEvent[] JSON
+    RAW_TRANSCRIPTION = "RAW_TRANSCRIPTION"        # versioned TranscriptionResult JSON (provider metadata + RawNoteEvent[])
     CLEANED_TRANSCRIPTION = "CLEANED_TRANSCRIPTION"# CleanNoteEvent[] JSON
     QUANTIZED_SCORE = "QUANTIZED_SCORE"            # ScoreNote[] JSON
     CONTROL_EVENTS = "CONTROL_EVENTS"              # PedalEvent[] JSON
@@ -36,6 +36,8 @@ class ArtifactRef(BaseModel):
     producer: str              # e.g., 'ByteDancePianoAMT'
     producer_version: str
 ```
+
+`RAW_TRANSCRIPTION`은 provider provenance와 schema version, `RawNoteEvent[]`, `PedalEvent[]`를 담는 `TranscriptionResult` JSON envelope다. 저장 단계에서 기존 `CONTROL_EVENTS` artifact가 필요하면 해당 envelope의 pedal 목록을 별도 추출한다. 분리된 파일이 있더라도 envelope는 worker 결과의 검증 가능한 원본이다.
 
 ---
 

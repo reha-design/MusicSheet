@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/architecture/storage.md`  
 > **관련 문서:** [docs/domain/artifacts.md](../domain/artifacts.md), [docs/adr/003-storage-abstraction.md](../adr/003-storage-abstraction.md)
 >
-> **구현 상태:** 목표 인터페이스 예시입니다. 현재 저장소에는 `packages/storage` 구현이 없습니다.
+> **구현 상태:** `packages/storage`에 `ArtifactStorage`와 `LocalStorage`가 구현되어 있습니다. 로컬 `put`, `open_read`, `exists`, `materialize`를 지원하며 S3 어댑터는 미구현입니다.
 
 ---
 
@@ -18,7 +18,7 @@ outputs/{job_id}/
 ├── separator_input.wav        # Demucs 입력 (44.1kHz Stereo)
 ├── separated_piano.wav        # 분리된 피아노 오디오 (Bypass 시 canonical 링크)
 ├── amt_16k_mono.wav           # ByteDance 모델용 16kHz Mono 오디오
-├── raw_notes.json             # AMT 순수 출력 (RawNoteEvent[])
+├── raw_transcription.json     # 버전 있는 AMT 결과 envelope (provider metadata + RawNoteEvent[])
 ├── cleaned_notes.json         # Dynamic Filter/QC 완료된 CleanNoteEvent[]
 ├── quantized_score.json       # Beat/Bar/Staff/Voice 매핑된 ScoreNote[]
 ├── control_events.json        # Sustain Pedal (CC64) 등 ControlEvent[]
@@ -27,6 +27,8 @@ outputs/{job_id}/
 ├── result.pdf                 # MuseScore 렌더링 벡터 PDF 악보
 └── manifest.json              # 전체 처리 시간, 모델 정보, Quality Score 리포트
 ```
+
+`raw_transcription.json`은 `TranscriptionResult` envelope이며 note와 pedal 이벤트를 함께 보존한다. 저장소가 `CONTROL_EVENTS` 역할의 별도 파일을 만들면 envelope의 pedal 목록에서 파생한다.
 
 ---
 

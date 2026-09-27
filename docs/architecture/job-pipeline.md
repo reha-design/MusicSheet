@@ -45,6 +45,8 @@ GPU(RTX 3060 12GB)가 YouTube 다운로드나 PDF 렌더링 같은 CPU/Network �
 | `gpu_ai_queue` | `separate_audio`, `transcribe_amt` (ByteDance / Basic Pitch) | 1 | CUDA VRAM (최대 12GB 안전 한도 유지) |
 | `cpu_render_queue` | `quantize_and_score`, `render_pdf` | 2~4 | CPU Multi-core, 메모리 |
 
+큐는 작업의 논리적 라우팅과 자원 동시성 정책을 나타내며 Python 환경을 결정하지 않는다. 큐를 처리하는 backend consumer는 검증된 in-process provider를 호출하거나, 다른 런타임이 필요한 모델의 독립 worker를 프로세스 계약으로 실행한다. 모델 package를 Python 3.13 backend에 설치하는 것은 해당 조합을 검증한 뒤에만 허용한다.
+
 ---
 
 ## 3. 멱등성 및 장애 복구 원칙

@@ -6,6 +6,7 @@ from musicsheet_common.schemas.note_events import (
     CleanNoteEvent,
     PedalEvent,
 )
+from musicsheet_common.schemas.transcription_result import ProviderMetadata, TranscriptionResult
 from musicsheet_common.schemas.score_model import ScoreNote
 from musicsheet_common.schemas.beats import TempoEvent, MeterEvent, BeatGrid
 from musicsheet_common.schemas.quality import SeparationQuality
@@ -20,6 +21,8 @@ __all__ = [
     "ConfidenceScores",
     "CleanNoteEvent",
     "PedalEvent",
+    "ProviderMetadata",
+    "TranscriptionResult",
     "ScoreNote",
     "TempoEvent",
     "MeterEvent",

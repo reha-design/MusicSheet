@@ -67,6 +67,12 @@ tmp/
 *.midi
 *.musicxml
 
+# The licensed Basic Pitch smoke fixture is intentionally checked in.
+!tests/fixtures/audio/
+tests/fixtures/audio/*
+!tests/fixtures/audio/README.md
+!tests/fixtures/audio/basic_pitch_smoke.wav
+
 # ==========================================
 # Node.js & Next.js (Frontend)
 # ==========================================

@@ -14,10 +14,12 @@ from musicsheet_common.schemas import (
     MeterEvent,
     PedalEvent,
     PipelineStage,
+    ProviderMetadata,
     RawNoteEvent,
     ScoreNote,
     SeparationQuality,
     TempoEvent,
+    TranscriptionResult,
 )
 
 __version__ = "0.1.0"
@@ -33,8 +35,10 @@ __all__ = [
     "MeterEvent",
     "PedalEvent",
     "PipelineStage",
+    "ProviderMetadata",
     "RawNoteEvent",
     "ScoreNote",
     "SeparationQuality",
     "TempoEvent",
+    "TranscriptionResult",
 ]

@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace, packages/common의 Pydantic 스키마, 스토리지 인터페이스와 LocalStorage 경로 resolver, PostgreSQL·Redis용 Compose 설정, 기반 테스트가 있습니다. 스토리지의 파일 입출력, API, Celery worker, AI provider, 프리페치 스크립트, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. S3 스토리지, API, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -44,6 +44,9 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ### 개발 계획
 - **활성 작업목록:** [docs/roadmap.md](./roadmap.md)
+- **저장소 및 uv 실행환경 구조 결정:** [모노레포 + 독립 uv 프로젝트](./plans/repository-and-uv-environment-structure-plan.md)
+- **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
+- **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -98,6 +101,7 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [002: Replayable SSE를 위한 Redis Streams 채택](./adr/002-redis-streams.md)
 - [003: ArtifactRef 기반 Storage 추상화](./adr/003-storage-abstraction.md)
 - [004: Python 3.13 단일 표준 런타임 채택](./adr/004-python-313-runtime.md)
+- [005: Basic Pitch worker 전용 Python 3.12 예외 (승인됨, PoC smoke 검증 완료)](./adr/005-basic-pitch-python-312-exception.md)
 
 ### Reports (작업 결과보고서)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
@@ -105,3 +109,11 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [03: 문서 정합성 패치 보고서](./reports/documentation-alignment-report.md)
 - [04: 작업목록 문서 단일화 보고서](./reports/worklist-consolidation-report.md)
 - [05: Python 3.13 런타임 전환 및 스토리지 패키지 기반 구현 보고서](./reports/python-313-and-storage-scaffold-report.md)
+- [06: Basic Pitch 평가 및 Python 3.13 호환성 보고서](./reports/basic-pitch-python-313-compatibility-report.md)
+- [07: Basic Pitch Python 3.12 예외 ADR 제안 보고서](./reports/basic-pitch-runtime-exception-report.md)
+- [08: TranscriptionResult 계약 구현 보고서](./reports/transcription-result-contract-report.md)
+- [09: Basic Pitch worker Python 3.12 독립 환경 구성 보고서](./reports/basic-pitch-worker-environment-report.md)
+- [10: Basic Pitch 입력 WAV 검사 및 note event 매핑 보고서](./reports/basic-pitch-audio-mapping-report.md)
+- [11: Basic Pitch inference adapter 및 CLI 보고서](./reports/basic-pitch-cli-report.md)
+- [12: Basic Pitch worker 실제 추론 smoke 보고서](./reports/basic-pitch-worker-smoke-report.md)
+- [13: LocalStorage 아티팩트 어댑터 구현 보고서](./reports/local-storage-implementation-report.md)
