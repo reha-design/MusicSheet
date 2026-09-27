@@ -49,19 +49,27 @@ class JobRepository:
         source_url: str | None,
         user_id: str | None = None,
         target_instrument: str | None = "piano",
+        job_id: str | None = None,
+        connection: asyncpg.Connection | None = None,
     ) -> JobRecord:
         if source_type not in ("YOUTUBE", "UPLOAD"):
             raise ValueError("source_type must be YOUTUBE or UPLOAD")
-        async with self._pool.acquire() as connection:
-            row = await connection.fetchrow(
-                f"INSERT INTO jobs (id, user_id, source_type, source_url, target_instrument) "
-                f"VALUES ($1, $2, $3, $4, $5) RETURNING {_COLUMNS}",
-                str(uuid4()),
-                user_id,
-                source_type,
-                source_url,
-                target_instrument,
-            )
+        values = (
+            job_id or str(uuid4()),
+            user_id,
+            source_type,
+            source_url,
+            target_instrument,
+        )
+        query = (
+            f"INSERT INTO jobs (id, user_id, source_type, source_url, target_instrument) "
+            f"VALUES ($1, $2, $3, $4, $5) RETURNING {_COLUMNS}"
+        )
+        if connection is None:
+            async with self._pool.acquire() as acquired_connection:
+                row = await acquired_connection.fetchrow(query, *values)
+        else:
+            row = await connection.fetchrow(query, *values)
         return _record(row)
 
     async def get_job(self, job_id: str) -> JobRecord | None:

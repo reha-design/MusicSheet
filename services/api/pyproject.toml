@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "musicsheet-common",
     "musicsheet-storage",
+    "python-multipart>=0.0.32",
     "redis>=8.1.0",
     "uvicorn>=0.54.0",
 ]

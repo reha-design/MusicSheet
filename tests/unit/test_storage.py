@@ -15,6 +15,7 @@ def test_storage_scaffold_and_base_interface() -> None:
         "open_read",
         "exists",
         "materialize",
+        "delete",
     }
     with pytest.raises(TypeError):
         ArtifactStorage()
@@ -384,6 +385,115 @@ def test_local_storage_read_of_unknown_artifact_does_not_create_job_directory(
     with pytest.raises(FileNotFoundError):
         storage.open_read(artifact)
     assert not missing_job_dir.exists()
+
+
+def test_delete_removes_matching_artifact(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = storage.put(
+        "job-delete-001",
+        "source.wav",
+        ArtifactRole.SOURCE_ORIGINAL,
+        io.BytesIO(b"audio"),
+        "api-upload",
+        "1.0",
+    )
+
+    assert storage.delete(artifact) is True
+    assert not (tmp_path / "outputs" / "job-delete-001" / "source.wav").exists()
+
+
+def test_delete_missing_artifact_is_idempotent(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = storage.put(
+        "job-delete-002",
+        "source.wav",
+        ArtifactRole.SOURCE_ORIGINAL,
+        io.BytesIO(b"audio"),
+        "api-upload",
+        "1.0",
+    )
+    (tmp_path / "outputs" / "job-delete-002" / "source.wav").unlink()
+
+    assert storage.delete(artifact) is False
+
+
+def test_delete_rejects_forged_uri_outside_storage_root(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = storage.put(
+        "job-delete-003",
+        "source.wav",
+        ArtifactRole.SOURCE_ORIGINAL,
+        io.BytesIO(b"audio"),
+        "api-upload",
+        "1.0",
+    )
+    outside_file = tmp_path / "private.wav"
+    outside_file.write_bytes(b"private")
+    forged = artifact.model_copy(update={"uri": outside_file.as_uri()})
+
+    with pytest.raises(ValueError):
+        storage.delete(forged)
+    assert outside_file.read_bytes() == b"private"
+
+
+def test_delete_rejects_uri_for_different_job_or_filename(tmp_path: Path) -> None:
+    base_dir = tmp_path / "outputs"
+    storage = LocalStorage(base_dir)
+    artifact = storage.put(
+        "job-delete-004",
+        "source.wav",
+        ArtifactRole.SOURCE_ORIGINAL,
+        io.BytesIO(b"audio"),
+        "api-upload",
+        "1.0",
+    )
+    other = storage.put(
+        "job-delete-005",
+        "other.wav",
+        ArtifactRole.SOURCE_ORIGINAL,
+        io.BytesIO(b"other"),
+        "api-upload",
+        "1.0",
+    )
+    wrong_job = artifact.model_copy(update={"uri": other.uri})
+    wrong_name = artifact.model_copy(update={"filename": "other.wav"})
+
+    with pytest.raises(ValueError):
+        storage.delete(wrong_job)
+    with pytest.raises(ValueError):
+        storage.delete(wrong_name)
+    assert (base_dir / "job-delete-004" / "source.wav").read_bytes() == b"audio"
+    assert (base_dir / "job-delete-005" / "other.wav").read_bytes() == b"other"
+
+
+def test_delete_unlinks_in_job_symlink_without_deleting_target(tmp_path: Path) -> None:
+    base_dir = tmp_path / "outputs"
+    job_dir = base_dir / "job-delete-006"
+    job_dir.mkdir(parents=True)
+    target_file = tmp_path / "private-target.wav"
+    target_file.write_bytes(b"private target")
+    symlink = job_dir / "source.wav"
+    try:
+        symlink.symlink_to(target_file)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"file symlinks are unavailable: {error}")
+
+    artifact = ArtifactRef(
+        id="artifact-delete-006",
+        job_id="job-delete-006",
+        role=ArtifactRole.SOURCE_ORIGINAL,
+        filename="source.wav",
+        uri=symlink.as_uri(),
+        mime_type="audio/wav",
+        size_bytes=14,
+        sha256=hashlib.sha256(b"private target").hexdigest(),
+        producer="api-upload",
+        producer_version="1.0",
+    )
+
+    assert LocalStorage(base_dir).delete(artifact) is True
+    assert not symlink.is_symlink()
+    assert target_file.read_bytes() == b"private target"
 
 
 def test_local_storage_materialize_creates_path_under_temp_directory(

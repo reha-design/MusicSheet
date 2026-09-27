@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/architecture/storage.md`  
 > **관련 문서:** [docs/domain/artifacts.md](../domain/artifacts.md), [docs/adr/003-storage-abstraction.md](../adr/003-storage-abstraction.md)
 >
-> **구현 상태:** `packages/storage`에 `ArtifactStorage`와 `LocalStorage`가 구현되어 있습니다. 로컬 `put`, `open_read`, `exists`, `materialize`를 지원하며 S3 어댑터는 미구현입니다.
+> **구현 상태:** `packages/storage`에 `ArtifactStorage`와 `LocalStorage`가 구현되어 있습니다. 로컬 `put`, `open_read`, `exists`, `delete`, `materialize`를 지원하며 S3 어댑터는 미구현입니다.
 
 ---
 
@@ -67,6 +67,11 @@ class ArtifactStorage(ABC):
         pass
 
     @abstractmethod
+    def delete(self, artifact: ArtifactRef) -> bool:
+        """아티팩트 항목을 삭제하고, 이미 없으면 False를 반환한다."""
+        pass
+
+    @abstractmethod
     def materialize(self, artifact: ArtifactRef, temp_dir: Path) -> Path:
         """
         CLI 기반 도구(FFmpeg, MuseScore)가 로컬 물리 파일 경로를 요구할 때
@@ -74,3 +79,5 @@ class ArtifactStorage(ABC):
         """
         pass
 ```
+
+`delete`는 `ArtifactRef`의 job ID, filename, URI가 가리키는 저장소 항목만 제거한다. 로컬 구현은 파일 심볼릭 링크가 있더라도 링크 대상이 아니라 해당 링크 디렉터리 항목만 해제한다. 이미 사라진 아티팩트는 `False`를 반환해 보상 정리를 멱등하게 수행할 수 있다.

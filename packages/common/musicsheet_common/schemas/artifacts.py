@@ -23,5 +23,5 @@ class ArtifactRef(BaseModel):
     mime_type: str
     size_bytes: int = Field(..., ge=0)
     sha256: str = Field(..., min_length=64, max_length=64, description="SHA-256 해시 (64자)")
-    producer: str
-    producer_version: str
+    producer: str | None
+    producer_version: str | None

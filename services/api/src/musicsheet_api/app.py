@@ -18,7 +18,9 @@ from musicsheet_api.health import (
     HealthCheckProvider,
     ReadinessChecks,
 )
+from musicsheet_api.jobs.upload_body_limit import UploadBodyLimitMiddleware
 from musicsheet_api.jobs.router import router as jobs_router
+from musicsheet_storage import LocalStorage
 
 
 def create_app(
@@ -67,11 +69,16 @@ def create_app(
                         pass
 
     app = FastAPI(title="MusicSheet API", lifespan=lifespan)
+    app.add_middleware(
+        UploadBodyLimitMiddleware,
+        max_body_bytes=resolved_settings.max_upload_bytes + 64 * 1024,
+    )
     app.state.settings = resolved_settings
     app.state.health_checks = health_checks
     app.state.diagnostics_checks = resolved_diagnostics
     app.state.redis_client = None
     app.state.db_pool = None
+    app.state.storage = LocalStorage(resolved_settings.local_storage_dir)
     app.include_router(jobs_router)
 
     @app.exception_handler(RequestValidationError)

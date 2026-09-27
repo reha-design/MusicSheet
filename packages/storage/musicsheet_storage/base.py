@@ -31,5 +31,9 @@ class ArtifactStorage(ABC):
         """Return whether the referenced artifact exists."""
 
     @abstractmethod
+    def delete(self, artifact: ArtifactRef) -> bool:
+        """Delete the referenced artifact entry; return false if it is missing."""
+
+    @abstractmethod
     def materialize(self, artifact: ArtifactRef, temp_dir: Path) -> Path:
         """Return a local filesystem path usable by external tools."""
