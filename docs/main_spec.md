@@ -121,3 +121,4 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [13: LocalStorage 아티팩트 어댑터 구현 보고서](./reports/local-storage-implementation-report.md)
 - [14: FastAPI 헬스 체크 구현 보고서](./reports/fastapi-health-check-implementation-report.md)
 - [15: PostgreSQL 마이그레이션 러너 구현 보고서](./reports/postgresql-migration-runner-implementation-report.md)
+- [16: PostgreSQL API 풀 및 작업 저장소 구현 보고서](./reports/postgresql-api-pool-job-repository-implementation-report.md)
