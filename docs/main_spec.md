@@ -2,7 +2,7 @@
 
 이 문서는 MusicSheet 프로젝트 스펙의 **진입점(Router)**이자 **AI Agent 작업 규약(Agent Contract)**이다.
 
-AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 작업과 관련된 세부 Canonical Spec(2~4개)만 선택적으로 로드**하여 작업한다.
+AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](./roadmap.md)을 확인하고, **현재 작업과 관련된 세부 Canonical Spec(2~4개)만 선택적으로 로드**한다. 토큰 사용을 줄이기 위해 전체 backlog는 다음 작업 선택 때만, 완료 색인은 이력 확인 때만 읽는다.
 
 ## 현재 구현 상태와 사양의 범위
 
@@ -15,13 +15,14 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 ## 1. Agent Instructions & 작업 규약
 
 1. **단일 진입점:** 모든 에이전트 작업은 `docs/main_spec.md`에서 시작한다.
-2. **Context Routing:** 전체 문서를 한꺼번에 로드하지 않고, [Agent Routing Rules](#2-agent-routing-rules)에 따라 필요한 Canonical Spec만 읽는다.
-3. **Spec 우선 원칙:** 코드와 Spec이 충돌할 경우 Spec을 단일 진실 소스(Single Source of Truth)로 인정한다.
-4. **선 Spec 갱신, 후 구현:** 아키텍처나 스키마 변경이 필요한 경우, 코드를 수정하기 전에 관련 Spec 문서를 먼저 갱신한다.
-5. **단일 책임(Canonical Owner):** 하나의 규칙은 오직 하나의 문서에만 상세 정의하며, 다른 문서에서는 링크로 참조한다.
-6. **테스트 우선 검증 (TDD):** 구현 완료 후 반드시 자동화 테스트(`uv run pytest`)를 실행하여 `PASSED`를 확인한다. 테스트 실패 시 커밋하지 않는다.
-7. **결과보고서 작성 (`docs/reports/`):** 각 Task가 완료될 때마다 [docs/reports/](./reports/) 디렉터리에 커밋 단위 작업 결과보고서를 작성하고, `main_spec.md`의 Reports 색인을 갱신한다.
-8. **작업단위 원자적 커밋 (Atomic Commit):** 테스트 검증과 보고서 작성이 완료되면 관련 파일만 명시적으로 스테이징하여 Conventional Commit 규격으로 커밋한다.
+2. **작업 현황:** [docs/roadmap.md](./roadmap.md)에서 진행 중인 작업과 다음 후보를 확인한다. backlog는 다음 작업을 선택할 때만 읽고, 완료 색인은 과거 결과 확인이 필요할 때만 읽는다.
+3. **Context Routing:** 전체 문서를 한꺼번에 로드하지 않고, [Agent Routing Rules](#2-agent-routing-rules)에 따라 필요한 Canonical Spec만 읽는다.
+4. **Spec 우선 원칙:** 코드와 Spec이 충돌할 경우 Spec을 단일 진실 소스(Single Source of Truth)로 인정한다.
+5. **선 Spec 갱신, 후 구현:** 아키텍처나 스키마 변경이 필요한 경우, 코드를 수정하기 전에 관련 Spec 문서를 먼저 갱신한다.
+6. **단일 책임(Canonical Owner):** 하나의 규칙은 오직 하나의 문서에만 상세 정의하며, 다른 문서에서는 링크로 참조한다.
+7. **테스트 우선 검증 (TDD):** 구현 완료 후 반드시 자동화 테스트(`uv run pytest`)를 실행하여 `PASSED`를 확인한다. 테스트 실패 시 커밋하지 않는다.
+8. **결과보고서 작성 (`docs/reports/`):** 각 Task가 완료될 때마다 [docs/reports/](./reports/) 디렉터리에 커밋 단위 작업 결과보고서를 작성하고, `main_spec.md`의 Reports 색인을 갱신한다.
+9. **작업단위 원자적 커밋 (Atomic Commit):** 테스트 검증과 보고서 작성이 완료되면 관련 파일만 명시적으로 스테이징하여 Conventional Commit 규격으로 커밋한다.
 
 ---
 
@@ -43,10 +44,14 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 ## 3. Canonical Specs 인덱스
 
 ### 개발 계획
-- **활성 작업목록:** [docs/roadmap.md](./roadmap.md)
+- **현재 작업 및 다음 후보:** [docs/roadmap.md](./roadmap.md)
+- **남은 작업 전체:** [docs/backlog.md](./backlog.md) (다음 작업 선택 시에만 로드)
+- **완료 작업 색인:** [docs/completed-work.md](./completed-work.md) (이력 확인 시에만 로드)
 - **저장소 및 uv 실행환경 구조 결정:** [모노레포 + 독립 uv 프로젝트](./plans/repository-and-uv-environment-structure-plan.md)
 - **FastAPI 헬스 체크 구현 계획:** [독립 API 환경, readiness probes, host diagnostics](./plans/fastapi-health-check-implementation-plan.md)
 - **PostgreSQL 작업 영속성 구현 계획:** [버전 migration, API DB pool, job repository](./plans/postgresql-job-persistence-implementation-plan.md)
+- **Job REST API v1 구현 계획:** [YouTube/업로드 등록, 조회·취소, 아티팩트 API](./plans/job-rest-api-v1-implementation-plan.md) (계획 독립 리뷰 97/100 통과)
+- **Job REST API v1 설계:** [등록과 처리 경계, 요청·데이터 흐름](./superpowers/specs/2026-09-27-job-rest-api-v1-design.md)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
@@ -123,3 +128,4 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [15: PostgreSQL 마이그레이션 러너 구현 보고서](./reports/postgresql-migration-runner-implementation-report.md)
 - [16: PostgreSQL API 풀 및 작업 저장소 구현 보고서](./reports/postgresql-api-pool-job-repository-implementation-report.md)
 - [17: PostgreSQL 작업 영속성 통합 검증 보고서](./reports/postgresql-job-persistence-implementation-report.md)
+- [18: YouTube 작업 등록 및 상태 조회 API 보고서](./reports/job-api-youtube-registration-report.md)
