@@ -92,7 +92,7 @@ class JobRepository:
                 "stage_progress = $4, overall_progress = $5, "
                 "error_code = $6, error_message = $7, "
                 "updated_at = CURRENT_TIMESTAMP, "
-                "completed_at = CASE WHEN $2 IN ('COMPLETED', 'FAILED', 'CANCELED') "
+                "completed_at = CASE WHEN $2::VARCHAR(20) IN ('COMPLETED', 'FAILED', 'CANCELED') "
                 "THEN CURRENT_TIMESTAMP ELSE NULL END "
                 f"WHERE id = $1 RETURNING {_COLUMNS}",
                 job_id,

@@ -19,6 +19,34 @@ uv run --locked --python 3.13 musicsheet-api
 
 The server listens on `127.0.0.1:8000`. `DATABASE_URL` and `REDIS_URL` may be omitted while developing; the API still starts, liveness remains healthy, and readiness reports unavailable dependencies. `LOCAL_STORAGE_DIR` defaults to `outputs`, resolved from the API process working directory. Relative values are resolved from that same directory.
 
+## PostgreSQL job persistence
+
+Start the Compose PostgreSQL service and set `DATABASE_URL` to the target database. From `services/api`, apply the versioned schema explicitly before using the repository:
+
+```powershell
+docker compose -f ../../docker/docker-compose.yml up -d postgres
+$env:DATABASE_URL = "postgresql://musicsheet_user:<password>@localhost:5432/musicsheet"
+uv run --locked --python 3.13 musicsheet-migrate
+```
+
+The command applies migration version 1 (`jobs`, `stage_attempts`, and `artifacts`) and records it in `schema_migrations`. Repeating the command skips recorded versions. Migration DDL and its ledger entry commit together, and concurrent commands serialize through a PostgreSQL advisory lock. The CLI prints applied/current versions on success and a generic failure message on error; it does not print the connection URL, host, credentials, or raw driver exception. Replace `<password>` with the local Compose password from your configuration.
+
+The API opens an optional database pool at startup when `DATABASE_URL` is set. If the URL is missing or PostgreSQL is unavailable, startup and `/health/live` still work; `app.state.db_pool` is `None`. An opened pool closes on shutdown. Schema migrations are never run during API startup. `JobRepository` currently supports job creation, lookup, and progress updates with shared status/stage enums. It does not expose job REST endpoints, stage-attempt/artifact writes, or pipeline dispatch.
+
+### Opt-in live integration tests
+
+The integration suite resets `public` before each database behavior test. It runs only when `MUSICSHEET_TEST_DATABASE_URL` is set, and checks on PostgreSQL that the connected database is exactly `musicsheet_test` with database comment `MUSICSHEET_DISPOSABLE_TEST_DB_V1` before any reset. Never point this variable at an application database. From the repository root, create and mark the disposable database once, then run:
+
+```powershell
+docker compose -f docker/docker-compose.yml up -d postgres
+docker exec musicsheet_postgres psql -U musicsheet_user -d postgres -c "CREATE DATABASE musicsheet_test"
+docker exec musicsheet_postgres psql -U musicsheet_user -d postgres -c "COMMENT ON DATABASE musicsheet_test IS 'MUSICSHEET_DISPOSABLE_TEST_DB_V1'"
+$env:MUSICSHEET_TEST_DATABASE_URL = "postgresql://musicsheet_user:<password>@localhost:5432/musicsheet_test"
+uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_postgres_persistence.py -q
+```
+
+The `CREATE DATABASE` command is needed only if the database does not already exist. An unset test URL skips these tests. A wrong database name or missing/wrong marker fails the guard without a schema reset.
+
 ## Health endpoints
 
 ### `GET /health/live`

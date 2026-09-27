@@ -30,3 +30,6 @@ dev = [
 [tool.uv.sources]
 musicsheet-common = { path = "../../packages/common", editable = true }
 musicsheet-storage = { path = "../../packages/storage", editable = true }
+
+[tool.pytest.ini_options]
+markers = ["integration: requires marked disposable PostgreSQL database"]

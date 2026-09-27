@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint가 구현되어 있습니다. S3 스토리지, job REST/SSE API, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률 갱신 저장소가 구현되어 있습니다. S3 스토리지, job REST/SSE API, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -122,3 +122,4 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - [14: FastAPI 헬스 체크 구현 보고서](./reports/fastapi-health-check-implementation-report.md)
 - [15: PostgreSQL 마이그레이션 러너 구현 보고서](./reports/postgresql-migration-runner-implementation-report.md)
 - [16: PostgreSQL API 풀 및 작업 저장소 구현 보고서](./reports/postgresql-api-pool-job-repository-implementation-report.md)
+- [17: PostgreSQL 작업 영속성 통합 검증 보고서](./reports/postgresql-job-persistence-implementation-report.md)
