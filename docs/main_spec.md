@@ -46,6 +46,7 @@ AI Agent는 작업 시작 시 반드시 이 문서를 먼저 읽고, **현재 �
 - **활성 작업목록:** [docs/roadmap.md](./roadmap.md)
 - **저장소 및 uv 실행환경 구조 결정:** [모노레포 + 독립 uv 프로젝트](./plans/repository-and-uv-environment-structure-plan.md)
 - **FastAPI 헬스 체크 구현 계획:** [독립 API 환경, readiness probes, host diagnostics](./plans/fastapi-health-check-implementation-plan.md)
+- **PostgreSQL 작업 영속성 구현 계획:** [버전 migration, API DB pool, job repository](./plans/postgresql-job-persistence-implementation-plan.md)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
