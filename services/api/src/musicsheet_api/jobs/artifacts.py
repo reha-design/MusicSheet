@@ -33,7 +33,7 @@ class ArtifactRecord:
 
 
 def _record(row: Mapping[str, Any]) -> ArtifactRecord:
-        return ArtifactRecord(
+    return ArtifactRecord(
         id=row["id"],
         job_id=row["job_id"],
         role=ArtifactRole(row["role"]),

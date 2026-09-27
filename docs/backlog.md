@@ -4,7 +4,7 @@
 
 ## W02: Redis Streams SSE
 
-상태: `Planned` · 권장 선행 작업: W01
+상태: `Planned` · 권장 선행 작업: W01 완료
 
 완료 기준: 작업 진행 이벤트를 Redis Streams에 기록하고, SSE 구독과 `Last-Event-ID` 기반 재연결·이벤트 복원을 검증합니다.
 

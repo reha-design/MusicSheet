@@ -14,6 +14,7 @@ import pytest
 from musicsheet_api.app import create_app
 from musicsheet_api.config import Settings
 from musicsheet_api.jobs.uploads import create_upload_job
+from musicsheet_common import ArtifactRef, ArtifactRole
 from musicsheet_storage import LocalStorage
 
 
@@ -109,6 +110,81 @@ class FakePool:
     def acquire(self) -> FakeAcquire:
         self.acquire_calls += 1
         return FakeAcquire(self.connection)
+
+
+class ArtifactReadConnection:
+    def __init__(
+        self,
+        *,
+        job_exists: bool = True,
+        artifacts: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self.job_exists = job_exists
+        self.artifacts = artifacts or []
+        self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+    @staticmethod
+    def _job_row(job_id: str) -> dict[str, Any]:
+        return {
+            "id": job_id,
+            "user_id": None,
+            "source_type": "UPLOAD",
+            "source_url": None,
+            "target_instrument": "piano",
+            "status": "PENDING",
+            "current_stage": "DOWNLOAD",
+            "stage_progress": 0,
+            "overall_progress": 0,
+            "error_code": None,
+            "error_message": None,
+            "created_at": NOW,
+            "updated_at": NOW,
+            "completed_at": None,
+        }
+
+    async def fetchrow(self, query: str, *args: object) -> dict[str, Any] | None:
+        self.calls.append((query, args))
+        if "FROM jobs" in query:
+            return self._job_row(args[0]) if self.job_exists else None
+        if "FROM artifacts" in query:
+            return next(
+                (row for row in self.artifacts if (row["job_id"], row["id"]) == args),
+                None,
+            )
+        raise AssertionError(f"unexpected SQL: {query}")
+
+    async def fetch(self, query: str, *args: object) -> list[dict[str, Any]]:
+        self.calls.append((query, args))
+        if "FROM artifacts" not in query:
+            raise AssertionError(f"unexpected SQL: {query}")
+        return [row for row in self.artifacts if row["job_id"] == args[0]]
+
+
+def artifact_row(artifact: ArtifactRef, *, filename: str | None = None) -> dict[str, Any]:
+    return {
+        "id": artifact.id,
+        "job_id": artifact.job_id,
+        "role": artifact.role.value,
+        "filename": filename or artifact.filename,
+        "uri": artifact.uri,
+        "mime_type": artifact.mime_type,
+        "size_bytes": artifact.size_bytes,
+        "sha256": artifact.sha256,
+        "producer": artifact.producer,
+        "producer_version": artifact.producer_version,
+        "created_at": NOW,
+    }
+
+
+def put_test_artifact(storage: LocalStorage, *, filename: str = "source.wav") -> ArtifactRef:
+    return storage.put(
+        job_id="11111111-1111-4111-8111-111111111111",
+        filename=filename,
+        role=ArtifactRole.SOURCE_ORIGINAL,
+        source=io.BytesIO(b"test audio bytes"),
+        producer="test",
+        producer_version="1",
+    )
 
 
 class ReadyChecks:
@@ -637,3 +713,156 @@ def test_upload_limit_setting_must_be_a_positive_integer() -> None:
 
     with pytest.raises(ValueError, match="MAX_UPLOAD_BYTES"):
         Settings.from_env({"MAX_UPLOAD_BYTES": "0"})
+
+
+def test_artifact_list_is_scoped_to_job_and_omits_uri(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = put_test_artifact(storage)
+    connection = ArtifactReadConnection(artifacts=[artifact_row(artifact)])
+    app, pool, _ = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        response = client.get(f"/api/v1/jobs/{artifact.job_id}/artifacts")
+
+    assert response.status_code == 200, (response.text, connection.calls)
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == artifact.id
+    assert body[0]["download_url"] == (
+        f"/api/v1/jobs/{artifact.job_id}/artifacts/{artifact.id}/content"
+    )
+    assert "uri" not in body[0]
+    assert str(tmp_path) not in response.text
+    assert connection.calls[1][1] == (artifact.job_id,)
+
+
+def test_unknown_job_artifact_list_returns_404(tmp_path: Path) -> None:
+    connection = ArtifactReadConnection(job_exists=False)
+    app, pool, _ = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        response = client.get("/api/v1/jobs/11111111-1111-4111-8111-111111111111/artifacts")
+
+    assert response.status_code == 404
+    assert len(connection.calls) == 1
+
+
+def test_known_job_without_artifacts_returns_empty_list(tmp_path: Path) -> None:
+    connection = ArtifactReadConnection()
+    app, pool, _ = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        response = client.get("/api/v1/jobs/11111111-1111-4111-8111-111111111111/artifacts")
+
+    assert response.status_code == 200
+    assert response.json() == []
+    assert ["FROM jobs" in query for query, _ in connection.calls] == [True, False]
+
+
+def test_download_streams_bytes_and_safe_filename(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact_storage = LocalStorage(tmp_path / "outputs")
+    unsafe_name = 'source"\r\nX-Injected: yes.wav'
+    artifact = put_test_artifact(artifact_storage)
+    stream = io.BytesIO(b"test audio bytes")
+    connection = ArtifactReadConnection(
+        artifacts=[artifact_row(artifact, filename=unsafe_name)]
+    )
+    app, pool, storage = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+    monkeypatch.setattr(storage, "open_read", lambda _artifact: stream)
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        app.state.storage = storage
+        response = client.get(
+            f"/api/v1/jobs/{artifact.job_id}/artifacts/{artifact.id}/content"
+        )
+
+    assert response.status_code == 200, (response.text, connection.calls)
+    assert response.content == b"test audio bytes"
+    assert response.headers["content-length"] == str(len(b"test audio bytes"))
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert "\r" not in disposition and "\n" not in disposition
+    assert "X-Injected" not in response.headers
+    assert str(tmp_path) not in response.text
+    assert "file://" not in response.text
+    assert stream.closed
+
+
+def test_download_rejects_artifact_from_another_job(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = put_test_artifact(storage)
+    connection = ArtifactReadConnection(artifacts=[artifact_row(artifact)])
+    app, pool, _ = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+    other_job_id = "22222222-2222-4222-8222-222222222222"
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        response = client.get(
+            f"/api/v1/jobs/{other_job_id}/artifacts/{artifact.id}/content"
+        )
+
+    assert response.status_code == 404
+    assert connection.calls[-1][1] == (other_job_id, artifact.id)
+
+
+def test_download_of_missing_storage_file_returns_404(tmp_path: Path) -> None:
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = put_test_artifact(storage)
+    row = artifact_row(artifact)
+    (tmp_path / "outputs" / artifact.job_id / artifact.filename).unlink()
+    connection = ArtifactReadConnection(artifacts=[row])
+    app, pool, _ = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+
+    with TestClient(app) as client:
+        app.state.db_pool = pool
+        response = client.get(
+            f"/api/v1/jobs/{artifact.job_id}/artifacts/{artifact.id}/content"
+        )
+
+    assert response.status_code == 404
+
+
+def test_download_closes_stream_when_read_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    artifact_storage = LocalStorage(tmp_path / "outputs")
+    artifact = put_test_artifact(artifact_storage)
+
+    class BrokenStream(io.BytesIO):
+        calls = 0
+
+        def read(self, size: int = -1) -> bytes:
+            self.calls += 1
+            if self.calls == 1:
+                return super().read(4)
+            raise OSError(f"private read failure at {tmp_path / 'secret'}")
+
+    stream = BrokenStream(b"test audio bytes")
+    connection = ArtifactReadConnection(artifacts=[artifact_row(artifact)])
+    app, pool, storage = make_app(tmp_path, connection=connection)  # type: ignore[arg-type]
+    monkeypatch.setattr(storage, "open_read", lambda _artifact: stream)
+    app.state.storage = storage
+
+    with TestClient(app) as client, caplog.at_level(logging.WARNING):
+        app.state.db_pool = pool
+        response = client.get(
+            f"/api/v1/jobs/{artifact.job_id}/artifacts/{artifact.id}/content"
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"test"
+    assert response.headers["content-length"] == str(len(b"test audio bytes"))
+
+    assert stream.closed
+    assert "Artifact download stream read failed" in caplog.text
+    assert "private read failure" not in caplog.text
+    assert str(tmp_path) not in caplog.text
