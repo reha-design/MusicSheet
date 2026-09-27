@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
 from musicsheet_api.config import Settings
+from musicsheet_api.database import create_optional_pool
 from musicsheet_api.diagnostics import DiagnosticProvider, HostDiagnostics
 from musicsheet_api.health import (
     READINESS_CHECK_NAMES,
@@ -28,6 +29,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(api: FastAPI) -> AsyncIterator[None]:
+        db_pool = (
+            await create_optional_pool(resolved_settings.database_url)
+            if resolved_settings.database_url
+            else None
+        )
+        api.state.db_pool = db_pool
         redis_client: Redis | None = None
         if health_checks is None:
             if resolved_settings.redis_url:
@@ -47,17 +54,22 @@ def create_app(
         try:
             yield
         finally:
-            if redis_client is not None:
-                try:
-                    await redis_client.aclose()
-                except Exception:
-                    pass
+            try:
+                if db_pool is not None:
+                    await db_pool.close()
+            finally:
+                if redis_client is not None:
+                    try:
+                        await redis_client.aclose()
+                    except Exception:
+                        pass
 
     app = FastAPI(title="MusicSheet API", lifespan=lifespan)
     app.state.settings = resolved_settings
     app.state.health_checks = health_checks
     app.state.diagnostics_checks = resolved_diagnostics
     app.state.redis_client = None
+    app.state.db_pool = None
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
