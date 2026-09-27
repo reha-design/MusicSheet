@@ -128,3 +128,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [15: PostgreSQL 마이그레이션 러너 구현 보고서](./reports/postgresql-migration-runner-implementation-report.md)
 - [16: PostgreSQL API 풀 및 작업 저장소 구현 보고서](./reports/postgresql-api-pool-job-repository-implementation-report.md)
 - [17: PostgreSQL 작업 영속성 통합 검증 보고서](./reports/postgresql-job-persistence-implementation-report.md)
+- [18: YouTube 작업 등록 및 상태 조회 API 보고서](./reports/job-api-youtube-registration-report.md)

@@ -72,13 +72,19 @@
 
 **Interfaces:** consumes `JobRepository.create_job/get_job`; produces the YouTube create route, `GET job`, URL normalizer, and public `JobResponse` for Tasks 2–3.
 
-- [ ] **Step 1: Write URL parser tests** named `test_normalizes_supplied_short_url`, `test_normalizes_watch_url_and_drops_tracking_parameters`, `test_rejects_unapproved_hosts_and_http`, `test_rejects_malformed_or_missing_video_ids`, `test_rejects_userinfo_duplicate_v_and_nondefault_port`, and `test_parser_never_performs_network_io`. Use `https://youtu.be/A9x7du4921A` as the exact accepted fixture; assert the normalized URL is `https://www.youtube.com/watch?v=A9x7du4921A`.
-- [ ] **Step 2: Run parser tests from the repository root** with `uv run --project services/api --python 3.13 pytest services/api/tests/test_youtube.py -q`; confirm RED because the module/function does not exist.
-- [ ] **Step 3: Implement the URL normalizer and typed request/response schemas** with exact-host matching, HTTPS-only validation, path/query parsing, and no outbound client.
-- [ ] **Step 4: Write route tests** named `test_youtube_registration_passes_canonical_test_url_to_repository`, `test_registration_returns_pending_download_job`, `test_get_job_returns_snapshot_or_404`, `test_job_routes_return_503_when_database_pool_is_absent`, and `test_job_route_errors_are_sanitized` using an injected fake pool/repository.
-- [ ] **Step 5: Implement and mount the jobs router**. `POST` inserts a YOUTUBE row with PENDING/DOWNLOAD/zero progress; `GET` reads by ID. Keep health endpoint responses unchanged. Route errors must not include raw URLs for invalid input, DSNs, or driver messages.
-- [ ] **Step 6: Run `uv run --project services/api --python 3.13 pytest services/api/tests/test_youtube.py services/api/tests/test_job_routes.py -q`, then the full API suite `uv run --project services/api --python 3.13 pytest services/api/tests -q`.** Expected: all focused tests and all existing API tests pass.
-- [ ] **Step 7: Write the focused task report, update the main-spec Reports index, run `git diff --check`, and complete an independent code review. Record the review in this plan; fix/review again until at least 95/100 with no blocker/important finding. Commit only Task 1 files.**
+- [x] **Step 1: Write URL parser tests** named `test_normalizes_supplied_short_url`, `test_normalizes_watch_url_and_drops_tracking_parameters`, `test_rejects_unapproved_hosts_and_http`, `test_rejects_malformed_or_missing_video_ids`, `test_rejects_userinfo_duplicate_v_and_nondefault_port`, and `test_parser_never_performs_network_io`. Use `https://youtu.be/A9x7du4921A` as the exact accepted fixture; assert the normalized URL is `https://www.youtube.com/watch?v=A9x7du4921A`.
+- [x] **Step 2: Run parser tests from the repository root** with `uv run --project services/api --python 3.13 pytest services/api/tests/test_youtube.py -q`; confirmed RED because the module/function did not exist.
+- [x] **Step 3: Implement the URL normalizer and typed request/response schemas** with exact-host matching, HTTPS-only validation, path/query parsing, and no outbound client.
+- [x] **Step 4: Write route tests** named `test_youtube_registration_passes_canonical_test_url_to_repository`, `test_registration_returns_pending_download_job`, `test_get_job_returns_snapshot_or_404`, `test_job_routes_return_503_when_database_pool_is_absent`, and `test_job_route_errors_are_sanitized` using an injected fake pool/repository.
+- [x] **Step 5: Implement and mount the jobs router**. `POST` inserts a YOUTUBE row with PENDING/DOWNLOAD/zero progress; `GET` reads by ID. Keep health endpoint responses unchanged. Route errors must not include raw URLs for invalid input, DSNs, or driver messages.
+- [x] **Step 6: Run `uv run --project services/api --python 3.13 pytest services/api/tests/test_youtube.py services/api/tests/test_job_routes.py -q`, then the full API suite `uv run --project services/api --python 3.13 pytest services/api/tests -q`.** Expected: all focused tests and all existing API tests pass.
+- [x] **Step 7: Write the focused task report, update the main-spec Reports index, run `git diff --check`, and complete an independent code review. Record the review in this plan; fix/review again until at least 95/100 with no blocker/important finding. Commit only Task 1 files.** Final review: 99/100, no blocker/important findings; included in the Task 1 commit.
+
+**Task 1 independent code review record:**
+
+- Review 1 (2026-09-27): 95/100 for Task 1 implementation, tests, and report. Minor findings were embedded control characters being normalized by `urlsplit`, ambient `DATABASE_URL` affecting TestClient startup, and an unclear plan/review status line.
+- Review 2 (2026-09-27): 98/100 after rejecting controls/backslashes, using explicit test settings, and distinguishing the plan score from the code review. Minor requests were a backslash regression case and GET/no-pool coverage.
+- Final review (2026-09-27): **99/100**. Behavior 25/25, errors/security 25/25, tests/evidence 24/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Scope: commit `5f79b12` through the Task 1 working diff. No unresolved blocker or important finding.
 
 ### Task 2: Bounded audio upload and artifact metadata transaction
 

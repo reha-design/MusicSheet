@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from redis.asyncio import Redis
 
 from musicsheet_api.config import Settings
@@ -17,6 +18,7 @@ from musicsheet_api.health import (
     HealthCheckProvider,
     ReadinessChecks,
 )
+from musicsheet_api.jobs.router import router as jobs_router
 
 
 def create_app(
@@ -70,6 +72,18 @@ def create_app(
     app.state.diagnostics_checks = resolved_diagnostics
     app.state.redis_client = None
     app.state.db_pool = None
+    app.include_router(jobs_router)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(
+        request: Request,
+        error: RequestValidationError,
+    ) -> JSONResponse:
+        del request, error
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Invalid request data"},
+        )
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
