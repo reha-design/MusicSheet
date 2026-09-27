@@ -6,6 +6,7 @@
 > **Task 1 code review:** 99/100 (passed)
 > **Task 2 code review:** 97/100 (passed)
 > **Task 3 code review:** 96/100 (passed, 2026-09-28)
+> **Task 3 implementation commit:** `ebce351`
 
 ## Delivered
 
