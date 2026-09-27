@@ -47,7 +47,7 @@ Celery task queue와 애플리케이션 이벤트 Stream은 같은 Redis 서버�
 | 컴포넌트 | 목표 기술 | 주 책임 |
 | :--- | :--- | :--- |
 | Frontend | Next.js, OSMD | 오디오/URL 입력, SSE 진행 표시, 악보 뷰어 |
-| API Gateway | FastAPI, Python 3.12 | 작업 생성·조회·취소, SSE 중계, 헬스체크 |
+| API Gateway | FastAPI, Python 3.13 | 작업 생성·조회·취소, SSE 중계, 헬스체크 |
 | State DB | PostgreSQL 16 | 작업 상태, 단계 실행 이력, 아티팩트 메타데이터 |
 | Task broker | Celery + Kombu Redis transport | CPU·GPU 큐 작업 전달 |
 | Event store | 애플리케이션 Redis Streams | 제한된 SSE 이벤트 재생 |

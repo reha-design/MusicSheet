@@ -7,7 +7,7 @@
 
 | 영역 | 현재 저장소 |
 | :--- | :--- |
-| 런타임·패키지 관리 | Python 3.12, `uv` workspace |
+| 런타임·패키지 관리 | Python 3.13, `uv` workspace |
 | 공용 데이터 모델 | `packages/common/musicsheet_common/schemas/` |
 | 개발 인프라 | PostgreSQL 16, Redis 7 (`docker/docker-compose.yml`) |
 | 테스트 | 프로젝트 기반, Compose 설정, 공용 스키마 |
@@ -17,7 +17,7 @@
 
 ## 개발 환경 시작
 
-필요 항목: Python 3.12, Astral `uv`. PostgreSQL과 Redis를 로컬에서 띄우려면 Docker Compose도 필요합니다.
+필요 항목: Python 3.13, Astral `uv`. PostgreSQL과 Redis를 로컬에서 띄우려면 Docker Compose도 필요합니다.
 
 ```bash
 git clone https://github.com/reha-design/MusicSheet.git
@@ -62,7 +62,7 @@ MusicSheet/
 ├── tests/               # 기반·인프라·스키마 테스트
 ├── .env.example
 ├── LICENSE              # MIT License
-├── pyproject.toml       # Python 3.12 uv workspace
+├── pyproject.toml       # Python 3.13 uv workspace
 └── uv.lock
 ```
 
@@ -78,7 +78,7 @@ MusicSheet/
 
 ## 다음 개발 단계
 
-베이스라인 다음 단계는 [베이스라인 작업 보고서](docs/reports/baseline-execution-report.md)의 제안에 따라 LocalStorage와 API 헬스 체크를 구현하는 것입니다.
+현재 활성 작업과 완료 기준은 [개발 작업목록](docs/roadmap.md)에서 관리합니다.
 
 ## 라이선스
 
