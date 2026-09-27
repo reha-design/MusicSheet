@@ -42,8 +42,17 @@ def api_app():
 
 
 class FakeConnection:
-    def __init__(self, *, insert_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        insert_error: Exception | None = None,
+        cancel_row: dict[str, Any] | None = None,
+        lookup_row: dict[str, Any] | None = None,
+        lookup_missing: bool = False,
+    ) -> None:
         self.insert_error = insert_error
+        self.cancel_row = cancel_row
+        self.lookup_row = None if lookup_missing else (lookup_row or job_row())
         self.calls: list[tuple[str, tuple[object, ...]]] = []
 
     async def fetchrow(self, query: str, *args: object) -> dict[str, Any] | None:
@@ -52,8 +61,10 @@ class FakeConnection:
             if self.insert_error is not None:
                 raise self.insert_error
             return job_row(id=args[0], source_type=args[2], source_url=args[3])
+        if query.startswith("UPDATE jobs"):
+            return self.cancel_row
         if query.startswith("SELECT") and args[0] == JOB_ID:
-            return job_row()
+            return self.lookup_row
         return None
 
 
@@ -133,6 +144,66 @@ def test_get_job_returns_snapshot_or_404() -> None:
     assert missing.status_code == 404
 
 
+def test_cancel_pending_job_sets_cancel_requested() -> None:
+    connection = FakeConnection(cancel_row=job_row(status="CANCEL_REQUESTED"))
+    app = api_app()
+    with TestClient(app) as client:
+        app.state.db_pool = FakePool(connection)
+        response = client.delete(f"/api/v1/jobs/{JOB_ID}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "CANCEL_REQUESTED"
+    assert connection.calls[0][0].startswith("UPDATE jobs")
+
+
+@pytest.mark.parametrize("source_status", ["RUNNING", "RETRYING"])
+def test_cancel_running_and_retrying_jobs_is_allowed(source_status: str) -> None:
+    connection = FakeConnection(cancel_row=job_row(status="CANCEL_REQUESTED"))
+    app = api_app()
+    with TestClient(app) as client:
+        app.state.db_pool = FakePool(connection)
+        response = client.delete(f"/api/v1/jobs/{JOB_ID}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "CANCEL_REQUESTED"
+    assert source_status in connection.calls[0][1][2]
+
+
+def test_cancel_request_is_idempotent() -> None:
+    connection = FakeConnection(lookup_row=job_row(status="CANCEL_REQUESTED"))
+    app = api_app()
+    with TestClient(app) as client:
+        app.state.db_pool = FakePool(connection)
+        response = client.delete(f"/api/v1/jobs/{JOB_ID}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "CANCEL_REQUESTED"
+    assert len(connection.calls) == 2
+
+
+@pytest.mark.parametrize("terminal_status", ["COMPLETED", "FAILED", "CANCELED"])
+def test_cancel_terminal_job_returns_conflict(terminal_status: str) -> None:
+    connection = FakeConnection(lookup_row=job_row(status=terminal_status))
+    app = api_app()
+    with TestClient(app) as client:
+        app.state.db_pool = FakePool(connection)
+        response = client.delete(f"/api/v1/jobs/{JOB_ID}")
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Job is already terminal"}
+
+
+def test_cancel_unknown_job_returns_404() -> None:
+    connection = FakeConnection(lookup_missing=True)
+    app = api_app()
+    with TestClient(app) as client:
+        app.state.db_pool = FakePool(connection)
+        response = client.delete(f"/api/v1/jobs/{JOB_ID}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Job not found"}
+
+
 def test_job_routes_return_503_when_database_pool_is_absent() -> None:
     app = api_app()
     with TestClient(app) as client:
@@ -141,11 +212,14 @@ def test_job_routes_return_503_when_database_pool_is_absent() -> None:
             json={"source_url": "https://youtu.be/A9x7du4921A"},
         )
         missing_job = client.get(f"/api/v1/jobs/{JOB_ID}")
+        cancel_without_pool = client.delete(f"/api/v1/jobs/{JOB_ID}")
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Job database is unavailable"}
     assert missing_job.status_code == 503
     assert missing_job.json() == {"detail": "Job database is unavailable"}
+    assert cancel_without_pool.status_code == 503
+    assert cancel_without_pool.json() == {"detail": "Job database is unavailable"}
 
 
 def test_job_route_errors_are_sanitized() -> None:

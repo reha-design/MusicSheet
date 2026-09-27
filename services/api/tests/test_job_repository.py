@@ -150,6 +150,78 @@ def test_get_job_returns_record_or_none() -> None:
     assert connection.calls[1][1] == ("missing",)
 
 
+@pytest.mark.parametrize("status", ["PENDING", "RUNNING", "RETRYING"])
+def test_request_cancel_updates_eligible_job_atomically(status: str) -> None:
+    updated = {
+        **ROW,
+        "status": "CANCEL_REQUESTED",
+        "stage_progress": 35,
+        "overall_progress": 60,
+        "updated_at": NOW,
+    }
+    repo, connection = repository(updated)
+
+    record = asyncio.run(repo.request_cancel(ROW["id"]))
+
+    assert record is not None
+    assert record.status is JobStatus.CANCEL_REQUESTED
+    assert (record.stage_progress, record.overall_progress) == (35, 60)
+    query, args = connection.calls[0]
+    assert query.startswith("UPDATE jobs SET status = $2")
+    assert "status = ANY($3::VARCHAR[])" in query
+    assert args == (ROW["id"], "CANCEL_REQUESTED", ["PENDING", "RUNNING", "RETRYING"])
+
+
+def test_request_cancel_is_idempotent() -> None:
+    current = {**ROW, "status": "CANCEL_REQUESTED"}
+    repo, connection = repository(None, current)
+
+    record = asyncio.run(repo.request_cancel(ROW["id"]))
+
+    assert record is not None and record.status is JobStatus.CANCEL_REQUESTED
+    assert len(connection.calls) == 2
+    assert connection.calls[1][0].startswith("SELECT")
+
+
+def test_request_cancel_returns_terminal_job_without_overwriting() -> None:
+    terminal = {**ROW, "status": "COMPLETED"}
+    repo, connection = repository(None, terminal)
+
+    record = asyncio.run(repo.request_cancel(ROW["id"]))
+
+    assert record is not None and record.status is JobStatus.COMPLETED
+    query, _ = connection.calls[0]
+    assert "status = ANY($3::VARCHAR[])" in query
+    assert len(connection.calls) == 2
+
+
+def test_request_cancel_returns_none_for_unknown_job() -> None:
+    repo, connection = repository(None, None)
+
+    assert asyncio.run(repo.request_cancel("missing")) is None
+    assert len(connection.calls) == 2
+
+
+def test_concurrent_cancel_does_not_overwrite_terminal_state() -> None:
+    class TerminalRaceConnection(FakeConnection):
+        async def fetchrow(self, query: str, *args: object) -> dict[str, object] | None:
+            self.calls.append((query, args))
+            if query.startswith("UPDATE jobs"):
+                return None
+            return {**ROW, "status": "FAILED"}
+
+    connection = TerminalRaceConnection()
+    repo = JobRepository(FakePool(connection))
+
+    record = asyncio.run(repo.request_cancel(ROW["id"]))
+
+    assert record is not None and record.status is JobStatus.FAILED
+    update, args = connection.calls[0]
+    assert "status = ANY($3::VARCHAR[])" in update
+    assert args[0] == ROW["id"]
+    assert args[2] == ["PENDING", "RUNNING", "RETRYING"]
+
+
 @pytest.mark.parametrize("status,terminal", [(JobStatus.RUNNING, False), (JobStatus.COMPLETED, True), (JobStatus.FAILED, True), (JobStatus.CANCELED, True)])
 def test_update_progress_updates_timestamps_and_terminal_time(status: JobStatus, terminal: bool) -> None:
     updated = {**ROW, "status": status.value, "current_stage": "RENDER", "stage_progress": 45, "overall_progress": 70, "updated_at": NOW, "completed_at": NOW if terminal else None}

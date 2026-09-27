@@ -8,7 +8,10 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 from musicsheet_common import JobStatus, PipelineStage
+from fastapi.testclient import TestClient
 
+from musicsheet_api.app import create_app
+from musicsheet_api.config import Settings
 from musicsheet_api.jobs.repository import JobRepository
 from musicsheet_api.migrations.runner import Migration, apply_migrations
 
@@ -352,6 +355,110 @@ def test_job_crud_round_trip(migrated_database):
             await pool.close()
 
     _run(check())
+
+
+def test_job_rest_api_persists_youtube_upload_artifact_and_cancellation(
+    migrated_database,
+    tmp_path,
+):
+    audio_bytes = b"offline fixture audio bytes"
+    settings = Settings.from_env(
+        {
+            "DATABASE_URL": str(migrated_database),
+            "LOCAL_STORAGE_DIR": str(tmp_path / "outputs"),
+        },
+        working_directory=tmp_path,
+    )
+    app = create_app(settings=settings)
+
+    with TestClient(app) as client:
+        youtube_response = client.post(
+            "/api/v1/jobs",
+            json={"source_url": "https://youtu.be/A9x7du4921A"},
+        )
+        assert youtube_response.status_code == 201
+        youtube_job_id = youtube_response.json()["id"]
+        assert youtube_response.json()["source_url"] == (
+            "https://www.youtube.com/watch?v=A9x7du4921A"
+        )
+
+        upload_response = client.post(
+            "/api/v1/jobs/upload",
+            files={"file": ("fixture.wav", audio_bytes, "audio/wav")},
+        )
+        assert upload_response.status_code == 201
+        upload_job_id = upload_response.json()["id"]
+
+        artifact_response = client.get(
+            f"/api/v1/jobs/{upload_job_id}/artifacts"
+        )
+        assert artifact_response.status_code == 200
+        artifacts = artifact_response.json()
+        assert len(artifacts) == 1
+        artifact = artifacts[0]
+        assert artifact["role"] == "SOURCE_ORIGINAL"
+        assert artifact["filename"] == "source_original.wav"
+        assert artifact["size_bytes"] == len(audio_bytes)
+        assert artifact["producer"] == "musicsheet-api"
+        assert "uri" not in artifact
+
+        download_response = client.get(artifact["download_url"])
+        assert download_response.status_code == 200
+        assert download_response.content == audio_bytes
+
+        cancel_response = client.delete(f"/api/v1/jobs/{upload_job_id}")
+        assert cancel_response.status_code == 202
+        assert cancel_response.json()["status"] == "CANCEL_REQUESTED"
+        repeated_cancel = client.delete(f"/api/v1/jobs/{upload_job_id}")
+        assert repeated_cancel.status_code == 202
+        assert repeated_cancel.json()["status"] == "CANCEL_REQUESTED"
+
+    async def verify_persisted_rows():
+        connection = await asyncpg.connect(migrated_database)
+        try:
+            youtube_row = await connection.fetchrow(
+                "SELECT source_type, source_url, status, current_stage, "
+                "stage_progress, overall_progress FROM jobs WHERE id = $1",
+                youtube_job_id,
+            )
+            assert tuple(youtube_row) == (
+                "YOUTUBE",
+                "https://www.youtube.com/watch?v=A9x7du4921A",
+                "PENDING",
+                "DOWNLOAD",
+                0,
+                0,
+            )
+            upload_row = await connection.fetchrow(
+                "SELECT source_type, status, current_stage, stage_progress, "
+                "overall_progress FROM jobs WHERE id = $1",
+                upload_job_id,
+            )
+            assert tuple(upload_row) == (
+                "UPLOAD",
+                "CANCEL_REQUESTED",
+                "DOWNLOAD",
+                0,
+                0,
+            )
+            artifact_row = await connection.fetchrow(
+                "SELECT role, filename, mime_type, size_bytes, sha256, producer, "
+                "producer_version FROM artifacts WHERE job_id = $1",
+                upload_job_id,
+            )
+            assert tuple(artifact_row) == (
+                "SOURCE_ORIGINAL",
+                "source_original.wav",
+                "audio/wav",
+                len(audio_bytes),
+                artifact["sha256"],
+                "musicsheet-api",
+                "0.1.0",
+            )
+        finally:
+            await connection.close()
+
+    _run(verify_persisted_rows())
 
 
 def test_progress_boundary_values(migrated_database):

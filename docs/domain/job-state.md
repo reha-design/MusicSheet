@@ -35,19 +35,22 @@ class PipelineStage(str, Enum):
 ## 2. 상태 전이 규칙 (Transition Rules)
 
 ```text
-[PENDING]
-   │
-   ▼
-[RUNNING] ───(에러 발생 시)───► [RETRYING] ───(재시도 초과)───► [FAILED]
-   │                               ▲
-   │ (정상 단계 전이)                │
-   │ (DOWNLOAD ➔ ... ➔ RENDER) ─────┘
-   │
-   ├──(취소 요청 시)──► [CANCEL_REQUESTED] ───► [CANCELED]
-   │
-   ▼
-[COMPLETED]
+ PENDING ──► RUNNING ──► COMPLETED
+    │           │
+    └──────┬────┘
+           ▼
+    CANCEL_REQUESTED ──(worker observes request)──► CANCELED
+
+ RUNNING ──(retryable error)──► RETRYING ──(retry)──► RUNNING
+    │                             │
+    │                             └──(cancel request)──┐
+    └──(cancel request)────────────────────────────────┤
+                                                       ▼
+                                                CANCEL_REQUESTED
+ RETRYING ──(retry limit exceeded)──► FAILED
 ```
+
+The API accepts cancellation requests only while a job is `PENDING`, `RUNNING`, or `RETRYING`. The conditional database update cannot replace a terminal state. `CANCEL_REQUESTED` is cooperative: a worker later records `CANCELED`; without a worker, the job remains in the requested state.
 
 ---
 

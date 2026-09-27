@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from musicsheet_common import JobStatus, PipelineStage
+from musicsheet_common import ArtifactRole, JobStatus, PipelineStage
 
 
 class YouTubeJobCreateRequest(BaseModel):
@@ -30,3 +30,19 @@ class JobResponse(BaseModel):
     created_at: datetime | None
     updated_at: datetime | None
     completed_at: datetime | None
+
+
+class ArtifactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    job_id: str
+    role: ArtifactRole
+    filename: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    producer: str | None
+    producer_version: str | None
+    created_at: datetime | None
+    download_url: str

@@ -80,6 +80,28 @@ class JobRepository:
             )
         return _record(row) if row is not None else None
 
+    async def request_cancel(self, job_id: str) -> JobRecord | None:
+        """Atomically request cancellation without changing a terminal job."""
+        async with self._pool.acquire() as connection:
+            row = await connection.fetchrow(
+                "UPDATE jobs SET status = $2, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = $1 AND status = ANY($3::VARCHAR[]) "
+                f"RETURNING {_COLUMNS}",
+                job_id,
+                JobStatus.CANCEL_REQUESTED.value,
+                [
+                    JobStatus.PENDING.value,
+                    JobStatus.RUNNING.value,
+                    JobStatus.RETRYING.value,
+                ],
+            )
+            if row is None:
+                row = await connection.fetchrow(
+                    f"SELECT {_COLUMNS} FROM jobs WHERE id = $1",
+                    job_id,
+                )
+        return _record(row) if row is not None else None
+
     async def update_progress(
         self,
         *,
