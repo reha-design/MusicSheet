@@ -1,15 +1,21 @@
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import List, Literal, Optional, Self
+from pydantic import BaseModel, Field, model_validator
 
 class RawNoteEvent(BaseModel):
     note_id: str
     pitch: int = Field(..., ge=0, le=127, description="MIDI Pitch (0~127)")
-    onset_sec: float = Field(..., ge=0.0, description="시작 시점 (초)")
-    offset_sec: float = Field(..., ge=0.0, description="종료 시점 (초)")
-    activation: Optional[float] = Field(None, ge=0.0, le=1.0)
-    velocity_prediction: Optional[float] = Field(None, ge=0.0, le=127.0)
-    amt_confidence: float = Field(..., ge=0.0, le=1.0)
+    onset_sec: float = Field(..., ge=0.0, allow_inf_nan=False, description="시작 시점 (초)")
+    offset_sec: float = Field(..., ge=0.0, allow_inf_nan=False, description="종료 시점 (초)")
+    activation: Optional[float] = Field(None, ge=0.0, le=1.0, allow_inf_nan=False)
+    velocity_prediction: Optional[float] = Field(None, ge=0.0, le=127.0, allow_inf_nan=False)
+    amt_confidence: float = Field(..., ge=0.0, le=1.0, allow_inf_nan=False)
     source_chunk: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_time_order(self) -> Self:
+        if self.offset_sec < self.onset_sec:
+            raise ValueError("offset_sec must be greater than or equal to onset_sec")
+        return self
 
     @property
     def duration_sec(self) -> float:
@@ -36,9 +42,15 @@ class CleanNoteEvent(BaseModel):
 
 class PedalEvent(BaseModel):
     event_type: Literal["sustain", "soft", "sostenuto"] = "sustain"
-    onset_sec: float = Field(..., ge=0.0)
-    offset_sec: float = Field(..., ge=0.0)
+    onset_sec: float = Field(..., ge=0.0, allow_inf_nan=False)
+    offset_sec: float = Field(..., ge=0.0, allow_inf_nan=False)
     value: int = Field(127, ge=0, le=127)
+
+    @model_validator(mode="after")
+    def validate_time_order(self) -> Self:
+        if self.offset_sec < self.onset_sec:
+            raise ValueError("offset_sec must be greater than or equal to onset_sec")
+        return self
 
     @property
     def duration_sec(self) -> float:

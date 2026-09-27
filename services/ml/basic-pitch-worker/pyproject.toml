@@ -1,0 +1,27 @@
+[project]
+name = "musicsheet-basic-pitch-worker"
+version = "0.1.0"
+description = "Isolated Python 3.12 Basic Pitch transcription worker"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "basic-pitch==0.4.0",
+    "onnxruntime>=1.20",
+    "pretty-midi>=0.2.10",
+    # resampy 0.4.2 imports pkg_resources; keep below its documented compatibility ceiling.
+    "setuptools<81",
+    "soundfile>=0.12.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+basic-pitch-worker = "musicsheet_basic_pitch_worker.cli:main"
+
+[tool.uv.sources]
+basic-pitch = { git = "https://github.com/spotify/basic-pitch", rev = "049dc8a01a170c2370d7b246ec1c2067e060c3bf" }
+
+[build-system]
+requires = ["uv_build>=0.10.11,<0.11.0"]
+build-backend = "uv_build"

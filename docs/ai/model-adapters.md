@@ -25,6 +25,8 @@ class ModelInfo(BaseModel):
 
 ## 2. 핵심 Provider 추상 인터페이스
 
+아래 Python ABC는 **현재 실행환경과 의존성 호환성이 확인된 provider를 같은 프로세스에서 호출할 때** 사용하는 backend-facing 인터페이스다. Python/CUDA 등 실행환경이 다른 모델은 해당 패키지를 백엔드에 직접 import하지 않는다. 별도 uv 프로젝트의 worker를 프로세스 경계로 실행하고, versioned JSON/아티팩트 계약을 백엔드에서 검증한 뒤 아래 공용 타입으로 변환한다. 따라서 isolated worker도 API 관점에서는 같은 `RawNoteEvent`/`PedalEvent` 결과를 제공하지만, worker 내부에서는 `packages/common`을 설치하거나 import하지 않는다.
+
 ```python
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
