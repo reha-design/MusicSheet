@@ -1,0 +1,31 @@
+[project]
+name = "musicsheet-api"
+version = "0.1.0"
+description = "FastAPI gateway and infrastructure health checks for MusicSheet"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
+    "musicsheet-common",
+    "musicsheet-storage",
+    "redis>=8.1.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+musicsheet-api = "musicsheet_api.app:run"
+
+[build-system]
+requires = ["uv_build>=0.10.11,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.uv.sources]
+musicsheet-common = { path = "../../packages/common", editable = true }
+musicsheet-storage = { path = "../../packages/storage", editable = true }
