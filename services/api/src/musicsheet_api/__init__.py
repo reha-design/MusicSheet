@@ -1,0 +1,1 @@
+"""MusicSheet API application package."""
