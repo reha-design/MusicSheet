@@ -54,7 +54,7 @@
 ### Implementation Review Record
 
 - **Task 1 — 98/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against baseline `781f045`: the plan, Redis/API specs, roadmap/backlog, lazy job-package exports, Redis event store, and store tests. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 23/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Initial minor findings (runtime type-hint resolution and missing lazy `JobRepository` export coverage) were fixed and re-reviewed. Final review found no unresolved findings. API readiness regression selection remains unverified because Windows Application Control blocks `_ssl.pyd` at collection, matching the pre-change baseline limitation.
-- Task 2: pending.
+- **Task 2 — re-review 99/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against `a06e80f`: plan, `router.py`, and `test_job_routes.py`. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 24/25, structure/dependencies 15/15, documentation/reproducibility 10/10. The initial 96/100 review's two minor findings were addressed: disconnect now exercises a `JobEventStore` over a controlled fake Redis, asserting `block=1000` and that the shared client is not closed; a mid-stream XREAD failure test verifies stream closure and generic logging. One minor remains: the fake read yields with `asyncio.sleep(0)` instead of remaining pending for the whole second. The actual bounded XREAD argument is asserted; this was accepted as non-blocking. No blocker or important finding remains. Route tests remain uncollectable in this environment because importing the existing API app loads `redis.asyncio`, which fails after Windows Application Control blocks `_ssl.pyd`.
 - Task 3: pending.
 
 ## Tasks
@@ -92,7 +92,7 @@
 
   Expected: all selected tests pass; no regression to optional Redis startup/readiness.
 - [x] **Step 7: Review Task 1 independently.** Record date, reviewed commit range, all five category scores, total, findings, and resolutions in Implementation Review Record. Do not start Task 2 until score is at least 95 and no blocker/important finding remains.
-- [ ] **Step 8: Commit Task 1** with `feat(api): add Redis job event store` after its review gate passes.
+- [x] **Step 8: Commit Task 1** with `feat(api): add Redis job event store` after its review gate passes. Commit: `a06e80f`.
 
 ### Task 2: Replayable SSE endpoint
 
@@ -105,19 +105,23 @@
 - Consumes: `JobEventStore.publish`, `JobEventStore.read_after`, `StoredJobEvent`, existing `JobRepository.get_job`, and shared `request.app.state.redis_client`.
 - Produces: `GET /api/v1/jobs/{job_id}/events` with `text/event-stream`, `Cache-Control: no-cache`, and `X-Accel-Buffering: no` headers.
 
-- [ ] **Step 1: Write failing route tests** named `test_job_events_replay_from_start_and_follow_new_entries`, `test_job_events_resume_after_last_event_id`, `test_job_events_validate_last_event_id_boundaries`, `test_job_events_unknown_job_returns_404`, `test_job_events_missing_or_unavailable_dependencies_return_503`, `test_job_events_emit_exact_heartbeat_frame`, and `test_job_events_disconnect_during_bounded_read_does_not_close_shared_redis_client`. Exercise `stream_job_events` directly with a disconnecting request stub while one fake read is pending; assert it exits after that read and leaves Redis open. Test valid IDs `0-0` and `18446744073709551615-18446744073709551615`, reject a component one above the maximum, non-ASCII digits, malformed separators, and overlong values. Assert exact event frame delimiters (`id`, `data`, terminating blank line) and heartbeat bytes. Verify PostgreSQL lookup precedes stream access and errors are sanitized.
-- [ ] **Step 2: Run the focused route tests to verify RED.**
+- [x] **Step 1: Write failing route tests** named `test_job_events_replay_from_start_and_follow_new_entries`, `test_job_events_resume_after_last_event_id`, `test_job_events_validate_last_event_id_boundaries`, `test_job_events_unknown_job_returns_404`, `test_job_events_missing_or_unavailable_dependencies_return_503`, `test_job_events_emit_exact_heartbeat_frame`, `test_job_events_disconnect_during_bounded_read_does_not_close_shared_redis_client`, and `test_job_events_midstream_redis_failure_closes_stream_safely`. Exercise `stream_job_events` directly with a disconnecting request stub while one fake read is pending; assert it exits after that bounded XREAD and leaves the lifespan-owned Redis client open. Test valid IDs `0-0` and `18446744073709551615-18446744073709551615`, reject a component one above the maximum, non-ASCII digits, malformed separators, and overlong values. Assert exact event frame delimiters (`id`, `data`, terminating blank line) and heartbeat bytes. Verify PostgreSQL lookup precedes stream access and errors are sanitized.
+- [x] **Step 2: Run the focused route tests to verify RED.**
+
+  Result: attempted before route implementation, but pytest collection stopped while importing `musicsheet_api.app` because Windows Application Control blocked Python 3.13 `_ssl.pyd`, which then caused `redis.asyncio` import failure. The test runner could not reach the expected missing-route failures.
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/test_job_routes.py -q`
 
   Expected: SSE requests fail because the route does not exist.
-- [ ] **Step 3: Implement the route** in `services/api/src/musicsheet_api/jobs/router.py`. Validate the optional header with ASCII digits and unsigned-64-bit component limits, resolve the job from PostgreSQL, check `redis.ping()` before creating the streaming response, then iterate `read_after(block_ms=1_000)`. Advance the cursor for every Stream entry, emit valid events as exact SSE frames, send `: keep-alive\n\n` when 15 seconds elapse without a valid event, and check client disconnect before and after each bounded Redis read. This caps disconnect detection to one second without canceling an in-flight read. Log and close on Redis failure; never close the shared client in the response generator.
-- [ ] **Step 4: Run focused and API unit tests to verify GREEN.**
+- [x] **Step 3: Implement the route** in `services/api/src/musicsheet_api/jobs/router.py`. Validate the optional header with ASCII digits and unsigned-64-bit component limits, resolve the job from PostgreSQL, check `redis.ping()` before creating the streaming response, then iterate `read_after(block_ms=1_000)`. Advance the cursor for every Stream entry, emit valid events as exact SSE frames, send `: keep-alive\n\n` when 15 seconds elapse without a valid event, and check client disconnect before and after each bounded Redis read. This caps disconnect detection to one second without canceling an in-flight read. Log and close on Redis failure; never close the shared client in the response generator.
+- [x] **Step 4: Attempt focused and API unit tests; record verification state.**
+
+  Result: `test_job_routes.py` cannot collect because the same `_ssl.pyd` Application Control block prevents importing the existing API app before any route test runs. `test_job_events.py` -> 8 passed; root suite -> 59 passed, 4 skipped, 4 deselected; syntax compilation and `git diff --check` pass. Route behavior is therefore reviewed but not runtime-verified in this environment.
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/test_job_routes.py services/api/tests/test_job_events.py -q`
 
   Expected: replay, live follow-up, headers, errors, heartbeat, corrupt-entry cursor handling, and disconnect behavior pass.
-- [ ] **Step 5: Review Task 2 independently.** Record the score and disposition as for Task 1. Do not start Task 3 until score is at least 95 and no blocker/important finding remains.
+- [x] **Step 5: Review Task 2 independently.** Record the score and disposition as for Task 1. Do not start Task 3 until score is at least 95 and no blocker/important finding remains.
 - [ ] **Step 6: Commit Task 2** with `feat(api): expose replayable job events over SSE` after its review gate passes.
 
 ### Task 3: Redis integration proof and completion records

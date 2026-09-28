@@ -3,17 +3,19 @@
 import asyncio
 import logging
 import re
+import time
 from collections.abc import AsyncIterator
 from typing import Any, BinaryIO
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from musicsheet_common import ArtifactRef, JobStatus
+from musicsheet_common import ArtifactRef, JobProgressEvent, JobStatus
 from starlette.datastructures import UploadFile
 from starlette.types import Receive, Scope, Send
 
 from musicsheet_api.jobs.artifacts import ArtifactRecord, ArtifactRepository
+from musicsheet_api.jobs.events import JobEventStore, StoredJobEvent
 from musicsheet_api.jobs.repository import JobRepository
 from musicsheet_api.jobs.schemas import (
     ArtifactResponse,
@@ -30,6 +32,11 @@ _logger = logging.getLogger(__name__)
 _SAFE_MEDIA_TYPE = re.compile(
     r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$"
 )
+_LAST_EVENT_ID = re.compile(r"([0-9]{1,20})-([0-9]{1,20})\Z", re.ASCII)
+_MAX_STREAM_ID_COMPONENT = (1 << 64) - 1
+_SSE_HEARTBEAT_SECONDS = 15
+_SSE_READ_BLOCK_MS = 1_000
+_monotonic = time.monotonic
 
 
 def _job_repository(request: Request) -> JobRepository:
@@ -88,6 +95,63 @@ async def _stream_content(stream: BinaryIO) -> AsyncIterator[bytes]:
         if not chunk:
             break
         yield chunk
+
+
+def _parse_last_event_id(value: str | None) -> str | None:
+    """Return the validated Redis Stream ID or ``None`` when malformed."""
+    if value is None:
+        return "0-0"
+    match = _LAST_EVENT_ID.fullmatch(value)
+    if match is None:
+        return None
+    if any(int(component) > _MAX_STREAM_ID_COMPONENT for component in match.groups()):
+        return None
+    return value
+
+
+async def stream_job_events(
+    *,
+    request: Request,
+    event_store: JobEventStore,
+    job_id: str,
+    last_id: str,
+) -> AsyncIterator[str]:
+    """Replay retained events and then wait for new entries until disconnect."""
+    cursor = last_id
+    last_event_at = _monotonic()
+    while True:
+        if await request.is_disconnected():
+            return
+        try:
+            events: list[StoredJobEvent] = await event_store.read_after(
+                job_id,
+                cursor,
+                block_ms=_SSE_READ_BLOCK_MS,
+            )
+        except Exception:
+            _logger.warning("Job event stream read failed")
+            return
+        if await request.is_disconnected():
+            return
+
+        emitted_event = False
+        for stored in events:
+            cursor = stored.stream_id
+            event: JobProgressEvent | None = stored.event
+            if event is None:
+                continue
+            if event.job_id != job_id:
+                _logger.warning("Ignoring job event with a mismatched job ID")
+                continue
+            emitted_event = True
+            yield f"id: {stored.stream_id}\ndata: {event.model_dump_json()}\n\n"
+            last_event_at = _monotonic()
+
+        if not emitted_event:
+            now = _monotonic()
+            if now - last_event_at >= _SSE_HEARTBEAT_SECONDS:
+                yield ": keep-alive\n\n"
+                last_event_at = now
 
 
 class _ClosingStreamingResponse(StreamingResponse):
@@ -243,6 +307,63 @@ async def get_job(job_id: str, request: Request) -> JobResponse:
             detail="Job not found",
         )
     return JobResponse.model_validate(job)
+
+
+@router.get("/{job_id}/events")
+async def get_job_events(
+    job_id: str,
+    request: Request,
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+) -> StreamingResponse:
+    last_id = _parse_last_event_id(last_event_id)
+    if last_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Last-Event-ID",
+        )
+
+    repository = _job_repository(request)
+    try:
+        job = await repository.get_job(job_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job database is unavailable",
+        ) from None
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found",
+        )
+
+    redis_client = getattr(request.app.state, "redis_client", None)
+    if redis_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job event stream is unavailable",
+        )
+    try:
+        await redis_client.ping()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job event stream is unavailable",
+        ) from None
+
+    event_store = JobEventStore(redis_client)
+    return StreamingResponse(
+        stream_job_events(
+            request=request,
+            event_store=event_store,
+            job_id=job_id,
+            last_id=last_id,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.delete(
