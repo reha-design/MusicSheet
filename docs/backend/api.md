@@ -17,7 +17,7 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 | `DELETE` | `/api/v1/jobs/{job_id}` | — | Request cancellation by setting `CANCEL_REQUESTED` where allowed. |
 | `GET` | `/api/v1/jobs/{job_id}/artifacts` | — | Return artifact metadata and API-relative download URLs. |
 | `GET` | `/api/v1/jobs/{job_id}/artifacts/{artifact_id}/content` | — | Stream the artifact bytes after verifying job/artifact association. |
-| `GET` | `/api/v1/jobs/{job_id}/events` | `Last-Event-ID` optional | Future W02: SSE stream with replay from Redis Streams. |
+| `GET` | `/api/v1/jobs/{job_id}/events` | `Last-Event-ID` optional | Replay retained job progress events and stream updates using SSE. |
 | `GET` | `/health/live` | — | Process liveness. |
 | `GET` | `/health/ready` | — | PostgreSQL, Redis, and storage availability. |
 | `GET` | `/health/detail` | — | Best-effort API host GPU, FFmpeg, and MuseScore diagnostics. |
@@ -59,11 +59,13 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 
 `GET /api/v1/jobs/{job_id}/artifacts` queries PostgreSQL metadata for that job and returns relative download routes. It returns `404` for an unknown job. `GET /api/v1/jobs/{job_id}/artifacts/{artifact_id}/content` queries by both IDs before opening the stored artifact, so an ID from a different job cannot be used through this route. Bytes stream through `ArtifactStorage.open_read`; the API does not expose the storage URI.
 
-## 4. SSE streaming (future W02)
+## 4. SSE streaming
 
 - Browser clients may use `EventSource('/api/v1/jobs/{job_id}/events')`.
-- On reconnect, `Last-Event-ID` replays events retained in Redis Streams.
-- This endpoint is not part of the W01 implementation.
+- The API first checks that the job exists in PostgreSQL. PostgreSQL remains the authoritative job snapshot returned by `GET /api/v1/jobs/{job_id}`.
+- Each Redis Stream entry stores the common `JobProgressEvent` JSON in its `data` field. SSE frames use the Redis Stream ID as `id` and this JSON as `data`; `job_id`, `status`, `stage`, `stage_progress`, `overall_progress`, `message`, and `timestamp` are preserved.
+- A first connection without `Last-Event-ID` reads after `0-0`. Reconnects resume after the supplied ID. Redis retains approximately the most recent 100 events per job (`MAXLEN ~ 100`); if older events were trimmed, clients should fetch the current PostgreSQL snapshot.
+- An idle stream sends the `: keep-alive` comment every 15 seconds. Invalid `Last-Event-ID` returns `400`; an unknown job returns `404`; PostgreSQL or Redis unavailable before response start returns a generic `503`. A Redis error after streaming starts is logged without sensitive details and closes the stream.
 
 ## 5. Processing boundary
 

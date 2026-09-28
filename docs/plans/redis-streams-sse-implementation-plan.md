@@ -53,7 +53,7 @@
 
 ### Implementation Review Record
 
-- Task 1: pending.
+- **Task 1 — 98/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against baseline `781f045`: the plan, Redis/API specs, roadmap/backlog, lazy job-package exports, Redis event store, and store tests. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 23/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Initial minor findings (runtime type-hint resolution and missing lazy `JobRepository` export coverage) were fixed and re-reviewed. Final review found no unresolved findings. API readiness regression selection remains unverified because Windows Application Control blocks `_ssl.pyd` at collection, matching the pre-change baseline limitation.
 - Task 2: pending.
 - Task 3: pending.
 
@@ -73,21 +73,25 @@
 - Consumes: existing `JobProgressEvent` and the existing lifespan-managed `Redis` client.
 - Produces: `StoredJobEvent`, `JobEventStore.publish`, and `JobEventStore.read_after` exactly as defined in Interfaces above; Task 2 uses both methods.
 
-- [ ] **Step 1: After the plan gate passes, move W02 from the backlog to the roadmap's In Progress section.** Do not alter its scope or the W03 candidate.
-- [ ] **Step 2: Refine canonical Redis and API specs** to document the existing `JobProgressEvent` JSON stored in the `data` field, first-read cursor `0-0`, SSE ID/data mapping, approximate retention, bounded replay, heartbeat, and pre-/mid-stream failure behavior.
-- [ ] **Step 3: Write failing store tests** named `test_publish_appends_typed_json_to_bounded_job_stream`, `test_read_after_decodes_bytes_and_text_entries_in_order`, `test_read_after_normalizes_timeout_none_to_empty_list`, `test_read_after_skips_corrupt_payload_and_returns_its_cursor`, and `test_publish_propagates_redis_failure`. Assert awaited `xadd`/`xread`, exact key, `maxlen=100` with `approximate=True`, `count=100`, `block=block_ms`, JSON contract, response-shape parsing, and string Stream ID.
-- [ ] **Step 4: Run the focused tests to verify RED.**
+- [x] **Step 1: After the plan gate passes, move W02 from the backlog to the roadmap's In Progress section.** Do not alter its scope or the W03 candidate.
+- [x] **Step 2: Refine canonical Redis and API specs** to document the existing `JobProgressEvent` JSON stored in the `data` field, first-read cursor `0-0`, SSE ID/data mapping, approximate retention, bounded replay, heartbeat, and pre-/mid-stream failure behavior.
+- [x] **Step 3: Write failing store tests** named `test_publish_appends_typed_json_to_bounded_job_stream`, `test_read_after_decodes_bytes_and_text_entries_in_order`, `test_read_after_normalizes_timeout_none_to_empty_list`, `test_read_after_skips_corrupt_payload_and_returns_its_cursor`, and `test_publish_propagates_redis_failure`. Assert awaited `xadd`/`xread`, exact key, `maxlen=100` with `approximate=True`, `count=100`, `block=block_ms`, JSON contract, response-shape parsing, and string Stream ID.
+- [x] **Step 4: Run the focused tests to verify RED.**
+
+  Result: the focused test initially failed collection because `musicsheet_api.jobs.__init__` eagerly imported `asyncpg`, whose Python 3.13 SSL extension is blocked by Windows Application Control. `jobs.__init__` now preserves its public re-exports via lazy loading; rerunning reached the intended `ModuleNotFoundError` for the missing `events` module (RED).
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/test_job_events.py -q`
 
   Expected: FAIL because `JobEventStore` and `StoredJobEvent` do not exist.
-- [ ] **Step 5: Implement `JobEventStore` and `StoredJobEvent`** in `services/api/src/musicsheet_api/jobs/events.py`. Use `XADD` with `maxlen=100, approximate=True`; use `XREAD` with `count=100` and the supplied cursor/block duration; normalize Redis byte/text results; validate JSON with `JobProgressEvent`; skip corrupt entries only after preserving their Stream IDs.
-- [ ] **Step 6: Run focused and API unit tests to verify GREEN.**
+- [x] **Step 5: Implement `JobEventStore` and `StoredJobEvent`** in `services/api/src/musicsheet_api/jobs/events.py`. Use `XADD` with `maxlen=100, approximate=True`; use `XREAD` with `count=100` and the supplied cursor/block duration; normalize Redis byte/text results; validate JSON with `JobProgressEvent`; skip corrupt entries only after preserving their Stream IDs.
+- [x] **Step 6: Run focused and API unit tests to verify GREEN.**
+
+  Result: `uv run --project services/api --python 3.13 pytest services/api/tests/test_job_events.py -q` -> 6 passed. The planned selection including `test_readiness.py` is blocked at collection because Windows Application Control denies loading Python 3.13 `_ssl.pyd` through `asyncpg`; this also matches the pre-implementation baseline limitation.
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/test_job_events.py services/api/tests/test_config.py services/api/tests/test_readiness.py -q`
 
   Expected: all selected tests pass; no regression to optional Redis startup/readiness.
-- [ ] **Step 7: Review Task 1 independently.** Record date, reviewed commit range, all five category scores, total, findings, and resolutions in Implementation Review Record. Do not start Task 2 until score is at least 95 and no blocker/important finding remains.
+- [x] **Step 7: Review Task 1 independently.** Record date, reviewed commit range, all five category scores, total, findings, and resolutions in Implementation Review Record. Do not start Task 2 until score is at least 95 and no blocker/important finding remains.
 - [ ] **Step 8: Commit Task 1** with `feat(api): add Redis job event store` after its review gate passes.
 
 ### Task 2: Replayable SSE endpoint
