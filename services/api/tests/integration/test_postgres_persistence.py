@@ -13,7 +13,9 @@ from fastapi.testclient import TestClient
 from musicsheet_api.app import create_app
 from musicsheet_api.config import Settings
 from musicsheet_api.jobs.repository import JobRepository
+from musicsheet_api.jobs.stages import StageAttemptRepository
 from musicsheet_api.migrations.runner import Migration, apply_migrations
+from musicsheet_api.migrations.v0001_initial import UPGRADE_SQL as INITIAL_UPGRADE_SQL
 
 
 pytestmark = pytest.mark.integration
@@ -71,7 +73,7 @@ def clean_database(database_url):
 
 @pytest.fixture
 def migrated_database(clean_database):
-    assert _run(apply_migrations(clean_database)) == [1]
+    assert _run(apply_migrations(clean_database, migrations=[Migration(1, INITIAL_UPGRADE_SQL)])) == [1]
     return clean_database
 
 
@@ -259,7 +261,7 @@ def test_initial_migration_creates_all_canonical_tables_indexes_foreign_keys_and
 
 
 def test_migration_is_repeatable(migrated_database):
-    assert _run(apply_migrations(migrated_database)) == []
+    assert _run(apply_migrations(migrated_database, migrations=[Migration(1, INITIAL_UPGRADE_SQL)])) == []
 
     async def check():
         connection = await asyncpg.connect(migrated_database)
@@ -278,10 +280,11 @@ def test_concurrent_migration_runners_apply_once(clean_database):
         results = await asyncio.gather(
             apply_migrations(clean_database), apply_migrations(clean_database)
         )
-        assert sorted(results) == [[], [1]]
+        assert sorted(results) == [[], [1, 2]]
         connection = await asyncpg.connect(clean_database)
         try:
             assert await connection.fetchval("SELECT count(*) FROM schema_migrations WHERE version = 1") == 1
+            assert await connection.fetchval("SELECT count(*) FROM schema_migrations WHERE version = 2") == 1
             assert await connection.fetchval("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'") == 4
         finally:
             await connection.close()
@@ -516,6 +519,129 @@ def test_job_delete_cascades_to_stage_attempts_and_artifacts(migrated_database):
                 await connection.execute("DELETE FROM jobs WHERE id = $1", job.id)
                 assert await connection.fetchval("SELECT count(*) FROM stage_attempts WHERE job_id = $1", job.id) == 0
                 assert await connection.fetchval("SELECT count(*) FROM artifacts WHERE job_id = $1", job.id) == 0
+        finally:
+            await pool.close()
+
+    _run(check())
+
+
+def test_reset_refuses_normal_database_before_any_write(monkeypatch):
+    class NormalDatabase:
+        def __init__(self):
+            self.writes = []
+
+        async def fetchrow(self, query, *args):
+            return {"name": "musicsheet", "marker": None}
+
+        async def execute(self, query, *args):
+            self.writes.append(query)
+            raise AssertionError("normal database was written")
+
+        async def close(self):
+            return None
+
+    normal = NormalDatabase()
+
+    async def connect(url):
+        return normal
+
+    monkeypatch.setattr(asyncpg, "connect", connect)
+    with pytest.raises(ValueError, match="Refusing to reset"):
+        asyncio.run(_reset_public("postgresql://example/musicsheet"))
+    assert normal.writes == []
+
+
+def test_v1_to_v2_migration_and_serialized_attempt_numbering(clean_database):
+    assert _run(apply_migrations(clean_database, migrations=[Migration(1, INITIAL_UPGRADE_SQL)])) == [1]
+
+    async def reject_v1():
+        pool = await asyncpg.create_pool(clean_database)
+        try:
+            jobs = JobRepository(pool)
+            stages = StageAttemptRepository(pool)
+            job = await jobs.create_job(source_type="UPLOAD", source_url=None)
+            async with pool.acquire() as connection:
+                await connection.execute(
+                    "UPDATE jobs SET status = 'RUNNING' WHERE id = $1", job.id
+                )
+            with pytest.raises(asyncpg.UndefinedColumnError):
+                await stages.begin_attempt(job.id, PipelineStage.DOWNLOAD)
+            async with pool.acquire() as connection:
+                assert await connection.fetchval(
+                    "SELECT count(*) FROM stage_attempts WHERE job_id = $1", job.id
+                ) == 0
+        finally:
+            await pool.close()
+
+    _run(reject_v1())
+    assert _run(apply_migrations(clean_database)) == [2]
+    assert _run(apply_migrations(clean_database)) == []
+
+    async def check():
+        pool = await asyncpg.create_pool(clean_database, min_size=1, max_size=4)
+        try:
+            jobs = JobRepository(pool)
+            stages = StageAttemptRepository(pool)
+            job = await jobs.create_job(source_type="UPLOAD", source_url=None)
+            async with pool.acquire() as connection:
+                row = await connection.fetchrow(
+                    "SELECT start_job_attempts, workflow_dispatched_at FROM jobs WHERE id = $1",
+                    job.id,
+                )
+                assert tuple(row) == (0, None)
+            claim = await jobs.claim_start_job(job.id)
+            assert (claim.action, claim.attempts) == ("PUBLISH", 1)
+            assert await jobs.mark_workflow_dispatched(job.id) is not None
+            assert (await jobs.claim_start_job(job.id)).action == "NOOP"
+
+            first_claimed = asyncio.Event()
+            release_first = asyncio.Event()
+
+            async def first():
+                async with pool.acquire() as connection:
+                    await stages.acquire_stage_lock(job.id, PipelineStage.DOWNLOAD, connection)
+                    try:
+                        attempt = await stages.begin_attempt(job.id, PipelineStage.DOWNLOAD)
+                        assert attempt.action == "RUN"
+                        assert attempt.attempt.attempt == 1
+                        first_claimed.set()
+                        await release_first.wait()
+                        await stages.finish_attempt(
+                            job.id, PipelineStage.DOWNLOAD, attempt.attempt.id,
+                            outcome="RETRYING", error_code="TRANSIENT",
+                            stage_progress=10, overall_progress=1,
+                        )
+                    finally:
+                        await stages.release_stage_lock(job.id, PipelineStage.DOWNLOAD, connection)
+
+            async def second():
+                await first_claimed.wait()
+                async with pool.acquire() as connection:
+                    await stages.acquire_stage_lock(job.id, PipelineStage.DOWNLOAD, connection)
+                    try:
+                        return await stages.begin_attempt(job.id, PipelineStage.DOWNLOAD)
+                    finally:
+                        await stages.release_stage_lock(job.id, PipelineStage.DOWNLOAD, connection)
+
+            first_task = asyncio.create_task(first())
+            await asyncio.wait_for(first_claimed.wait(), timeout=3)
+            second_task = asyncio.create_task(second())
+            await asyncio.sleep(0.05)
+            assert not second_task.done()
+            release_first.set()
+            await asyncio.wait_for(first_task, timeout=3)
+            second_attempt = await asyncio.wait_for(second_task, timeout=3)
+            assert second_attempt.action == "RUN"
+            assert second_attempt.attempt.attempt == 2
+
+            async with pool.acquire() as connection:
+                attempts = await connection.fetch(
+                    "SELECT attempt, status, error_code FROM stage_attempts "
+                    "WHERE job_id = $1 ORDER BY attempt", job.id,
+                )
+                assert [(row["attempt"], row["status"], row["error_code"]) for row in attempts] == [
+                    (1, "FAILED", "TRANSIENT"), (2, "RUNNING", None)
+                ]
         finally:
             await pool.close()
 

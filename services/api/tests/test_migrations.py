@@ -5,6 +5,18 @@ import pytest
 from musicsheet_api.migrations import cli, runner
 
 
+def test_default_migrations_apply_v2_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = FakeConnection()
+    install_connection(monkeypatch, connection)
+
+    assert asyncio.run(runner.apply_migrations("dsn")) == [1, 2]
+    assert connection.versions == {1, 2}
+    assert asyncio.run(runner.apply_migrations("dsn")) == []
+    upgrades = [event[1] for event in connection.events if event[0] == "execute"]
+    assert any("ADD COLUMN start_job_attempts" in sql for sql in upgrades)
+    assert any("ADD COLUMN workflow_dispatched_at" in sql for sql in upgrades)
+
+
 class FakeTransaction:
     def __init__(self, connection: "FakeConnection") -> None:
         self.connection = connection
