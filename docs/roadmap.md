@@ -4,8 +4,7 @@
 
 ## 진행 중
 
-- [W02 — Redis Streams 및 SSE](plans/redis-streams-sse-implementation-plan.md) — 계획 리뷰 98/100 통과, 구현 진행 중
-- [W03 — Celery 오케스트레이션](plans/w03-celery-orchestration-implementation-plan.md) — Task 1–4 리뷰 통과; Task 5 자동화 검증 통과, opt-in PostgreSQL 검증은 URL 미설정으로 건너뜀, 최종 독립 리뷰 대기
+- [W02 — Redis Streams 및 SSE](plans/redis-streams-sse-implementation-plan.md) — event store와 SSE 경로 코드는 구현됨; opt-in Redis 통합 검증과 완료 보고·색인 마무리 진행 중
 
 ## 다음 작업 후보
 
