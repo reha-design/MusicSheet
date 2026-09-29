@@ -42,6 +42,8 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 ### Responses and failures
 
 - Successful job registration returns `201 Created` and a public job representation with `id`, source type, canonical source URL where applicable, target instrument, status/stage/progress, and timestamps.
+- Job and upload artifact persistence commits before the API publishes a Celery `start_job` message containing only the job ID. If publishing reports an error, the API changes only a still-`PENDING` job to `FAILED/DISPATCH_FAILED`; if a worker already claimed it, the API returns its current PostgreSQL snapshot.
+- If publishing fails and PostgreSQL cannot persist or reload the dispatch outcome, registration returns sanitized `503` JSON shaped as `{"detail":{"message":"Job dispatch status is unavailable","job_id":"<job-id>"}}`. The stable ID lets the caller recover the authoritative snapshot with `GET /api/v1/jobs/{job_id}`; no broker or database exception detail is returned.
 - `DELETE /api/v1/jobs/{job_id}` returns `202 Accepted` for an eligible or already-requested job, `409 Conflict` for a terminal job, and `404 Not Found` for an unknown ID. The worker performs the eventual transition from `CANCEL_REQUESTED` to `CANCELED`.
 - Public artifact representations contain `id`, `job_id`, role, filename, MIME type, size, SHA-256, producer metadata, and a relative `download_url`. They omit internal `uri` and absolute filesystem paths.
 - Artifact listing first verifies that the job exists, so `200 []` means a known job with no artifacts. Content downloads are streamed as attachments and looked up with both the requested job ID and artifact ID. The response includes the recorded `Content-Length`; if storage fails during streaming, the API logs a fixed generic warning, closes the stream, and ends the body so clients can detect a short download without receiving the storage exception or path.
@@ -51,9 +53,9 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 
 ## 2. Job lookup and cancellation
 
-`GET /api/v1/jobs/{job_id}` reads the latest job snapshot from PostgreSQL. Clients can poll this route in W01; SSE events are a separate W02 task.
+`GET /api/v1/jobs/{job_id}` reads the latest job snapshot from PostgreSQL. Clients can poll this route or subscribe to the W02 SSE event stream; PostgreSQL remains authoritative if retained events expire.
 
-`DELETE /api/v1/jobs/{job_id}` requests a cooperative cancellation. An atomic repository operation changes `PENDING`, `RUNNING`, or `RETRYING` to `CANCEL_REQUESTED`, updating `updated_at`. Repeating the request for an already `CANCEL_REQUESTED` job is idempotent. A terminal job (`COMPLETED`, `FAILED`, or `CANCELED`) returns `409`; an unknown ID returns `404`. W01 records the request only; a worker must later observe it and finish in `CANCELED`.
+`DELETE /api/v1/jobs/{job_id}` requests a cooperative cancellation. An atomic repository operation changes `PENDING`, `RUNNING`, or `RETRYING` to `CANCEL_REQUESTED`, updating `updated_at`. Repeating the request for an already `CANCEL_REQUESTED` job is idempotent. A terminal job (`COMPLETED`, `FAILED`, or `CANCELED`) returns `409`; an unknown ID returns `404`. The W03 worker observes cancellation before a stage and at progress checkpoints, then closes the running attempt and changes the job to `CANCELED`. If the cancellation commits before an orchestration failure, cancellation wins.
 
 ## 3. Artifact listing and download
 
@@ -69,4 +71,4 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 
 ## 5. Processing boundary
 
-W01 creates jobs with `status=PENDING`, `current_stage=DOWNLOAD`, and zero progress. It does not contact YouTube or dispatch Celery tasks. Future orchestration downloads and stores the original source, then advances through preprocessing, separation, transcription, postprocessing, and rendering. Until that implementation exists, a successfully registered job remains pending.
+The API creates jobs with `status=PENDING`, `current_stage=DOWNLOAD`, and zero progress, then dispatches the registered job after its persistence transaction commits. W03 runs the six-stage orchestration and updates PostgreSQL attempts/status/progress, but does not fetch YouTube media, transform audio, run inference, quantize notes, or render a score. Since W04–W08 handlers are not registered yet, the first stage fails visibly with `STAGE_NOT_CONFIGURED` instead of falsely completing the workflow. Deployment and maintenance details are in the [Celery orchestration spec](./celery.md).

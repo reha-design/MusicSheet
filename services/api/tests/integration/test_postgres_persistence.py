@@ -17,6 +17,8 @@ from musicsheet_api.jobs.repository import JobRepository
 from musicsheet_api.jobs.stages import StageAttemptRepository
 from musicsheet_api.migrations.runner import Migration, apply_migrations
 from musicsheet_api.migrations.v0001_initial import UPGRADE_SQL as INITIAL_UPGRADE_SQL
+from musicsheet_api.pipeline.maintenance import JobMaintenance
+from musicsheet_api.jobs.repository import advisory_lock_key
 
 
 pytestmark = pytest.mark.integration
@@ -551,6 +553,78 @@ def test_job_delete_cascades_to_stage_attempts_and_artifacts(migrated_database):
                 assert await connection.fetchval("SELECT count(*) FROM artifacts WHERE job_id = $1", job.id) == 0
         finally:
             await pool.close()
+
+    _run(check())
+
+
+def test_stalled_recovery_uses_live_advisory_locks_and_observed_row_cas(migrated_database):
+    assert _run(apply_migrations(migrated_database)) == [2]
+
+    async def check():
+        setup = await asyncpg.connect(migrated_database)
+        operator = await asyncpg.connect(migrated_database)
+        blocker = await asyncpg.connect(migrated_database)
+        job_id = str(uuid4())
+        try:
+            await setup.execute(
+                "INSERT INTO jobs (id, source_type, status, updated_at) "
+                "VALUES ($1, 'UPLOAD', 'RUNNING', CURRENT_TIMESTAMP - INTERVAL '10 seconds')",
+                job_id,
+            )
+            await setup.execute(
+                "INSERT INTO stage_attempts (id, job_id, stage, attempt, status) "
+                "VALUES ($1, $2, 'DOWNLOAD', 1, 'RUNNING')",
+                str(uuid4()), job_id,
+            )
+            selected = await setup.fetchrow(
+                "SELECT updated_at, status FROM jobs WHERE id = $1", job_id,
+            )
+            maintenance = JobMaintenance(operator, events=None, visibility_timeout=1)
+
+            for scope in ("START_JOB", PipelineStage.DOWNLOAD.value):
+                key = advisory_lock_key(job_id, scope)
+                assert await blocker.fetchval("SELECT pg_try_advisory_lock($1)", key)
+                locked = await maintenance.fail_stalled(
+                    job_id, selected["updated_at"], JobStatus.RUNNING,
+                )
+                assert locked.changed is False
+                assert locked.reason == "LOCK_HELD"
+                await blocker.fetchval("SELECT pg_advisory_unlock($1)", key)
+
+            # Simulate a cancellation transition after the operator selected the old scan row.
+            await setup.execute(
+                "UPDATE jobs SET status = 'CANCEL_REQUESTED', "
+                "updated_at = CURRENT_TIMESTAMP - INTERVAL '10 seconds' WHERE id = $1",
+                job_id,
+            )
+            changed = await maintenance.fail_stalled(
+                job_id, selected["updated_at"], JobStatus.RUNNING,
+            )
+            assert changed.changed is False
+            assert changed.reason == "OBSERVATION_CHANGED"
+
+            rescan = await maintenance.scan()
+            selected_again = next(row for row in rescan if row.job_id == job_id)
+            recovered = await maintenance.fail_stalled(
+                job_id, selected_again.updated_at, selected_again.status,
+            )
+            assert recovered.changed is True
+            assert recovered.job.status is JobStatus.CANCELED
+            row = await setup.fetchrow(
+                "SELECT status, error_code FROM jobs WHERE id = $1", job_id,
+            )
+            attempt = await setup.fetchrow(
+                "SELECT status, error_code, completed_at FROM stage_attempts WHERE job_id = $1",
+                job_id,
+            )
+            assert (row["status"], row["error_code"]) == ("CANCELED", "CANCELED")
+            assert (attempt["status"], attempt["error_code"]) == ("FAILED", "CANCELED")
+            assert attempt["completed_at"] is not None
+        finally:
+            await blocker.close()
+            await operator.close()
+            await setup.execute("DELETE FROM jobs WHERE id = $1", job_id)
+            await setup.close()
 
     _run(check())
 

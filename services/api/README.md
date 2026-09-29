@@ -11,7 +11,10 @@ Set-Location services/api
 uv sync --locked --python 3.13
 
 $env:DATABASE_URL = "postgresql://musicsheet:password@localhost:5432/musicsheet"
-$env:REDIS_URL = "redis://localhost:6379/0"
+$env:REDIS_URL = "redis://localhost:6379/2"
+$env:CELERY_BROKER_URL = "redis://localhost:6379/0"
+$env:CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+$env:CELERY_VISIBILITY_TIMEOUT = "3600"
 $env:LOCAL_STORAGE_DIR = "../../outputs"
 
 uv run --locked --python 3.13 musicsheet-api
@@ -29,11 +32,35 @@ $env:DATABASE_URL = "postgresql://musicsheet_user:<password>@localhost:5432/musi
 uv run --locked --python 3.13 musicsheet-migrate
 ```
 
-The command applies migration version 1 (`jobs`, `stage_attempts`, and `artifacts`) and records it in `schema_migrations`. Repeating the command skips recorded versions. Migration DDL and its ledger entry commit together, and concurrent commands serialize through a PostgreSQL advisory lock. The CLI prints applied/current versions on success and a generic failure message on error; it does not print the connection URL, host, credentials, or raw driver exception. Replace `<password>` with the local Compose password from your configuration.
+The command applies migration versions 1 (`jobs`, `stage_attempts`, and `artifacts`) and 2 (internal `start_job_attempts` and `workflow_dispatched_at` fields) and records them in `schema_migrations`. Repeating the command skips recorded versions. Migration DDL and its ledger entry commit together, and concurrent commands serialize through a PostgreSQL advisory lock. Apply v2 before starting any Celery worker or the maintenance command. The CLI prints applied/current versions on success and a generic failure message on error; it does not print the connection URL, host, credentials, or raw driver exception. Replace `<password>` with the local Compose password from your configuration.
 
 The API opens an optional database pool at startup when `DATABASE_URL` is set. If the URL is missing or PostgreSQL is unavailable, startup and `/health/live` still work; `app.state.db_pool` is `None`. An opened pool closes on shutdown. Schema migrations are never run during API startup.
 
-The W01 REST API registers YouTube jobs without contacting YouTube, accepts bounded multipart audio uploads, returns job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, and streams artifact downloads. `JobRepository` supports job creation, lookup, progress updates, and conditional cancellation; `ArtifactRepository` supports transactional insert and job-scoped list/lookup. Upload defaults to 100 MiB per file and accepts WAV, MP3, M4A, FLAC, and OGG. Downloads include the recorded content length; a mid-stream storage error ends the response with a short body and logs only a generic warning. Jobs remain `PENDING` until Celery dispatch is implemented; cancellation remains `CANCEL_REQUESTED` until a worker processes it. W01 does not fetch media or run models. See the [API contract](../../docs/backend/api.md) for response and failure details. `stage_attempts` persistence, SSE, and pipeline dispatch are not implemented.
+The API registers YouTube jobs and bounded multipart audio uploads, returns PostgreSQL job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, streams artifact downloads and job progress events. Job/artifact persistence commits before the API submits a Celery message containing only the job ID. If broker submission fails, the route conditionally marks a still-`PENDING` job as `FAILED/DISPATCH_FAILED`; if the failure outcome cannot be saved, its sanitized `503` has `detail.job_id` so callers can recover with `GET /api/v1/jobs/{job_id}`. W03 persists six-stage orchestration and attempt status but does not implement download, audio/model processing, quantization, or rendering; an unregistered stage fails as `STAGE_NOT_CONFIGURED`. See the [API contract](../../docs/backend/api.md) and [Celery spec](../../docs/backend/celery.md).
+
+## Celery workers and stalled-job recovery
+
+Run workers from `services/api` after applying migrations. Start one process per queue; recommended concurrency is 4–8 for I/O, 1 for GPU/AI, and 2–4 for rendering. These example commands use 4, 1, and 2:
+
+```powershell
+uv run --locked --python 3.13 celery -A musicsheet_api.pipeline.celery_app:celery_app worker -Q cpu_io_queue -c 4 -l info
+uv run --locked --python 3.13 celery -A musicsheet_api.pipeline.celery_app:celery_app worker -Q gpu_ai_queue -c 1 -l info
+uv run --locked --python 3.13 celery -A musicsheet_api.pipeline.celery_app:celery_app worker -Q cpu_render_queue -c 2 -l info
+```
+
+Redis defaults are split by database: broker `/0`, result backend `/1`, application event streams `/2`. `CELERY_VISIBILITY_TIMEOUT` defaults to `3600` seconds. A process repeatedly lost before its PostgreSQL claim commits can be redelivered without incrementing a durable attempt counter. The operator recovery CLI is internal and must be used only after confirming the worker is inactive:
+
+```powershell
+uv run --locked --python 3.13 musicsheet-orchestration-maintenance scan
+```
+
+Select the exact stale row and pass its values unchanged. For example, for a scan row with job ID `550e8400-e29b-41d4-a716-446655440000`, updated timestamp `2026-09-29T08:00:00+00:00`, and status `RUNNING`:
+
+```powershell
+uv run --locked --python 3.13 musicsheet-orchestration-maintenance fail-stalled --job-id "550e8400-e29b-41d4-a716-446655440000" --observed-updated-at "2026-09-29T08:00:00+00:00" --observed-status "RUNNING"
+```
+
+Recovery takes the start/current-stage advisory locks nonblocking and compares the selected timestamp and status under a PostgreSQL row lock. If the row changes, the command refuses to write; wait until the refreshed row is stale, rescan, and retry with both new values. A cancellation that won first becomes `CANCELED`; otherwise recovery sets `FAILED/WORKER_PRECLAIM_STALLED`. Later deliveries acknowledge the terminal state. W04–W08 handlers must be re-entrant if an output effect was written before completion state committed: use `(job_id, stage)` and artifact SHA-256 to recognize and reuse valid prior outputs.
 
 ### Opt-in live integration tests
 
