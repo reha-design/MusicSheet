@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "asyncpg>=0.31.0",
+    "celery>=5.6.3,<5.7",
     "fastapi>=0.141.1",
     "musicsheet-common",
     "musicsheet-storage",
