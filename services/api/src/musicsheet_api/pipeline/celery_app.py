@@ -38,6 +38,7 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
         backend=settings.celery_result_backend,
     )
     app.conf.update(
+        imports=("musicsheet_api.pipeline.tasks",),
         task_queues=TASK_QUEUES,
         task_routes=TASK_ROUTES,
         task_default_queue="cpu_io_queue",
