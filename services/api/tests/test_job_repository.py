@@ -189,6 +189,52 @@ def test_workflow_publish_failure_does_not_override_started_stage() -> None:
     assert len(connection.calls) == 2
 
 
+def test_api_dispatch_failure_marks_only_pending_job() -> None:
+    failed = {**ROW, "status": "FAILED", "error_code": "DISPATCH_FAILED"}
+    repo, connection = workflow_repo(failed)
+    result = asyncio.run(repo.fail_pending_dispatch(ROW["id"]))
+    assert result is not None and result.status is JobStatus.FAILED
+    assert result.error_code == "DISPATCH_FAILED"
+    query, args = connection.calls[0]
+    assert "status = 'PENDING'" in query
+    assert "status = 'FAILED'" in query
+    assert "error_code = 'DISPATCH_FAILED'" in query
+    assert "completed_at = CURRENT_TIMESTAMP" in query
+    assert args == (ROW["id"],)
+    assert len(connection.calls) == 1
+
+
+@pytest.mark.parametrize("current_status", [
+    "RUNNING", "CANCEL_REQUESTED", "COMPLETED", "FAILED", "CANCELED",
+])
+def test_api_dispatch_failure_preserves_worker_claim_cancel_and_terminal(current_status: str) -> None:
+    current = {**ROW, "status": current_status}
+    repo, connection = workflow_repo(None, current)
+    result = asyncio.run(repo.fail_pending_dispatch(ROW["id"]))
+    assert result is not None and result.status.value == current_status
+    assert result.error_code is None
+    assert len(connection.calls) == 2
+    assert "status = 'PENDING'" in connection.calls[0][0]
+    assert connection.calls[1][0].startswith("SELECT")
+    assert connection.calls[1][1] == (ROW["id"],)
+
+
+def test_api_dispatch_failure_missing_job_returns_none() -> None:
+    repo, _ = workflow_repo(None, None)
+    assert asyncio.run(repo.fail_pending_dispatch(ROW["id"])) is None
+
+
+def test_start_task_cannot_revive_api_dispatch_failed_job() -> None:
+    failed = {**ROW, "status": "FAILED", "error_code": "DISPATCH_FAILED",
+              "start_job_attempts": 0, "workflow_dispatched_at": None}
+    repo, connection = workflow_repo(failed)
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "NOOP"
+    assert result.job is not None and result.job.error_code == "DISPATCH_FAILED"
+    assert len(connection.calls) == 1
+    assert all(not query.startswith("UPDATE") for query, _ in connection.calls)
+
+
 def test_conditional_transition_checks_stage_and_allowed_source_statuses() -> None:
     repo, connection = workflow_repo({**ROW, "status": "RETRYING"})
     result = asyncio.run(repo.transition_job(

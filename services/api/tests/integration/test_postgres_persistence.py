@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from types import SimpleNamespace
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
@@ -372,7 +373,7 @@ def test_job_rest_api_persists_youtube_upload_artifact_and_cancellation(
         },
         working_directory=tmp_path,
     )
-    app = create_app(settings=settings)
+    app = create_app(settings=settings, dispatcher=SimpleNamespace(submit=lambda _job_id: None))
 
     with TestClient(app) as client:
         youtube_response = client.post(
@@ -462,6 +463,35 @@ def test_job_rest_api_persists_youtube_upload_artifact_and_cancellation(
             await connection.close()
 
     _run(verify_persisted_rows())
+
+
+def test_api_dispatch_failure_does_not_overwrite_concurrent_worker_claim(migrated_database):
+    async def check():
+        pool = await asyncpg.create_pool(migrated_database, min_size=1, max_size=3)
+        try:
+            repository = JobRepository(pool)
+            job = await repository.create_job(source_type="YOUTUBE", source_url="https://example.invalid")
+            async with pool.acquire() as worker:
+                async with worker.transaction():
+                    await worker.execute(
+                        "UPDATE jobs SET status = 'RUNNING' WHERE id = $1 AND status = 'PENDING'",
+                        job.id,
+                    )
+                    failure = asyncio.create_task(repository.fail_pending_dispatch(job.id))
+                    try:
+                        await asyncio.sleep(0.05)
+                        assert not failure.done()
+                    except BaseException:
+                        failure.cancel()
+                        raise
+                current = await asyncio.wait_for(failure, timeout=2)
+            assert current is not None and current.status is JobStatus.RUNNING
+            assert current.error_code is None
+            assert (await repository.get_job(job.id)).status is JobStatus.RUNNING
+        finally:
+            await pool.close()
+
+    _run(check())
 
 
 def test_progress_boundary_values(migrated_database):

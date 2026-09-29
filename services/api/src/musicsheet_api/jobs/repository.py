@@ -159,6 +159,21 @@ class JobRepository:
             )
             return _record(changed)
 
+    async def fail_pending_dispatch(self, job_id: str) -> JobRecord | None:
+        """Record an API producer error only before a worker claims the job."""
+        async with self._pool.acquire() as connection:
+            row = await connection.fetchrow(
+                "UPDATE jobs SET status = 'FAILED', error_code = 'DISPATCH_FAILED', "
+                "error_message = 'Job could not be submitted', updated_at = CURRENT_TIMESTAMP, "
+                "completed_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'PENDING' "
+                f"RETURNING {_COLUMNS}", job_id,
+            )
+            if row is None:
+                row = await connection.fetchrow(
+                    f"SELECT {_COLUMNS} FROM jobs WHERE id = $1", job_id,
+                )
+        return _record(row) if row is not None else None
+
     async def transition_job(
         self, job_id: str, *, expected_stage: PipelineStage,
         from_statuses: tuple[JobStatus, ...], to_status: JobStatus,
