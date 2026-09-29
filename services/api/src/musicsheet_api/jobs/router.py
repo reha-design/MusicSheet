@@ -16,6 +16,7 @@ from starlette.types import Receive, Scope, Send
 
 from musicsheet_api.jobs.artifacts import ArtifactRecord, ArtifactRepository
 from musicsheet_api.jobs.events import JobEventStore, StoredJobEvent
+from musicsheet_api.jobs.models import JobRecord
 from musicsheet_api.jobs.repository import JobRepository
 from musicsheet_api.jobs.schemas import (
     ArtifactResponse,
@@ -57,6 +58,27 @@ def _artifact_repository(request: Request) -> ArtifactRepository:
             detail="Artifact database is unavailable",
         )
     return ArtifactRepository(pool)
+
+
+async def _dispatch_registered_job(
+    request: Request, repository: JobRepository, job: JobRecord,
+) -> JobResponse:
+    """Publish after commit, then reconcile an ambiguous producer failure with PostgreSQL."""
+    try:
+        await asyncio.to_thread(request.app.state.dispatcher.submit, job.id)
+    except Exception:
+        _logger.warning("Job dispatch failed")
+        try:
+            persisted = await repository.fail_pending_dispatch(job.id)
+        except Exception:
+            persisted = None
+        if persisted is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"message": "Job dispatch status is unavailable", "job_id": job.id},
+            ) from None
+        return JobResponse.model_validate(persisted)
+    return JobResponse.model_validate(job)
 
 
 def _artifact_response(record: ArtifactRecord) -> ArtifactResponse:
@@ -205,7 +227,7 @@ async def create_youtube_job(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Job database is unavailable",
         ) from None
-    return JobResponse.model_validate(job)
+    return await _dispatch_registered_job(request, repository, job)
 
 
 @router.post("/upload", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -286,7 +308,7 @@ async def upload_audio_job(request: Request) -> JobResponse:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Upload storage is unavailable",
             ) from None
-        return JobResponse.model_validate(job)
+        return await _dispatch_registered_job(request, JobRepository(pool), job)
     finally:
         await form.close()
 

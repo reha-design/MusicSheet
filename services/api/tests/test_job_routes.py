@@ -48,7 +48,10 @@ def job_row(**overrides: Any) -> dict[str, Any]:
 
 def api_app():
     settings = Settings.from_env({"LOCAL_STORAGE_DIR": "outputs"})
-    return create_app(settings=settings, health_checks=ReadyChecks())
+    return create_app(
+        settings=settings, health_checks=ReadyChecks(),
+        dispatcher=SimpleNamespace(submit=lambda _job_id: None),
+    )
 
 
 class FakeConnection:
