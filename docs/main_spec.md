@@ -111,6 +111,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [005: Basic Pitch worker 전용 Python 3.12 예외 (승인됨, PoC smoke 검증 완료)](./adr/005-basic-pitch-python-312-exception.md)
 
 ### Reports (작업 결과보고서)
+- [현재 구현 현황 브리핑 (2026-10-01, 기준 `148040c`)](./reports/current-implementation-briefing.md)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
 - [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)
 - [03: 문서 정합성 패치 보고서](./reports/documentation-alignment-report.md)
