@@ -1,6 +1,6 @@
 # W03 — Celery Orchestration Implementation Plan
 
-> **Status:** W03 Tasks 1–5 passed their independent code review gates (Task 5: 96/100 on 2026-09-29). Revision 9 recovery amendment scored 94/100 and failed; Revision 10 passed at 99/100 on 2026-10-01. Task 6 passed independent code review at 97/100 on 2026-10-01. The local merge commit remains.
+> **Status:** W03 Tasks 1–5 passed their independent code review gates (Task 5: 96/100 on 2026-09-29). Revision 9 recovery amendment scored 94/100 and failed; Revision 10 passed at 99/100 on 2026-10-01. Task 6 passed independent code review at 97/100 on 2026-10-01. W02 and merged W03 are integrated locally in merge commit `37f8982`; closeout index is recorded in the follow-up documentation commit.
 > **Scope approved in chat:** Celery queues, stage orchestration, job-state persistence, retries, and progress events only. Actual media/model/render processing stays in W04–W08.
 > **Base:** W02 implementation commits through `65cbe05` (`codex/redis-streams-sse`).
 
