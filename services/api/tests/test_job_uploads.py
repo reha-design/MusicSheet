@@ -6,6 +6,7 @@ import logging
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -205,7 +206,10 @@ def make_app(
         },
         working_directory=tmp_path,
     )
-    app = create_app(settings=settings, health_checks=ReadyChecks())
+    app = create_app(
+        settings=settings, health_checks=ReadyChecks(),
+        dispatcher=SimpleNamespace(submit=lambda _job_id: None),
+    )
     pool = FakePool(connection or FakeConnection())
     storage = LocalStorage(tmp_path / "outputs")
     return app, pool, storage

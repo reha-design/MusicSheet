@@ -12,6 +12,265 @@ from musicsheet_api.jobs.models import JobRecord
 from musicsheet_api.jobs.repository import JobRepository
 
 
+class WorkflowTransaction:
+    def __init__(self, connection: "WorkflowConnection") -> None:
+        self.connection = connection
+
+    async def __aenter__(self) -> None:
+        self.connection.events.append("begin")
+
+    async def __aexit__(self, *args: object) -> None:
+        self.connection.events.append("commit")
+
+
+class WorkflowConnection:
+    def __init__(self, *responses: object) -> None:
+        self.responses = list(responses)
+        self.calls: list[tuple[str, tuple[object, ...]]] = []
+        self.events: list[str] = []
+
+    def transaction(self) -> WorkflowTransaction:
+        return WorkflowTransaction(self)
+
+    async def fetchrow(self, query: str, *args: object) -> object:
+        self.calls.append((query, args))
+        return self.responses.pop(0)
+
+    async def fetchval(self, query: str, *args: object) -> object:
+        self.calls.append((query, args))
+        return self.responses.pop(0)
+
+    async def execute(self, query: str, *args: object) -> str:
+        self.calls.append((query, args))
+        return "OK"
+
+
+def workflow_repo(*responses: object) -> tuple[JobRepository, WorkflowConnection]:
+    connection = WorkflowConnection(*responses)
+    return JobRepository(FakePool(connection)), connection  # type: ignore[arg-type]
+
+
+def test_start_claim_increments_only_after_job_lock_and_before_publish() -> None:
+    repo, connection = workflow_repo(
+        {**ROW, "start_job_attempts": 0, "workflow_dispatched_at": None},
+        False,
+        {**ROW, "status": "RUNNING", "start_job_attempts": 1},
+    )
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "PUBLISH"
+    assert result.attempts == 1
+    assert result.job.status is JobStatus.RUNNING
+    assert connection.events == ["begin", "commit"]
+    assert "FOR UPDATE" in connection.calls[0][0]
+    assert "start_job_attempts = start_job_attempts + 1" in connection.calls[-1][0]
+
+
+def test_start_claim_fourth_attempt_is_last_publish() -> None:
+    repo, _ = workflow_repo(
+        {**ROW, "status": "RUNNING", "start_job_attempts": 3, "workflow_dispatched_at": None},
+        False,
+        {**ROW, "status": "RUNNING", "start_job_attempts": 4},
+    )
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert (result.action, result.attempts) == ("PUBLISH", 4)
+
+
+def test_start_claim_fifth_delivery_fails_without_publishing() -> None:
+    repo, connection = workflow_repo(
+        {**ROW, "status": "RUNNING", "start_job_attempts": 4, "workflow_dispatched_at": None},
+        False,
+        {**ROW, "status": "FAILED", "error_code": "WORKFLOW_WORKER_LOST"},
+    )
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "FAILED"
+    assert result.job.error_code == "WORKFLOW_WORKER_LOST"
+    assert all("start_job_attempts = start_job_attempts + 1" not in q for q, _ in connection.calls)
+
+
+def test_start_claim_cancellation_wins_over_exhaustion() -> None:
+    repo, _ = workflow_repo(
+        {**ROW, "status": "CANCEL_REQUESTED", "start_job_attempts": 4, "workflow_dispatched_at": None},
+        {**ROW, "status": "CANCELED"},
+    )
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "CANCELED"
+    assert result.job.status is JobStatus.CANCELED
+
+
+def _assert_open_attempt_canceled_in_transaction(connection: WorkflowConnection) -> None:
+    assert connection.events == ["begin", "commit"]
+    assert "FOR UPDATE" in connection.calls[0][0]
+    assert len(connection.calls) == 3
+    attempt_query, attempt_args = connection.calls[1]
+    job_query, job_args = connection.calls[2]
+    assert attempt_query.startswith("UPDATE stage_attempts SET status = 'FAILED'")
+    assert "error_code = $2" in attempt_query
+    assert "completed_at = CURRENT_TIMESTAMP" in attempt_query
+    assert "duration_ms =" in attempt_query
+    assert "WHERE job_id = $1 AND status = 'RUNNING'" in attempt_query
+    assert attempt_args == (ROW["id"], "CANCELED")
+    assert job_query.startswith("UPDATE jobs SET status = 'CANCELED'")
+    assert job_args == (ROW["id"],)
+
+
+def test_start_claim_cancellation_closes_open_attempt_atomically() -> None:
+    repo, connection = workflow_repo(
+        {**ROW, "status": "CANCEL_REQUESTED", "start_job_attempts": 4,
+         "workflow_dispatched_at": None},
+        {**ROW, "status": "CANCELED"},
+    )
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "CANCELED"
+    assert result.job.status is JobStatus.CANCELED
+    _assert_open_attempt_canceled_in_transaction(connection)
+
+
+@pytest.mark.parametrize("initial", [None, "published", "stage_started"])
+def test_start_claim_missing_published_or_stage_started_is_noop(initial: str | None) -> None:
+    if initial is None:
+        responses = (None,)
+    elif initial == "published":
+        responses = ({**ROW, "status": "RUNNING", "start_job_attempts": 1, "workflow_dispatched_at": NOW},)
+    else:
+        responses = ({**ROW, "status": "RUNNING", "start_job_attempts": 1, "workflow_dispatched_at": None}, True)
+    repo, connection = workflow_repo(*responses)
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "NOOP"
+    assert not any("start_job_attempts = start_job_attempts + 1" in q for q, _ in connection.calls)
+
+
+def test_workflow_dispatch_marking_requires_claim_and_unpublished_state() -> None:
+    repo, connection = workflow_repo({**ROW, "status": "RUNNING"})
+    updated = asyncio.run(repo.mark_workflow_dispatched(ROW["id"]))
+    assert updated.status is JobStatus.RUNNING
+    query, args = connection.calls[0]
+    assert "workflow_dispatched_at = CURRENT_TIMESTAMP" in query
+    assert "workflow_dispatched_at IS NULL" in query
+    assert "start_job_attempts > 0" in query
+    assert args == (ROW["id"],)
+
+
+def test_workflow_publish_failure_does_not_override_cancellation() -> None:
+    repo, connection = workflow_repo(
+        {**ROW, "status": "CANCEL_REQUESTED", "start_job_attempts": 1, "workflow_dispatched_at": None},
+        {**ROW, "status": "CANCELED"},
+    )
+    result = asyncio.run(repo.fail_workflow_dispatch(ROW["id"]))
+    assert result.status is JobStatus.CANCELED
+    assert not any("WORKFLOW_DISPATCH_FAILED" in args for _, args in connection.calls)
+
+
+def test_workflow_publish_failure_cancellation_closes_open_attempt_atomically() -> None:
+    repo, connection = workflow_repo(
+        {**ROW, "status": "CANCEL_REQUESTED", "start_job_attempts": 1,
+         "workflow_dispatched_at": None},
+        {**ROW, "status": "CANCELED"},
+    )
+    result = asyncio.run(repo.fail_workflow_dispatch(ROW["id"]))
+    assert result.status is JobStatus.CANCELED
+    _assert_open_attempt_canceled_in_transaction(connection)
+
+
+def test_workflow_publish_failure_does_not_override_recorded_publish() -> None:
+    published = {**ROW, "status": "RUNNING", "start_job_attempts": 1,
+                 "workflow_dispatched_at": NOW}
+    repo, connection = workflow_repo(published)
+    result = asyncio.run(repo.fail_workflow_dispatch(ROW["id"]))
+    assert result.status is JobStatus.RUNNING
+    assert len(connection.calls) == 1
+
+
+def test_workflow_publish_failure_does_not_override_started_stage() -> None:
+    running = {**ROW, "status": "RUNNING", "start_job_attempts": 1,
+               "workflow_dispatched_at": None}
+    repo, connection = workflow_repo(running, True)
+    result = asyncio.run(repo.fail_workflow_dispatch(ROW["id"]))
+    assert result.status is JobStatus.RUNNING
+    assert len(connection.calls) == 2
+
+
+def test_api_dispatch_failure_marks_only_pending_job() -> None:
+    failed = {**ROW, "status": "FAILED", "error_code": "DISPATCH_FAILED"}
+    repo, connection = workflow_repo(failed)
+    result = asyncio.run(repo.fail_pending_dispatch(ROW["id"]))
+    assert result is not None and result.status is JobStatus.FAILED
+    assert result.error_code == "DISPATCH_FAILED"
+    query, args = connection.calls[0]
+    assert "status = 'PENDING'" in query
+    assert "status = 'FAILED'" in query
+    assert "error_code = 'DISPATCH_FAILED'" in query
+    assert "completed_at = CURRENT_TIMESTAMP" in query
+    assert args == (ROW["id"],)
+    assert len(connection.calls) == 1
+
+
+@pytest.mark.parametrize("current_status", [
+    "RUNNING", "CANCEL_REQUESTED", "COMPLETED", "FAILED", "CANCELED",
+])
+def test_api_dispatch_failure_preserves_worker_claim_cancel_and_terminal(current_status: str) -> None:
+    current = {**ROW, "status": current_status}
+    repo, connection = workflow_repo(None, current)
+    result = asyncio.run(repo.fail_pending_dispatch(ROW["id"]))
+    assert result is not None and result.status.value == current_status
+    assert result.error_code is None
+    assert len(connection.calls) == 2
+    assert "status = 'PENDING'" in connection.calls[0][0]
+    assert connection.calls[1][0].startswith("SELECT")
+    assert connection.calls[1][1] == (ROW["id"],)
+
+
+def test_api_dispatch_failure_missing_job_returns_none() -> None:
+    repo, _ = workflow_repo(None, None)
+    assert asyncio.run(repo.fail_pending_dispatch(ROW["id"])) is None
+
+
+def test_start_task_cannot_revive_api_dispatch_failed_job() -> None:
+    failed = {**ROW, "status": "FAILED", "error_code": "DISPATCH_FAILED",
+              "start_job_attempts": 0, "workflow_dispatched_at": None}
+    repo, connection = workflow_repo(failed)
+    result = asyncio.run(repo.claim_start_job(ROW["id"]))
+    assert result.action == "NOOP"
+    assert result.job is not None and result.job.error_code == "DISPATCH_FAILED"
+    assert len(connection.calls) == 1
+    assert all(not query.startswith("UPDATE") for query, _ in connection.calls)
+
+
+def test_conditional_transition_checks_stage_and_allowed_source_statuses() -> None:
+    repo, connection = workflow_repo({**ROW, "status": "RETRYING"})
+    result = asyncio.run(repo.transition_job(
+        ROW["id"], expected_stage=PipelineStage.DOWNLOAD,
+        from_statuses=(JobStatus.RUNNING,), to_status=JobStatus.RETRYING,
+        stage_progress=50, overall_progress=8,
+    ))
+    assert result.status is JobStatus.RETRYING
+    query, args = connection.calls[0]
+    assert "current_stage" in query and "status = ANY" in query
+    assert "DOWNLOAD" in args and ["RUNNING"] in args
+
+
+def test_conditional_transition_cannot_revive_committed_cancellation() -> None:
+    repo, connection = workflow_repo()
+    with pytest.raises(ValueError):
+        asyncio.run(repo.transition_job(
+            ROW["id"], expected_stage=PipelineStage.DOWNLOAD,
+            from_statuses=(JobStatus.CANCEL_REQUESTED,),
+            to_status=JobStatus.RUNNING, stage_progress=0, overall_progress=0,
+        ))
+    assert connection.calls == []
+
+
+def test_conditional_transition_rejects_unstable_error_code_before_sql() -> None:
+    repo, connection = workflow_repo()
+    with pytest.raises(ValueError):
+        asyncio.run(repo.transition_job(
+            ROW["id"], expected_stage=PipelineStage.DOWNLOAD,
+            from_statuses=(JobStatus.RUNNING,), to_status=JobStatus.FAILED,
+            stage_progress=0, overall_progress=0,
+            error_code="secret-host:password",
+        ))
+    assert connection.calls == []
+
+
 NOW = datetime(2026, 9, 27, tzinfo=timezone.utc)
 ROW = {
     "id": "11111111-1111-4111-8111-111111111111",

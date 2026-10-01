@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
+from typing import Protocol
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -20,13 +21,22 @@ from musicsheet_api.health import (
 )
 from musicsheet_api.jobs.upload_body_limit import UploadBodyLimitMiddleware
 from musicsheet_api.jobs.router import router as jobs_router
+from musicsheet_api.pipeline.celery_app import create_celery_app
+from musicsheet_api.pipeline.dispatcher import CeleryWorkflowDispatcher
 from musicsheet_storage import LocalStorage
+
+
+class JobDispatcher(Protocol):
+    """Synchronous producer boundary used after registration commits."""
+
+    def submit(self, job_id: str) -> None: ...
 
 
 def create_app(
     settings: Settings | None = None,
     health_checks: HealthCheckProvider | None = None,
     diagnostics_checks: DiagnosticProvider | None = None,
+    dispatcher: JobDispatcher | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings.from_env()
     resolved_diagnostics = diagnostics_checks or HostDiagnostics(resolved_settings)
@@ -79,6 +89,10 @@ def create_app(
     app.state.redis_client = None
     app.state.db_pool = None
     app.state.storage = LocalStorage(resolved_settings.local_storage_dir)
+    app.state.dispatcher = (
+        dispatcher if dispatcher is not None
+        else CeleryWorkflowDispatcher(create_celery_app(resolved_settings))
+    )
     app.include_router(jobs_router)
 
     @app.exception_handler(RequestValidationError)

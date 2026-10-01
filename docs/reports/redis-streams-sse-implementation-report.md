@@ -27,10 +27,19 @@
 | Redis integration tests against local Compose Redis DB `/2` | `test_redis_job_events.py -q -m redis_integration` -> 2 passed; verified persisted cursor replay, live append, trimming, and approximate retention. |
 | Redis test-key cleanup | `redis-cli -n 2 PING` -> `PONG`; scan for `job:redis-test-*` returned no keys after the run. |
 | Root tests | `uv run pytest` -> 59 passed, 4 skipped, 4 deselected. |
-| API suite | `uv run --project services/api --python 3.13 pytest services/api/tests -q` -> 176 passed, 12 skipped, 1 existing Starlette deprecation warning. |
+| W02 API suite before W03 branch integration | `uv run --project services/api --python 3.13 pytest services/api/tests -q` -> 176 passed, 12 skipped, 1 existing Starlette deprecation warning. |
 | `git diff --check` | Passed after the documentation updates (exit code 0). |
 
 No inherited `MUSICSHEET_TEST_DATABASE_URL` or `MUSICSHEET_TEST_REDIS_URL` was used for default test runs.
+
+
+### Final combined branch verification after integrating merged W03 PR #9 (2026-10-01)
+
+- API suite: `uv run --project services/api --python 3.13 pytest services/api/tests -q` -> 323 passed, 15 skipped, 1 existing Starlette deprecation warning.
+- Redis integration: `uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_job_events.py -q -m redis_integration` against local DB `/2` -> 2 passed.
+- Root suite: `uv run pytest` -> 59 passed, 4 skipped, 4 deselected.
+- Redis cleanup: `redis-cli -n 2 PING` -> `PONG`; scan for `job:redis-test-*` returned no keys.
+- PostgreSQL integration remained opt-in and was not run.
 
 ## Independent Review
 

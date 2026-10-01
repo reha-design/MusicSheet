@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import asyncpg
 
 from .v0001_initial import UPGRADE_SQL as INITIAL_UPGRADE_SQL
+from .v0002_workflow_dispatch import UPGRADE_SQL as WORKFLOW_UPGRADE_SQL
 
 
 @dataclass(frozen=True)
@@ -14,7 +15,10 @@ class Migration:
     upgrade_sql: str
 
 
-MIGRATIONS: tuple[Migration, ...] = (Migration(1, INITIAL_UPGRADE_SQL),)
+MIGRATIONS: tuple[Migration, ...] = (
+    Migration(1, INITIAL_UPGRADE_SQL),
+    Migration(2, WORKFLOW_UPGRADE_SQL),
+)
 
 # A fixed, application-specific signed bigint for PostgreSQL's session lock.
 _MIGRATION_LOCK_KEY = 0x4D55534943534854

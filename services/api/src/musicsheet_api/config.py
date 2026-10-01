@@ -12,6 +12,9 @@ from typing import Mapping
 class Settings:
     database_url: str | None
     redis_url: str | None
+    celery_broker_url: str
+    celery_result_backend: str
+    celery_visibility_timeout: int
     local_storage_dir: Path
     max_upload_bytes: int
     nvidia_smi_bin: str | None
@@ -39,9 +42,20 @@ class Settings:
         if max_upload_bytes <= 0:
             raise ValueError("MAX_UPLOAD_BYTES must be a positive integer")
 
+        raw_visibility_timeout = env.get("CELERY_VISIBILITY_TIMEOUT", "3600")
+        try:
+            celery_visibility_timeout = int(raw_visibility_timeout)
+        except (TypeError, ValueError):
+            raise ValueError("CELERY_VISIBILITY_TIMEOUT must be a positive integer") from None
+        if celery_visibility_timeout <= 0:
+            raise ValueError("CELERY_VISIBILITY_TIMEOUT must be a positive integer")
+
         return cls(
             database_url=env.get("DATABASE_URL"),
             redis_url=env.get("REDIS_URL"),
+            celery_broker_url=env.get("CELERY_BROKER_URL") or "redis://localhost:6379/0",
+            celery_result_backend=env.get("CELERY_RESULT_BACKEND") or "redis://localhost:6379/1",
+            celery_visibility_timeout=celery_visibility_timeout,
             local_storage_dir=storage_dir,
             max_upload_bytes=max_upload_bytes,
             nvidia_smi_bin=env.get("NVIDIA_SMI_BIN") or None,
