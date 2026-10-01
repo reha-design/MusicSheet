@@ -365,3 +365,13 @@ Implementation scoring rubric required by `AGENTS.md`: external behavior 25, err
 - **Type consistency:** `StageArtifactOutput`, `StageArtifactPublisher`, `StageContext.artifact_publisher`, `LocalStageArtifactPublisher`, `BasicPitchWorkerRunner`, `BasicPitchTranscriptionHandler`, and `_handlers_for_runtime` are used consistently across tasks.
 - **Review Focus coverage:** All five review-focus risks have named tests in their owning tasks: Task 1 executable/child lifecycle; Task 3 input boundaries, unsafe URI, output integrity and conflict. The publisher transaction failure is also tested in Task 2 and with opt-in PostgreSQL in Task 5.
 - **Proportion:** The plan maps each of five reviewable implementation units to exact files, interfaces, tests, commands, acceptance evidence, and records. It does not include code bodies or introduce a new service/schema.
+
+## Next-session resume
+
+- **Resume workspace:** `C:\Users\user\.codex\worktrees\redis-streams-sse\MusicSheet`
+- **Branch:** `codex/redis-streams-sse` tracking `origin/codex/redis-streams-sse`.
+- **W04 state:** the design is approved; plan version 1 is written and pushed; no W04 product code or tests have been added. The independent plan score is pending, so implementation is blocked.
+- **First action:** ask the user to independently review this exact plan version and provide a score breakdown using the rubric above, plus blocker/important findings. Record reviewer, review date, reviewed version/scope, score, and finding dispositions in `Review Records`. Do not estimate or invent a score.
+- **If the review is >=95/100 with no unresolved blocker/important findings:** use `superpowers:executing-plans` and start Task 1 with TDD in this current session. Keep the user's native/no-subagent preference. Stop after each task for an independent code review with the same 95-point/no-blocker rule.
+- **If the score is below 95 or findings remain:** revise the plan, mark a new version, and obtain an independent review of that revised version before any code change.
+- **Suggested resume message:** “W04 이어서 진행: 계획 v1의 독립 리뷰 점수를 먼저 기록하고, gate 통과 시 Task 1부터 현재 세션에서 구현해.”

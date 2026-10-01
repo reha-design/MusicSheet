@@ -4,11 +4,11 @@
 
 ## W04: Basic Pitch 제품 파이프라인 연결
 
-상태: `Planned` · 권장 선행 작업: W03
+상태: `In Progress — independent plan review pending` · 권장 선행 작업: W03
 
 완료 기준: Python 3.13 백엔드에서 격리된 Python 3.12 ONNX worker를 호출하고, versioned JSON과 MIDI 결과를 공용 계약으로 검증해 아티팩트로 등록합니다.
 
-사양: [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [Basic Pitch worker 계획](plans/basic-pitch-isolated-worker-implementation-plan.md)
+사양 및 작업 계획: [W04 통합 설계](superpowers/specs/2026-10-01-basic-pitch-pipeline-integration-design.md), [W04 구현 계획](plans/2026-10-01-basic-pitch-pipeline-integration-plan.md), [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [Basic Pitch worker 계획](plans/basic-pitch-isolated-worker-implementation-plan.md)
 
 ## W05: 기본 전사 모델 결정
 

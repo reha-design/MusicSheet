@@ -4,10 +4,13 @@
 
 ## 진행 중
 
-현재 진행 중인 작업 없음.
+1. [W04 — Basic Pitch 제품 파이프라인 연결](backlog.md#w04-basic-pitch-제품-파이프라인-연결)
+   - 설계 승인 및 계획서 v1 작성 완료
+   - 독립 계획 리뷰 점수 대기; 95/100 미만이거나 blocker/important 지적이 남으면 구현을 시작하지 않음
+   - 재개 지점: [W04 실행 계획](plans/2026-10-01-basic-pitch-pipeline-integration-plan.md#next-session-resume)
 
 ## 다음 작업 후보
 
-1. [W04 — Basic Pitch 제품 파이프라인 연결](backlog.md#w04-basic-pitch-제품-파이프라인-연결)
+1. W04 완료 후 [W05 — 기본 전사 모델 결정](backlog.md#w05-기본-전사-모델-결정)
 
 작업 시작 시 backlog에서 해당 항목을 제거하고 `진행 중`에 등록합니다. 구현 완료 후에는 [completed-work.md](completed-work.md)에 완료일·결과보고서·리뷰 점수·커밋을 기록하고 이 문서에서 제거합니다. 구현 상세와 검증 결과는 각 작업의 계획서와 결과보고서에만 보관합니다.
