@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-- [W02 — Redis Streams 및 SSE](plans/redis-streams-sse-implementation-plan.md) — 계획 리뷰 98/100 통과, 구현 진행 중
+현재 진행 중인 작업 없음.
 
 ## 다음 작업 후보
 

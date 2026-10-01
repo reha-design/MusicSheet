@@ -6,7 +6,7 @@
 > **Task 1 code review:** 98/100 (passed)<br>
 > **Task 2 code review:** 99/100 (passed)<br>
 > **Task 3 code review:** 100/100 passed (independent re-review, 2026-10-01)
-> **Task 3 implementation commit:** pending; review gate passed
+> **Task 3 implementation commit:** `e901631`
 
 ## Delivered
 
@@ -38,4 +38,4 @@ Plan Revision 2 passed at 98/100. Task 1 passed at 98/100 after re-review; its i
 
 ## Limitations
 
-The real-Redis integration checks passed against the local Compose service. PostgreSQL integration remained skipped because no opt-in disposable PostgreSQL test URL was configured. The API suite completed with one existing Starlette/httpx deprecation warning. W02 review gates have passed; the task commit and completion index are being recorded.
+The real-Redis integration checks passed against the local Compose service. PostgreSQL integration remained skipped because no opt-in disposable PostgreSQL test URL was configured. The API suite completed with one existing Starlette/httpx deprecation warning. W02 review gates and completion records are complete.

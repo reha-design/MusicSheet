@@ -167,8 +167,8 @@
 
   Initial sandboxed API collection had 10 errors while importing `_ssl.pyd`; rerun on 2026-10-01 with local test permissions: API suite -> 176 passed, 12 skipped, 1 Starlette deprecation warning. Root `uv run pytest` -> 59 passed, 4 skipped, 4 deselected. The opt-in URLs were unset for these suites; Redis integration was run separately against local DB `/2` as recorded in Step 4.
 - [x] **Step 7: Review Task 3 independently.** The initial review on 2026-09-28 scored 95/100 but held the gate due to missing real-Redis evidence. The 2026-10-01 independent re-review scored **100/100** (behavior 25/25, errors/security 25/25, tests/evidence 25/25, structure/dependencies 15/15, documentation/reproducibility 10/10). The live Redis evidence and report wording were verified; no unresolved blocker, important, or minor findings remain. Gate passed.
-- [ ] **Step 8: Commit Task 3** with `test(api): verify Redis event replay and retention` after the review gate passes.
-- [ ] **Step 9: Finalize the Task 3 report and completed-work record after review and commit.** Record the Task 3 review score and implementation commit hash. Commit the score/hash record separately if needed to avoid a self-referential commit hash.
+- [x] **Step 8: Commit Task 3** with `test(api): verify Redis event replay and retention` after the review gate passes. Commit: `e901631`.
+- [x] **Step 9: Finalize the Task 3 report and completed-work record after review and commit.** Recorded the 100/100 re-review and implementation commit `e901631` in the report and completed-work index; moved W02 out of progress and left W03 as the next candidate.
 
 ## Acceptance Criteria
 
