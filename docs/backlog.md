@@ -2,29 +2,13 @@
 
 이 문서는 아직 시작하지 않은 작업의 요약 목록입니다. 각 작업을 시작할 때 관련 사양을 확인하고 별도 구현 계획을 작성합니다. 계획 독립 리뷰에서 95/100 이상을 받고 blocker/important 지적이 없어야 구현을 시작합니다.
 
-## W02: Redis Streams SSE
-
-상태: `Planned` · 권장 선행 작업: W01 완료
-
-완료 기준: 작업 진행 이벤트를 Redis Streams에 기록하고, SSE 구독과 `Last-Event-ID` 기반 재연결·이벤트 복원을 검증합니다.
-
-사양: [Redis Streams](backend/redis-streams.md), [API](backend/api.md), [작업 상태](domain/job-state.md)
-
-## W03: Celery Orchestration
-
-상태: `Planned` · 권장 선행 작업: W01, W02
-
-완료 기준: CPU·AI 큐와 단계 연결, 재시도, 멱등 실행, PostgreSQL 상태 기록을 구현합니다.
-
-사양: [Celery](backend/celery.md), [작업 파이프라인](architecture/job-pipeline.md), [작업 상태](domain/job-state.md)
-
 ## W04: Basic Pitch 제품 파이프라인 연결
 
-상태: `Planned` · 권장 선행 작업: W03
+상태: `In Progress — independent plan review pending` · 권장 선행 작업: W03
 
 완료 기준: Python 3.13 백엔드에서 격리된 Python 3.12 ONNX worker를 호출하고, versioned JSON과 MIDI 결과를 공용 계약으로 검증해 아티팩트로 등록합니다.
 
-사양: [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [Basic Pitch worker 계획](plans/basic-pitch-isolated-worker-implementation-plan.md)
+사양 및 작업 계획: [W04 통합 설계](superpowers/specs/2026-10-01-basic-pitch-pipeline-integration-design.md), [W04 구현 계획](plans/2026-10-01-basic-pitch-pipeline-integration-plan.md), [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [Basic Pitch worker 계획](plans/basic-pitch-isolated-worker-implementation-plan.md)
 
 ## W05: 기본 전사 모델 결정
 

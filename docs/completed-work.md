@@ -8,3 +8,5 @@
 | 2026-09-27 | FastAPI 헬스 체크 | 98/100 | [보고서](reports/fastapi-health-check-implementation-report.md) | `d0597b5` |
 | 2026-09-27 | PostgreSQL 작업 영속성 기반 | 97/100 | [통합 보고서](reports/postgresql-job-persistence-implementation-report.md) | `4e36383`, `c68798e`, `f3342e1`, `67d76f2`, `6d00243` |
 | 2026-09-28 | Job REST API v1 | 96/100 | [보고서](reports/job-rest-api-v1-implementation-report.md) | `8408993`, `46a890d`, `ebce351` |
+| 2026-10-01 | W03 Celery 오케스트레이션 및 통합 복구 | 97/100 | [구현 보고서](reports/celery-orchestration-implementation-report.md) | 7f1eafa, cfbe449, 1b45283, 2c75518, fa32715, `37f8982` |
+| 2026-10-01 | Redis Streams 및 SSE | 100/100 | [보고서](reports/redis-streams-sse-implementation-report.md) | `a06e80f`, `65cbe05`, `e901631` |
