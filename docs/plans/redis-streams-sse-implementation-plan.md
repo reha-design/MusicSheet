@@ -53,9 +53,10 @@
 
 ### Implementation Review Record
 
-- **Task 1 — 98/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against baseline `781f045`: the plan, Redis/API specs, roadmap/backlog, lazy job-package exports, Redis event store, and store tests. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 23/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Initial minor findings (runtime type-hint resolution and missing lazy `JobRepository` export coverage) were fixed and re-reviewed. Final review found no unresolved findings. API readiness regression selection remains unverified because Windows Application Control blocks `_ssl.pyd` at collection, matching the pre-change baseline limitation.
-- **Task 2 — re-review 99/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against `a06e80f`: plan, `router.py`, and `test_job_routes.py`. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 24/25, structure/dependencies 15/15, documentation/reproducibility 10/10. The initial 96/100 review's two minor findings were addressed: disconnect now exercises a `JobEventStore` over a controlled fake Redis, asserting `block=1000` and that the shared client is not closed; a mid-stream XREAD failure test verifies stream closure and generic logging. One minor remains: the fake read yields with `asyncio.sleep(0)` instead of remaining pending for the whole second. The actual bounded XREAD argument is asserted; this was accepted as non-blocking. No blocker or important finding remains. Route tests remain uncollectable in this environment because importing the existing API app loads `redis.asyncio`, which fails after Windows Application Control blocks `_ssl.pyd`.
-- Task 3: pending.
+- **Task 1 — 98/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against baseline `781f045`: the plan, Redis/API specs, roadmap/backlog, lazy job-package exports, Redis event store, and store tests. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 23/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Initial minor findings (runtime type-hint resolution and missing lazy `JobRepository` export coverage) were fixed and re-reviewed. Final review found no unresolved findings. At the 2026-09-28 review date, the API readiness regression selection had not run because Windows Application Control blocked `_ssl.pyd` at collection, matching the pre-change baseline limitation. The full API suite later passed on 2026-10-01 as recorded in Task 3.
+- **Task 2 — re-review 99/100, passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against `a06e80f`: plan, `router.py`, and `test_job_routes.py`. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 24/25, structure/dependencies 15/15, documentation/reproducibility 10/10. The initial 96/100 review's two minor findings were addressed: disconnect now exercises a `JobEventStore` over a controlled fake Redis, asserting `block=1000` and that the shared client is not closed; a mid-stream XREAD failure test verifies stream closure and generic logging. One minor remains: the fake read yields with `asyncio.sleep(0)` instead of remaining pending for the whole second. The actual bounded XREAD argument is asserted; this was accepted as non-blocking. No blocker or important finding remains. At the 2026-09-28 review date, route tests were uncollectable because importing the existing API app loaded `redis.asyncio`, which failed after Windows Application Control blocked `_ssl.pyd`. The route module later passed as part of the full API suite on 2026-10-01 as recorded in Task 3.
+- **Task 3 — 95/100, gate not passed (2026-09-28).** Independent reviewer `/root/w02_plan_review`; reviewed the working-tree diff against `65cbe05`: opt-in Redis integration tests, API test marker, API README, Redis/API specs, main spec, plan, and implementation report. Category scores: behavior 25/25, errors/security 25/25, tests/evidence 20/25, structure/dependencies 15/15, documentation/reproducibility 10/10. Important finding at the first review date: the real-Redis suite had only been verified to skip when `MUSICSHEET_TEST_REDIS_URL` was unset; persistence, cursor replay, live append, trimming, retention, and cleanup had not run against Redis. Docker Engine was unavailable at that time. The numeric score meets the threshold, but the unresolved important finding blocks Task 3 completion and W02 closure. Resolve by running both marked integration tests against an available dedicated Redis `/2` database, confirm cleanup, record the result, then request a fresh independent review. No Task 3 commit was made.
+- **Task 3 re-review — 100/100, passed (2026-10-01).** Independent reviewer `/root/w02_task3_rereview`; reviewed the latest Task 3 working-tree diff against `65cbe05`, excluding the W03 plan commit. Scores: behavior 25/25, errors/security 25/25, tests/evidence 25/25, structure/dependencies 15/15, documentation/reproducibility 10/10. The previous important finding was resolved by the two passing real Redis DB `/2` tests, `PONG`, and no remaining `job:redis-test-*` keys. The minor stale verification statement was corrected using the full API suite result (176 passed, 12 skipped). No unresolved blocker, important, or minor findings remain.
 
 ## Tasks
 
@@ -122,7 +123,7 @@
 
   Expected: replay, live follow-up, headers, errors, heartbeat, corrupt-entry cursor handling, and disconnect behavior pass.
 - [x] **Step 5: Review Task 2 independently.** Record the score and disposition as for Task 1. Do not start Task 3 until score is at least 95 and no blocker/important finding remains.
-- [ ] **Step 6: Commit Task 2** with `feat(api): expose replayable job events over SSE` after its review gate passes.
+- [x] **Step 6: Commit Task 2** with `feat(api): expose replayable job events over SSE` after its review gate passes. Commit: `65cbe05`.
 
 ### Task 3: Redis integration proof and completion records
 
@@ -139,14 +140,14 @@
 - Consumes: `JobEventStore` and the stable SSE endpoint from Tasks 1–2.
 - Produces: opt-in real-Redis evidence, final specs and README, result report, completed-work entry, and no database migration.
 
-- [ ] **Step 1: Write opt-in Redis integration tests** named `test_real_redis_persists_and_replays_events_after_cursor` and `test_real_redis_stream_retains_approximately_last_100_events`. Read `MUSICSHEET_TEST_REDIS_URL`; skip if absent. Use a unique job ID for each test and delete only that test's stream key in fixture cleanup; never run `FLUSHDB`.
-- [ ] **Step 2: Run the focused integration tests without the environment variable to verify they skip cleanly.** Remove only the current PowerShell process value first: `Remove-Item Env:MUSICSHEET_TEST_REDIS_URL -ErrorAction SilentlyContinue`.
+- [x] **Step 1: Write opt-in Redis integration tests** named `test_real_redis_persists_and_replays_events_after_cursor` and `test_real_redis_stream_retains_approximately_last_100_events`. Read `MUSICSHEET_TEST_REDIS_URL`; skip if absent. Use a unique job ID for each test and delete only that test's stream key in fixture cleanup; never run `FLUSHDB`.
+- [x] **Step 2: Run the focused integration tests without the environment variable to verify they skip cleanly.** Remove only the current PowerShell process value first: `Remove-Item Env:MUSICSHEET_TEST_REDIS_URL -ErrorAction SilentlyContinue`.
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_job_events.py -q`
 
   Expected: tests report skipped when `MUSICSHEET_TEST_REDIS_URL` is unset.
-- [ ] **Step 3: Implement the real Redis integration checks** for ordered JSON events, replay after a supplied ID, post-replay live append, old cursor behavior after trimming, and approximate retention. After 300 appends assert the retained length is between 100 and 200 and that the newest event remains readable. Add the explicit `redis_integration` marker without changing the PostgreSQL marker's meaning.
-- [ ] **Step 4: Start local Redis and run the opt-in tests.**
+- [x] **Step 3: Implement the real Redis integration checks** for ordered JSON events, replay after a supplied ID, post-replay live append, old cursor behavior after trimming, and approximate retention. After 300 appends assert the retained length is between 100 and 200 and that the newest event remains readable. Add the explicit `redis_integration` marker without changing the PostgreSQL marker's meaning.
+- [x] **Step 4: Attempt to start local Redis and run the opt-in tests; record the environment result.**
 
   Run: `docker compose -f docker/docker-compose.yml up -d redis`
 
@@ -154,9 +155,9 @@
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_job_events.py -q -m redis_integration`
 
-  Expected: all Redis tests pass and their unique stream keys are deleted afterward.
-- [ ] **Step 5: Correct API README Redis DB index** to `/2`. Finalize the two canonical specs and `main_spec.md`; write the report with exact commands/results and plan/code-review scores; remove W02 from roadmap/backlog and add its dated result/report/review/commit record to `completed-work.md`.
-- [ ] **Step 6: Run the complete verification set.** First remove inherited `MUSICSHEET_TEST_DATABASE_URL` and `MUSICSHEET_TEST_REDIS_URL` from the current PowerShell process so the default suites do not operate on an unintended external service. Run PostgreSQL integration only as a separate opt-in command after confirming its database name and marker match the guarded disposable database.
+  Initial attempt on 2026-09-28 could not reach Docker Engine. Re-run on 2026-10-01 after Docker Desktop started: Compose Redis started, `MUSICSHEET_TEST_REDIS_URL=redis://localhost:6379/2 uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_job_events.py -q -m redis_integration` -> 2 passed. `redis-cli -n 2 PING` returned `PONG`; scanning `job:redis-test-*` returned no keys after the tests, confirming fixture cleanup.
+- [x] **Step 5: Correct API README Redis DB index** to `/2` and finalize the canonical Redis/API specs plus `main_spec.md` report link. Draft the results report with verified commands and previous review scores. Roadmap closure and the completed-work row will be finalized only after the Task 3 review gate passes.
+- [x] **Step 6: Attempt the complete verification set and record the results.** First remove inherited `MUSICSHEET_TEST_DATABASE_URL` and `MUSICSHEET_TEST_REDIS_URL` from the current PowerShell process so the default suites do not operate on an unintended external service. Run PostgreSQL integration only as a separate opt-in command after confirming its database name and marker match the guarded disposable database.
 
   Run: `uv run --project services/api --python 3.13 pytest services/api/tests -q`
 
@@ -164,8 +165,8 @@
 
   Run: `git diff --check`
 
-  Expected: API suite and root suite pass (opt-in Redis integration skips when its URL is unset), and `git diff --check` exits 0. Also rerun Task 3 Redis integration with its opt-in URL set.
-- [ ] **Step 7: Review Task 3 independently.** Record score, date, range, findings, and resolutions. Do not close W02 below 95 or with unresolved blocker/important findings.
+  Initial sandboxed API collection had 10 errors while importing `_ssl.pyd`; rerun on 2026-10-01 with local test permissions: API suite -> 176 passed, 12 skipped, 1 Starlette deprecation warning. Root `uv run pytest` -> 59 passed, 4 skipped, 4 deselected. The opt-in URLs were unset for these suites; Redis integration was run separately against local DB `/2` as recorded in Step 4.
+- [x] **Step 7: Review Task 3 independently.** The initial review on 2026-09-28 scored 95/100 but held the gate due to missing real-Redis evidence. The 2026-10-01 independent re-review scored **100/100** (behavior 25/25, errors/security 25/25, tests/evidence 25/25, structure/dependencies 15/15, documentation/reproducibility 10/10). The live Redis evidence and report wording were verified; no unresolved blocker, important, or minor findings remain. Gate passed.
 - [ ] **Step 8: Commit Task 3** with `test(api): verify Redis event replay and retention` after the review gate passes.
 - [ ] **Step 9: Finalize the Task 3 report and completed-work record after review and commit.** Record the Task 3 review score and implementation commit hash. Commit the score/hash record separately if needed to avoid a self-referential commit hash.
 

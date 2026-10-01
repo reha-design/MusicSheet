@@ -11,7 +11,7 @@ Set-Location services/api
 uv sync --locked --python 3.13
 
 $env:DATABASE_URL = "postgresql://musicsheet:password@localhost:5432/musicsheet"
-$env:REDIS_URL = "redis://localhost:6379/0"
+$env:REDIS_URL = "redis://localhost:6379/2"
 $env:LOCAL_STORAGE_DIR = "../../outputs"
 
 uv run --locked --python 3.13 musicsheet-api
@@ -33,7 +33,7 @@ The command applies migration version 1 (`jobs`, `stage_attempts`, and `artifact
 
 The API opens an optional database pool at startup when `DATABASE_URL` is set. If the URL is missing or PostgreSQL is unavailable, startup and `/health/live` still work; `app.state.db_pool` is `None`. An opened pool closes on shutdown. Schema migrations are never run during API startup.
 
-The W01 REST API registers YouTube jobs without contacting YouTube, accepts bounded multipart audio uploads, returns job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, and streams artifact downloads. `JobRepository` supports job creation, lookup, progress updates, and conditional cancellation; `ArtifactRepository` supports transactional insert and job-scoped list/lookup. Upload defaults to 100 MiB per file and accepts WAV, MP3, M4A, FLAC, and OGG. Downloads include the recorded content length; a mid-stream storage error ends the response with a short body and logs only a generic warning. Jobs remain `PENDING` until Celery dispatch is implemented; cancellation remains `CANCEL_REQUESTED` until a worker processes it. W01 does not fetch media or run models. See the [API contract](../../docs/backend/api.md) for response and failure details. `stage_attempts` persistence, SSE, and pipeline dispatch are not implemented.
+The API registers YouTube jobs without contacting YouTube, accepts bounded multipart audio uploads, returns job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, and streams artifact downloads. It also stores typed progress events in Redis Streams and serves replayable updates from `GET /api/v1/jobs/{job_id}/events`; PostgreSQL remains the status source of truth. Application event Redis uses database `/2`; Celery broker and result Redis remain `/0` and `/1`. Upload defaults to 100 MiB per file and accepts WAV, MP3, M4A, FLAC, and OGG. Jobs remain `PENDING` until Celery dispatch is implemented; cancellation remains `CANCEL_REQUESTED` until a worker processes it. The API does not fetch media or run models. See the [API contract](../../docs/backend/api.md) and [Redis Streams contract](../../docs/backend/redis-streams.md) for behavior and failure details. `stage_attempts` persistence and pipeline dispatch are not implemented.
 
 ### Opt-in live integration tests
 
@@ -48,6 +48,19 @@ uv run --project services/api --python 3.13 pytest services/api/tests/integratio
 ```
 
 The `CREATE DATABASE` command is needed only if the database does not already exist. An unset test URL skips these tests. A wrong database name or missing/wrong marker fails the guard without a schema reset.
+
+### Opt-in Redis Streams tests
+
+Redis integration tests run only when `MUSICSHEET_TEST_REDIS_URL` is set. They use unique job stream keys and delete only those keys after each test; they never run `FLUSHDB`. For a local Compose Redis instance, use the application event database `/2`:
+
+```powershell
+docker compose -f docker/docker-compose.yml up -d redis
+$env:MUSICSHEET_TEST_REDIS_URL = "redis://localhost:6379/2"
+uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_job_events.py -q -m redis_integration
+Remove-Item Env:MUSICSHEET_TEST_REDIS_URL
+```
+
+When the variable is unset, the Redis integration tests skip without importing or connecting a Redis client. Keep the test URL pointed at a test instance; the tests remove only their generated stream keys.
 
 ## Health endpoints
 

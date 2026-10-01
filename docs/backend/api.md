@@ -66,6 +66,7 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 - Each Redis Stream entry stores the common `JobProgressEvent` JSON in its `data` field. SSE frames use the Redis Stream ID as `id` and this JSON as `data`; `job_id`, `status`, `stage`, `stage_progress`, `overall_progress`, `message`, and `timestamp` are preserved.
 - A first connection without `Last-Event-ID` reads after `0-0`. Reconnects resume after the supplied ID. Redis retains approximately the most recent 100 events per job (`MAXLEN ~ 100`); if older events were trimmed, clients should fetch the current PostgreSQL snapshot.
 - An idle stream sends the `: keep-alive` comment every 15 seconds. Invalid `Last-Event-ID` returns `400`; an unknown job returns `404`; PostgreSQL or Redis unavailable before response start returns a generic `503`. A Redis error after streaming starts is logged without sensitive details and closes the stream.
+- The endpoint reuses the Redis client owned by the FastAPI lifespan. It checks Redis with `PING` before starting the response, then performs one-second bounded stream reads so client disconnects are observed promptly without closing the shared client.
 
 ## 5. Processing boundary
 

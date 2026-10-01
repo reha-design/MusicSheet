@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API가 구현되어 있습니다. SSE, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 기반 이벤트 저장소와 재생 가능한 SSE 진행률 API가 구현되어 있습니다. Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -131,3 +131,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [18: YouTube 작업 등록 및 상태 조회 API 보고서](./reports/job-api-youtube-registration-report.md)
 - [19: 오디오 업로드 및 아티팩트 메타데이터 트랜잭션 보고서](./reports/job-api-upload-report.md)
 - [20: Job REST API v1 구현 보고서](./reports/job-rest-api-v1-implementation-report.md)
+- [21: Redis Streams 및 SSE 구현 보고서](./reports/redis-streams-sse-implementation-report.md)
