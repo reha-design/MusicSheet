@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API가 구현되어 있습니다. SSE, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. worker 자동 이벤트 발행, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -53,7 +53,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Job REST API v1 구현 계획:** [YouTube/업로드 등록, 조회·취소, 아티팩트 API](./plans/job-rest-api-v1-implementation-plan.md) (계획 Revision 6 독립 리뷰 99/100 통과)
 - **Job REST API v1 설계:** [등록과 처리 경계, 요청·데이터 흐름](./superpowers/specs/2026-09-27-job-rest-api-v1-design.md)
 - **W02 Redis Streams 및 SSE 설계:** [이벤트 저장·재생, 연결 수명과 오류 계약](./superpowers/specs/2026-10-02-redis-streams-sse-design.md) (Revision 1, 사용자 설계 승인)
-- **W02 Redis Streams 및 SSE 구현 계획:** [저장소·SSE·통합 검증의 단위별 실행 계획](./plans/redis-streams-sse-implementation-plan.md) (Revision 2 독립 리뷰 100/100 통과, 사용자 승인·구현 진행 중)
+- **W02 Redis Streams 및 SSE 구현 계획:** [저장소·SSE·통합 검증의 단위별 실행 계획](./plans/redis-streams-sse-implementation-plan.md) (계획 Revision 2 100/100, 구현 최종 98/100, 실제 Redis 성공 경로 미검증)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
@@ -93,7 +93,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Celery 워커 오케스트레이션:** [docs/backend/celery.md](./backend/celery.md)
   - 큐 설정, Task Chaining, 멱등성 보장
 - **Redis Streams 이벤트 버스:** [docs/backend/redis-streams.md](./backend/redis-streams.md)
-  - `XADD`, Consumer Groups, `Last-Event-ID` 기반 재접속 복원
+  - `XADD`, 독립 `XREAD`, `Last-Event-ID` 기반 재접속 복원
 - **데이터베이스:** [docs/backend/database.md](./backend/database.md)
   - PostgreSQL 테이블 DDL, 인덱스, 마이그레이션 정책
 
@@ -137,3 +137,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [21: W02 Redis Streams 및 SSE 계획 리뷰 보고서](./reports/redis-streams-sse-planning-report.md)
 - [22: W02 Redis 이벤트 저장소 보고서](./reports/redis-event-store-report.md)
 - [23: W02 진행 이벤트 SSE API 보고서](./reports/job-sse-api-report.md)
+- [24: W02 Redis Streams 및 SSE 구현 보고서](./reports/redis-streams-sse-implementation-report.md)

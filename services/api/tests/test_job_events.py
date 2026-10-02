@@ -265,3 +265,28 @@ def test_send_failure_closes_stream_and_disconnect_listener():
         assert canceled.is_set()
         assert response.body_iterator.ag_frame is None
     asyncio.run(check())
+
+
+def test_event_request_does_not_close_client(monkeypatch):
+    from musicsheet_api import app as app_module
+    class Client:
+        close_calls = 0
+        async def xread(self, streams, **kwargs):
+            return [(next(iter(streams)), [("10-0", {"payload": item().event.model_dump_json()})])]
+        async def aclose(self):
+            self.close_calls += 1
+    client = Client()
+    monkeypatch.setattr(app_module.Redis, "from_url", lambda url, **kwargs: client)
+    async def get_job(self, job_id):
+        return object()
+    monkeypatch.setattr(JobRepository, "get_job", get_job)
+    async def check():
+        app = create_app(settings=Settings.from_env({"REDIS_URL":"redis://test/2"}))
+        async with app.router.lifespan_context(app):
+            app.state.db_pool = object()
+            # The pool is only a repository boundary sentinel, never lifespan-owned.
+            start, body = await exchange(app)
+            assert start["status"] == 200 and "event: progress" in body
+            assert client.close_calls == 0
+        assert client.close_calls == 1 and app.state.redis_client is None
+    asyncio.run(check())

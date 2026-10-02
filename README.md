@@ -13,9 +13,10 @@
 | 개발 인프라 | PostgreSQL 16, Redis 7 (`docker/docker-compose.yml`) |
 | PostgreSQL 작업 저장 | 명시적 migration, API connection pool, 작업·아티팩트 metadata repository |
 | FastAPI | 상태 확인, YouTube/파일 업로드 작업 등록, 상태 조회·취소, 아티팩트 목록·다운로드 |
+| 진행 이벤트 | Redis Streams 발행 모듈, SSE 구독과 Last-Event-ID 재생; worker 자동 발행은 W03에서 연결 |
 | Basic Pitch PoC | 별도 CLI worker가 ONNX CPU 추론 후 JSON/MIDI 생성 |
 | 테스트 | 공용 스키마·스토리지·API 테스트, 선택형 PostgreSQL·Basic Pitch 통합 테스트 |
-| Celery 실행·SSE·음원 분리·리듬/퀀타이즈·악보 렌더링·웹 앱 | 설계 문서만 있으며 미구현 |
+| Celery 실행·음원 분리·리듬/퀀타이즈·악보 렌더링·웹 앱 | 설계 문서만 있으며 미구현 |
 
 `docs/`의 아키텍처 문서에는 목표 설계도 포함됩니다. 병합된 구현과 남은 연결 작업은 [구현 현황 브리핑](docs/reports/current-implementation-briefing.md)에 정리했습니다.
 
@@ -41,7 +42,7 @@ uv run pytest
 
 ```mermaid
 flowchart LR
-    Web[Next.js Web, planned] -->|REST / SSE| API[FastAPI REST 구현, SSE 계획]
+    Web[Next.js Web, planned] -->|REST / SSE| API[FastAPI REST / SSE 구현]
     API -->|enqueue task| Broker[Redis DB 0, Celery broker]
     Broker --> Workers[CPU / GPU workers, planned]
     Workers -->|XADD progress| Events[Redis DB 2, application event Streams]

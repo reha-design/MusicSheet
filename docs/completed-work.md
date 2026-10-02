@@ -8,3 +8,4 @@
 | 2026-09-27 | FastAPI 헬스 체크 | 98/100 | [보고서](reports/fastapi-health-check-implementation-report.md) | `d0597b5` |
 | 2026-09-27 | PostgreSQL 작업 영속성 기반 | 97/100 | [통합 보고서](reports/postgresql-job-persistence-implementation-report.md) | `4e36383`, `c68798e`, `f3342e1`, `67d76f2`, `6d00243` |
 | 2026-09-28 | Job REST API v1 | 96/100 | [보고서](reports/job-rest-api-v1-implementation-report.md) | `8408993`, `46a890d`, `ebce351` |
+| 2026-10-03 | W02 Redis Streams 및 SSE | 계획 100/100 · 단위 99/98/100 · 최종 98/100 | [보고서 — 실 Redis 성공 경로 미검증](reports/redis-streams-sse-implementation-report.md) | `c1ca195`, `f675ec9` |

@@ -1,5 +1,7 @@
 # MusicSheet 현재 구현 현황 브리핑
 
+> **2026-10-03 현재 작업 브랜치 추가:** `codex/redis-streams-sse`에는 W02 Redis 이벤트 발행 모듈과 SSE 재접속 재생 API를 구현했습니다. worker 자동 발행은 W03에서 연결합니다. API 222 passed/17 skipped; 실 Redis 7개는 URL 미설정으로 미검증입니다. 아래 본문은 기존 `148040c` 병합 시점의 기록이며 W02 추가 내용은 [W02 구현 보고서](redis-streams-sse-implementation-report.md)를 기준으로 확인합니다.
+
 > **기준일:** 2026-10-01
 >
 > **구현 기준:** `origin/main` 커밋 `148040c` (2026-09-28). 이후 병합되는 변경은 이 문서의 범위에 포함되지 않습니다.

@@ -1,7 +1,7 @@
 # W02 Redis Streams 및 SSE 구현 계획
 
 > **For agentic workers:** `superpowers:executing-plans`로 주 세션에서 구현한다. AGENTS.md의 단위별 독립 리뷰 요구사항이 스킬의 최종 리뷰만 수행하는 기본 방식보다 우선한다.
-> 작성일: 2026-10-02 · Revision 2 · 상태: 사용자 계획 승인, Task 1–2 완료·Task 3 진행; 독립 계획 리뷰 100/100 통과
+> 작성일: 2026-10-02 · Revision 2 · 상태: Task 1–3 완료·최종 독립 리뷰 98/100 통과; 독립 계획 리뷰 100/100 통과 · 실제 Redis 성공 경로 미검증
 
 **Goal:** 작업 진행 이벤트의 Redis 저장·독립 구독·Last-Event-ID 재생을 제공한다.
 
@@ -88,14 +88,14 @@
 
 **Consumes:** Task 1/2 public 계약. **Produces:** 선택형 실제 Redis 검증, 정확한 구현 상태/실행 명령/통합 증거 및 W02 완료 기록.
 
-- [ ] marker `redis_integration` 등록; `MUSICSHEET_TEST_REDIS_URL` 없으면 테스트 skip한다. 설정이 있는데 연결이 실패하면 skip하지 않고 고정 일반 실패로 표시한다. 테스트 URL은 repr에 `<redacted Redis test URL>`로 나타내고 예외/pytest locals에 비밀을 노출하지 않는다.
-- [ ] 각 실행에서 UUID job 키를 생성한다. 다른 키와 공유 DB 설정은 변경하지 않는다. client cleanup/finally에서 자신의 정확한 키만 `DELETE`; FLUSHDB/FLUSHALL 금지. key cleanup 실패도 고정 문구로 기록하고 원래 실패를 숨기지 않는다.
-- [ ] `test_real_redis_publish_and_exclusive_replay`, `test_real_redis_waiting_read_receives_new_event`, `test_real_redis_two_readers_receive_same_event`, `test_real_redis_trim_replays_retained_entries`, `test_real_redis_deleted_last_id_is_valid_cursor`, `test_real_redis_empty_blocking_read_times_out`를 구현한다. 각 read client에는 UUID 기반 고유 `client_name`을 설정한다. publisher client의 `CLIENT LIST`에서 해당 이름의 `cmd=xread`, flag `b`를 관측하고 read task가 pending임을 확인한 다음 발행한다. 두 reader는 둘 다 서버에서 blocked임을 확인한다. polling은 10ms 간격·1초 deadline, read는 2초 BLOCK·4초 전체 timeout으로 제한한다. 빈 read 테스트는 새 빈 stream 키를 100ms BLOCK으로 읽고 결과가 비어 있고 즉시 반환하지 않았음을 확인한다. trim 테스트만 자기 stream에 exact XTRIM을 적용한다. 통합 테스트용 ACL은 CLIENT LIST를 허용해야 하며 응답 원문은 출력하지 않는다.
-- [ ] 실제 SSE route와 store를 연결하는 `test_sse_replays_events_from_real_redis`를 추가한다. DB 존재 확인은 기존 repository boundary double로 대체하고 Redis/JSON/route/ASGI는 실제 코드를 실행한다. 프레임 수신 후 disconnect하고 앱/read 종료를 확인한다. 실제 PostgreSQL을 함께 사용한 end-to-end로 표현하지 않는다.
-- [ ] 실 Redis 사용 전 해당 URL의 명시 설정 여부만 확인한다. 무설정이면 인프라를 임의로 설치/시작하지 않고 미검증으로 보고한다. 설정이 있으면 `uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_events.py -m redis_integration -q` 실행. 새 통합 테스트가 RED를 재현할 때만 원인을 수정하며 Task 1/2 제품 변경이 필요하면 해당 단위 재리뷰한다.
-- [ ] 일반 검증: `uv run --project services/api --python 3.13 pytest services/api/tests -q`; `uv run --project . --python 3.13 pytest -q`; `uv lock --check`; `uv lock --project services/api --check`; `git diff --check`. pytest skipped/unverified와 warning은 보고서에 명시한다.
-- [ ] README/현황에 SSE 구현과 W03 worker 미연결 경계를 반영한다. curl `-N` 요청, Last-Event-ID, browser `progress` listener, REST 동기화, terminal close, stream_error 재접속, TTL/outbox 한계를 설명한다. 완료 문서에는 날짜·보고서·별도 계획/코드 리뷰 점수·commit을 기록한다.
-- [ ] 변경한 문서의 상대 링크 존재와 미완료 placeholder를 확인한다. 독립 코드 리뷰 95/100 이상과 important 해소 후 관련 파일만 commit: `test(events): verify Redis replay and document SSE operations`. 완료 후 전체 W02 범위를 독립 최종 리뷰하고 발견된 중요한 결함은 검증·재리뷰한다. push/PR/merge는 이번 작업 범위에 포함하지 않는다.
+- [x] marker `redis_integration` 등록; `MUSICSHEET_TEST_REDIS_URL` 없으면 테스트 skip한다. 설정이 있는데 연결이 실패하면 skip하지 않고 고정 일반 실패로 표시한다. 테스트 URL은 repr에 `<redacted Redis test URL>`로 나타내고 예외/pytest locals에 비밀을 노출하지 않는다.
+- [x] 각 실행에서 UUID job 키를 생성한다. 다른 키와 공유 DB 설정은 변경하지 않는다. client cleanup/finally에서 자신의 정확한 키만 `DELETE`; FLUSHDB/FLUSHALL 금지. key cleanup 실패도 고정 문구로 기록하고 원래 실패를 숨기지 않는다.
+- [x] `test_real_redis_publish_and_exclusive_replay`, `test_real_redis_waiting_read_receives_new_event`, `test_real_redis_two_readers_receive_same_event`, `test_real_redis_trim_replays_retained_entries`, `test_real_redis_deleted_last_id_is_valid_cursor`, `test_real_redis_empty_blocking_read_times_out`를 구현한다. 각 read client에는 UUID 기반 고유 `client_name`을 설정한다. publisher client의 `CLIENT LIST`에서 해당 이름의 `cmd=xread`, flag `b`를 관측하고 read task가 pending임을 확인한 다음 발행한다. 두 reader는 둘 다 서버에서 blocked임을 확인한다. polling은 10ms 간격·1초 deadline, read는 2초 BLOCK·4초 전체 timeout으로 제한한다. 빈 read 테스트는 새 빈 stream 키를 100ms BLOCK으로 읽고 결과가 비어 있고 즉시 반환하지 않았음을 확인한다. trim 테스트만 자기 stream에 exact XTRIM을 적용한다. 통합 테스트용 ACL은 CLIENT LIST를 허용해야 하며 응답 원문은 출력하지 않는다.
+- [x] 실제 SSE route와 store를 연결하는 `test_sse_replays_events_from_real_redis`를 추가한다. DB 존재 확인은 기존 repository boundary double로 대체하고 Redis/JSON/route/ASGI는 실제 코드를 실행한다. 프레임 수신 후 disconnect하고 앱/read 종료를 확인한다. 실제 PostgreSQL을 함께 사용한 end-to-end로 표현하지 않는다.
+- [x] 실 Redis 사용 전 해당 URL의 명시 설정 여부만 확인한다. 무설정이면 인프라를 임의로 설치/시작하지 않고 미검증으로 보고한다. 설정이 있으면 `uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_events.py -m redis_integration -q` 실행. 새 통합 테스트가 RED를 재현할 때만 원인을 수정하며 Task 1/2 제품 변경이 필요하면 해당 단위 재리뷰한다.
+- [x] 일반 검증: `uv run --project services/api --python 3.13 pytest services/api/tests -q`; `uv run --project . --python 3.13 pytest -q`; `uv lock --check`; `uv lock --project services/api --check`; `git diff --check`. pytest skipped/unverified와 warning은 보고서에 명시한다.
+- [x] README/현황에 SSE 구현과 W03 worker 미연결 경계를 반영한다. curl `-N` 요청, Last-Event-ID, browser `progress` listener, REST 동기화, terminal close, stream_error 재접속, TTL/outbox 한계를 설명한다. 완료 문서에는 날짜·보고서·별도 계획/코드 리뷰 점수·commit을 기록한다.
+- [x] 변경한 문서의 상대 링크 존재와 미완료 placeholder를 확인한다. 독립 코드 리뷰 95/100 이상과 important 해소 후 관련 파일만 commit: `test(events): verify Redis replay and document SSE operations`. 완료 후 전체 W02 범위를 독립 최종 리뷰하고 발견된 중요한 결함은 검증·재리뷰한다. push/PR/merge는 이번 작업 범위에 포함하지 않는다.
 
 ## 리뷰 및 진행 기록
 
@@ -110,7 +110,11 @@ Task 1 독립 코드 리뷰: 2026-10-02, `/root/w02_store_review`, BASE `36588ac
 
 Task 2 독립 코드 리뷰: 2026-10-03 `/root/w02_sse_review`, BASE `c1ca195`, **98/100** (25/25, 25/25, 23/25, 15/15, 10/10). Blocker/important 없음. 독립 API221/root59 및 추가 4 cleanup/cursor/cancellation probes 통과. Minor: 실제 store/client와 lifespan을 연결한 요청 종료 close0·앱 종료 close1 검증을 Task 3에서 보강한다.
 
+최종 독립 코드 리뷰: 2026-10-03 `/root/w02_final_review`, BASE `36588ac`부터 전체 범위, **98/100** (25/25, 25/25, 23/25, 15/15, 10/10). Blocker/important 없음. 독립 API222/skip17, root59/skip4/deselected4, lock/diff checks와 추가 8 boundary probes 통과. 실제 서버 성공 증거 및 일부 영구 회귀 테스트 공백을 검증 점수에 반영했다. 상세 보고서는 `docs/reports/redis-streams-sse-implementation-report.md`.
+
 ## 실행 환경 사전 확인과 현재 baseline
+
+Task 3 독립 코드 리뷰: 2026-10-03 `/root/w02_integration_review`, BASE `f675ec9`, 초기 **99/100** (25/25, 24/25, 25/25, 15/15, 10/10) → 수정본 **100/100** (25/25, 25/25, 25/25, 15/15, 10/10). 1초 polling deadline이 CLIENT LIST 자체에도 적용되도록 수정했으며 SlowPublisher probe RED 1.317초 → GREEN 1.010초, reviewer GREEN 1.005초를 확인했다. API222/skip17, root59/skip4/deselected4 및 lock/diff/link 검증 통과. 실제 Redis 성공 경로는 URL 미설정으로 미검증이다. 미해결 blocker/important/minor 없음.
 
 2026-10-02 확인 결과, 기본 uv cache 및 pytest 임시 폴더에서 sandbox 권한 오류가 발생했다. 제품 코드 수정 없이 workspace 내부 cache/basetemp와 pytest cache plugin 비활성화로 해결했다. 기존 API 가상환경에는 lockfile에 선언된 `python-multipart`가 설치되지 않았으며, 직접 `Request.form()` 실행에서도 라이브러리 미설치 AssertionError를 재현했다.
 

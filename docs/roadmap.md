@@ -4,10 +4,10 @@
 
 ## 진행 중
 
-- **W02 — Redis Streams 및 SSE**: [실행 계획 Revision 2](plans/redis-streams-sse-implementation-plan.md)가 독립 리뷰 **100/100**으로 통과했고 사용자가 승인했습니다. Task 1 이벤트 저장소 구현과 테스트를 마쳤으며 단위 독립 리뷰 중입니다. 이후 SSE 연결과 실제 Redis 검증을 진행합니다.
+현재 진행 중인 작업 없음. W02 구현은 완료했으며 실제 Redis 환경의 성공 경로 검증은 [구현 보고서](reports/redis-streams-sse-implementation-report.md)에 미검증으로 기록했습니다.
 
 ## 다음 작업 후보
 
-1. [W03 — Celery 오케스트레이션](backlog.md#w03-celery-orchestration) — W02 완료 후 진행
+1. [W03 — Celery 오케스트레이션](backlog.md#w03-celery-orchestration) — W01·W02 구현 완료
 
 작업 시작 시 backlog에서 해당 항목을 제거하고 `진행 중`에 등록합니다. 구현 완료 후에는 [completed-work.md](completed-work.md)에 완료일·결과보고서·리뷰 점수·커밋을 기록하고 이 문서에서 제거합니다. 구현 상세와 검증 결과는 각 작업의 계획서와 결과보고서에만 보관합니다.
