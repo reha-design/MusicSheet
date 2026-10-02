@@ -2,14 +2,6 @@
 
 이 문서는 아직 시작하지 않은 작업의 요약 목록입니다. 각 작업을 시작할 때 관련 사양을 확인하고 별도 구현 계획을 작성합니다. 계획 독립 리뷰에서 95/100 이상을 받고 blocker/important 지적이 없어야 구현을 시작합니다.
 
-## W02: Redis Streams SSE
-
-상태: `Planned` · 권장 선행 작업: W01 완료
-
-완료 기준: 작업 진행 이벤트를 Redis Streams에 기록하고, SSE 구독과 `Last-Event-ID` 기반 재연결·이벤트 복원을 검증합니다.
-
-사양: [Redis Streams](backend/redis-streams.md), [API](backend/api.md), [작업 상태](domain/job-state.md)
-
 ## W03: Celery Orchestration
 
 상태: `Planned` · 권장 선행 작업: W01, W02

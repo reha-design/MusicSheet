@@ -52,6 +52,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **PostgreSQL 작업 영속성 구현 계획:** [버전 migration, API DB pool, job repository](./plans/postgresql-job-persistence-implementation-plan.md)
 - **Job REST API v1 구현 계획:** [YouTube/업로드 등록, 조회·취소, 아티팩트 API](./plans/job-rest-api-v1-implementation-plan.md) (계획 Revision 6 독립 리뷰 99/100 통과)
 - **Job REST API v1 설계:** [등록과 처리 경계, 요청·데이터 흐름](./superpowers/specs/2026-09-27-job-rest-api-v1-design.md)
+- **W02 Redis Streams 및 SSE 설계:** [이벤트 저장·재생, 연결 수명과 오류 계약](./superpowers/specs/2026-10-02-redis-streams-sse-design.md) (Revision 1, 사용자 설계 승인)
+- **W02 Redis Streams 및 SSE 구현 계획:** [저장소·SSE·통합 검증의 단위별 실행 계획](./plans/redis-streams-sse-implementation-plan.md) (Revision 2 독립 리뷰 100/100 통과, 사용자 승인·구현 진행 중)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
@@ -132,3 +134,5 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [18: YouTube 작업 등록 및 상태 조회 API 보고서](./reports/job-api-youtube-registration-report.md)
 - [19: 오디오 업로드 및 아티팩트 메타데이터 트랜잭션 보고서](./reports/job-api-upload-report.md)
 - [20: Job REST API v1 구현 보고서](./reports/job-rest-api-v1-implementation-report.md)
+- [21: W02 Redis Streams 및 SSE 계획 리뷰 보고서](./reports/redis-streams-sse-planning-report.md)
+- [22: W02 Redis 이벤트 저장소 보고서](./reports/redis-event-store-report.md)
