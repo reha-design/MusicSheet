@@ -1,7 +1,7 @@
 # W02 Redis Streams 및 SSE 구현 계획
 
 > **For agentic workers:** `superpowers:executing-plans`로 주 세션에서 구현한다. AGENTS.md의 단위별 독립 리뷰 요구사항이 스킬의 최종 리뷰만 수행하는 기본 방식보다 우선한다.
-> 작성일: 2026-10-02 · Revision 2 · 상태: 사용자 계획 승인, Task 1 완료·Task 2 진행; 독립 계획 리뷰 100/100 통과
+> 작성일: 2026-10-02 · Revision 2 · 상태: 사용자 계획 승인, Task 1–2 완료·Task 3 진행; 독립 계획 리뷰 100/100 통과
 
 **Goal:** 작업 진행 이벤트의 Redis 저장·독립 구독·Last-Event-ID 재생을 제공한다.
 
@@ -72,15 +72,15 @@
 - `router = APIRouter(prefix="/api/v1/jobs", tags=["events"])`; `GET /{job_id}/events`.
 - lifespan에서 `app.state.event_store: EventStore | None` 설정. router는 이를 조회하고 tests는 state를 교체한다. `create_app` public 인자는 유지한다.
 
-- [ ] `test_initial_subscription_replays_retained_events`, `test_last_event_id_replays_only_later_ids`, `test_event_written_during_replay_is_delivered_next`, `test_two_subscribers_receive_same_history`, `test_empty_read_emits_heartbeat`, `test_terminal_event_keeps_subscription_open`을 작성한다. 첫 batch 전달 전 Redis fake가 후속 이벤트를 추가해 전환 시 cursor 사용을 검증한다.
-- [ ] `test_sse_frames_escape_message_newlines_and_have_headers`, `test_uuid_is_normalized`, `test_invalid_id_or_header_returns_422`, `test_future_cursor_returns_422`, `test_unknown_job_returns_404`, `test_db_unavailable_returns_503`, `test_missing_event_store_returns_503`, `test_initial_read_failure_returns_503_without_secrets`, `test_later_failure_emits_one_sanitized_error_without_id`를 작성한다.
-- [ ] 직접 ASGI send/receive harness를 작성한다. `http.request` 이후 프레임 관측에 따라 `http.disconnect`를 보낸다. ASGI HTTP spec 2.3/2.4 양쪽에서 blocking read 중 disconnect를 발생시키고, spec 2.4의 send 실패와 호스트 task cancellation도 검증한다. 각 실행 전체를 2초 이내 wait_for로 제한하고 task/fake pending read 정리를 finally에서 수행한다.
-- [ ] `test_disconnect_cancels_pending_read_without_closing_shared_client`와 `test_response_cancellation_propagates`를 작성한다. stream_error로 취소를 바꾸지 않는다. 프레임 생성/loop 단위 검증은 async generator를 직접 읽고 `aclose()`한다. 무한 응답을 동기 TestClient로 수집하지 않는다.
-- [ ] 앱 테스트 `test_health_override_does_not_disable_event_store`, `test_missing_redis_url_disables_only_events`, `test_redis_initialization_failure_keeps_liveness`, `test_redis_closes_once_on_shutdown_even_if_db_close_fails`, `test_event_request_does_not_close_client`를 작성한다. RED: focused `test_job_events.py test_app.py` 실행.
-- [ ] router는 UUID path param과 단일 optional Header를 검증하고 header 기본값은 `None`에서만 `0-0`으로 바꾼다. DB 존재 확인 → event store 확인 → initial_read의 순서를 지킨다. 헤더 중복은 422로 거부한다. DB/Redis 실패는 고정 generic HTTPException으로 mapping한다.
-- [ ] 응답은 `SSEStreamingResponse(stream_events(...), media_type="text/event-stream", headers={"Cache-Control":"no-cache", "X-Accel-Buffering":"no"})`. Starlette의 spec 2.4 경로는 send 오류에 의존하므로 BLOCK read 중에도 즉시 disconnect를 처리하기 위해 별도 disconnect listener를 유지한다. 초기 batch 전달 후 각 read 결과를 순차 emit하고 마지막 전송 ID를 cursor로 유지한다. 빈 batch는 heartbeat; 오류는 고정 stream_error 프레임 1회 후 return; cancellation은 re-raise한다.
-- [ ] lifespan은 health override와 무관하게 `Redis.from_url(..., decode_responses=True, socket_connect_timeout=2, socket_timeout=20)`을 만들고 `RedisEventStore`를 연결한다. 없거나 생성 실패하면 event_store=None. health override는 readiness provider에만 영향을 준다. 종료 시 기존 DB/Redis 중첩 finally 정리를 유지하고 state가 닫힌 client를 참조하지 않게 정리한다.
-- [ ] API/Streams canonical 문서에 구현 계약을 반영하고 결과보고서/색인을 작성한다. GREEN: focused + API full suite 및 root `uv run --project . --python 3.13 pytest -q`, `git diff --check`. 독립 코드 리뷰 95/100 이상과 important 해소 후 관련 파일만 commit: `feat(api): stream job progress with SSE replay`.
+- [x] `test_initial_subscription_replays_retained_events`, `test_last_event_id_replays_only_later_ids`, `test_event_written_during_replay_is_delivered_next`, `test_two_subscribers_receive_same_history`, `test_empty_read_emits_heartbeat`, `test_terminal_event_keeps_subscription_open`을 작성한다. 첫 batch 전달 전 Redis fake가 후속 이벤트를 추가해 전환 시 cursor 사용을 검증한다.
+- [x] `test_sse_frames_escape_message_newlines_and_have_headers`, `test_uuid_is_normalized`, `test_invalid_id_or_header_returns_422`, `test_future_cursor_returns_422`, `test_unknown_job_returns_404`, `test_db_unavailable_returns_503`, `test_missing_event_store_returns_503`, `test_initial_read_failure_returns_503_without_secrets`, `test_later_failure_emits_one_sanitized_error_without_id`를 작성한다.
+- [x] 직접 ASGI send/receive harness를 작성한다. `http.request` 이후 프레임 관측에 따라 `http.disconnect`를 보낸다. ASGI HTTP spec 2.3/2.4 양쪽에서 blocking read 중 disconnect를 발생시키고, spec 2.4의 send 실패와 호스트 task cancellation도 검증한다. 각 실행 전체를 2초 이내 wait_for로 제한하고 task/fake pending read 정리를 finally에서 수행한다.
+- [x] `test_disconnect_cancels_pending_read_without_closing_shared_client`와 `test_response_cancellation_propagates`를 작성한다. stream_error로 취소를 바꾸지 않는다. 프레임 생성/loop 단위 검증은 async generator를 직접 읽고 `aclose()`한다. 무한 응답을 동기 TestClient로 수집하지 않는다.
+- [x] 앱 테스트 `test_health_override_does_not_disable_event_store`, `test_missing_redis_url_disables_only_events`, `test_redis_initialization_failure_keeps_liveness`, `test_redis_closes_once_on_shutdown_even_if_db_close_fails`, `test_event_request_does_not_close_client`를 작성한다. RED: focused `test_job_events.py test_app.py` 실행.
+- [x] router는 UUID path param과 단일 optional Header를 검증하고 header 기본값은 `None`에서만 `0-0`으로 바꾼다. DB 존재 확인 → event store 확인 → initial_read의 순서를 지킨다. 헤더 중복은 422로 거부한다. DB/Redis 실패는 고정 generic HTTPException으로 mapping한다.
+- [x] 응답은 `SSEStreamingResponse(stream_events(...), media_type="text/event-stream", headers={"Cache-Control":"no-cache", "X-Accel-Buffering":"no"})`. Starlette의 spec 2.4 경로는 send 오류에 의존하므로 BLOCK read 중에도 즉시 disconnect를 처리하기 위해 별도 disconnect listener를 유지한다. 초기 batch 전달 후 각 read 결과를 순차 emit하고 마지막 전송 ID를 cursor로 유지한다. 빈 batch는 heartbeat; 오류는 고정 stream_error 프레임 1회 후 return; cancellation은 re-raise한다.
+- [x] lifespan은 health override와 무관하게 `Redis.from_url(..., decode_responses=True, socket_connect_timeout=2, socket_timeout=20)`을 만들고 `RedisEventStore`를 연결한다. 없거나 생성 실패하면 event_store=None. health override는 readiness provider에만 영향을 준다. 종료 시 기존 DB/Redis 중첩 finally 정리를 유지하고 state가 닫힌 client를 참조하지 않게 정리한다.
+- [x] API/Streams canonical 문서에 구현 계약을 반영하고 결과보고서/색인을 작성한다. GREEN: focused + API full suite 및 root `uv run --project . --python 3.13 pytest -q`, `git diff --check`. 독립 코드 리뷰 95/100 이상과 important 해소 후 관련 파일만 commit: `feat(api): stream job progress with SSE replay`.
 
 ## Task 3 — 실 Redis 통합 증거와 완료 문서
 
@@ -107,6 +107,8 @@
 설계 승인: 사용자의 2026-10-02 “다음작업진행” 응답. 계획 및 실행 방식 승인: 이어진 “진행” 응답. 주 세션에서 구현하고 각 단위는 독립 reviewer로 검증한다. 기존 작업 폴더의 승인된 설계/계획 변경을 이어서 작업하며 별도 worktree는 생성하지 않는다.
 
 Task 1 독립 코드 리뷰: 2026-10-02, `/root/w02_store_review`, BASE `36588ac`, **99/100** (25/25, 25/25, 24/25, 15/15, 10/10). Blocker/important 없음. Reviewer focused suite 41 passed 및 추가 probe 6개 통과. Minor deferred: UTF-8/응답구조/batch상한/publish·metadata cancellation probe의 영구 회귀 테스트 추가. Task 3 실 Redis 범위와 구분한다.
+
+Task 2 독립 코드 리뷰: 2026-10-03 `/root/w02_sse_review`, BASE `c1ca195`, **98/100** (25/25, 25/25, 23/25, 15/15, 10/10). Blocker/important 없음. 독립 API221/root59 및 추가 4 cleanup/cursor/cancellation probes 통과. Minor: 실제 store/client와 lifespan을 연결한 요청 종료 close0·앱 종료 close1 검증을 Task 3에서 보강한다.
 
 ## 실행 환경 사전 확인과 현재 baseline
 

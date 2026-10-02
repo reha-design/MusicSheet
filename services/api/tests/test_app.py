@@ -115,3 +115,61 @@ def test_created_pool_is_closed_on_shutdown(tmp_path: Path, monkeypatch: pytest.
 
     assert urls == ["postgresql://db.invalid/music"]
     assert pool.close_calls == 1
+
+
+def test_health_override_does_not_disable_event_store(tmp_path, monkeypatch):
+    class Client:
+        close_calls = 0
+        async def aclose(self):
+            self.close_calls += 1
+    redis = Client()
+    options = {}
+    def create(url, **kwargs):
+        options.update(kwargs)
+        return redis
+    monkeypatch.setattr(app_module.Redis, "from_url", create)
+    app = create_app(settings=Settings.from_env({"REDIS_URL":"redis://test/2"}, working_directory=tmp_path), health_checks=NeverCalledHealthChecks())
+    with TestClient(app) as client:
+        assert client.get("/health/live").status_code == 200
+        assert app.state.event_store.client is redis
+        assert app.state.redis_client is redis
+    assert redis.close_calls == 1
+    assert app.state.event_store is None and app.state.redis_client is None
+    assert options == {"decode_responses": True, "socket_connect_timeout": 2, "socket_timeout": 20}
+
+
+def test_missing_redis_url_disables_only_events(tmp_path):
+    app = create_app(settings=Settings.from_env({}, working_directory=tmp_path), health_checks=NeverCalledHealthChecks())
+    with TestClient(app) as client:
+        assert client.get("/health/live").status_code == 200
+        assert app.state.event_store is None
+
+
+def test_redis_initialization_failure_keeps_liveness(tmp_path, monkeypatch):
+    def create(url, **kwargs):
+        raise ValueError("secret-token-example")
+    monkeypatch.setattr(app_module.Redis, "from_url", create)
+    app = create_app(settings=Settings.from_env({"REDIS_URL":"redis://test/2"}, working_directory=tmp_path))
+    with TestClient(app) as client:
+        assert client.get("/health/live").status_code == 200
+        assert app.state.event_store is None
+
+
+def test_redis_closes_once_on_shutdown_even_if_db_close_fails(tmp_path, monkeypatch):
+    class Client:
+        close_calls = 0
+        async def aclose(self):
+            self.close_calls += 1
+    class Pool:
+        async def close(self):
+            raise RuntimeError("DB close failure")
+    redis = Client()
+    async def pool(url):
+        return Pool()
+    monkeypatch.setattr(app_module, "create_optional_pool", pool)
+    monkeypatch.setattr(app_module.Redis, "from_url", lambda url, **kwargs: redis)
+    app = create_app(settings=Settings.from_env({"DATABASE_URL":"postgresql://test/db", "REDIS_URL":"redis://test/2"}, working_directory=tmp_path), health_checks=NeverCalledHealthChecks())
+    with pytest.raises(RuntimeError, match="DB close failure"):
+        with TestClient(app):
+            pass
+    assert redis.close_calls == 1 and app.state.event_store is None

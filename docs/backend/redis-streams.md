@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/backend/redis-streams.md`  
 > **관련 문서:** [docs/backend/api.md](./api.md), [docs/adr/002-redis-streams.md](../adr/002-redis-streams.md)
 >
-> **구현 상태:** Redis 이벤트 저장소를 구현 중입니다. SSE API는 다음 구현 단위에서 연결합니다. [W02 실행 계획](../plans/redis-streams-sse-implementation-plan.md)을 따릅니다.
+> **구현 상태:** Redis 이벤트 저장소와 SSE API를 구현했습니다. 실제 worker 발행은 W03 연결 범위입니다. [W02 실행 계획](../plans/redis-streams-sse-implementation-plan.md)을 따릅니다.
 
 ---
 

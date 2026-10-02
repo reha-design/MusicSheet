@@ -20,6 +20,8 @@ from musicsheet_api.health import (
 )
 from musicsheet_api.jobs.upload_body_limit import UploadBodyLimitMiddleware
 from musicsheet_api.jobs.router import router as jobs_router
+from musicsheet_api.events.router import router as events_router
+from musicsheet_api.events.store import RedisEventStore
 from musicsheet_storage import LocalStorage
 
 
@@ -40,19 +42,24 @@ def create_app(
         )
         api.state.db_pool = db_pool
         redis_client: Redis | None = None
+        if resolved_settings.redis_url:
+            try:
+                redis_client = Redis.from_url(
+                    resolved_settings.redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                    socket_timeout=20,
+                )
+            except Exception:
+                redis_client = None
+        api.state.redis_client = redis_client
+        api.state.event_store = RedisEventStore(redis_client) if redis_client is not None else None
         if health_checks is None:
-            if resolved_settings.redis_url:
-                try:
-                    redis_client = Redis.from_url(resolved_settings.redis_url)
-                except Exception:
-                    redis_client = None
-            api.state.redis_client = redis_client
             api.state.health_checks = ReadinessChecks(
                 resolved_settings,
                 redis_client,
             )
         else:
-            api.state.redis_client = None
             api.state.health_checks = health_checks
 
         try:
@@ -67,6 +74,9 @@ def create_app(
                         await redis_client.aclose()
                     except Exception:
                         pass
+                api.state.redis_client = None
+                api.state.event_store = None
+                api.state.db_pool = None
 
     app = FastAPI(title="MusicSheet API", lifespan=lifespan)
     app.add_middleware(
@@ -77,9 +87,11 @@ def create_app(
     app.state.health_checks = health_checks
     app.state.diagnostics_checks = resolved_diagnostics
     app.state.redis_client = None
+    app.state.event_store = None
     app.state.db_pool = None
     app.state.storage = LocalStorage(resolved_settings.local_storage_dir)
     app.include_router(jobs_router)
+    app.include_router(events_router)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(

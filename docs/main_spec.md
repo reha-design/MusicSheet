@@ -136,3 +136,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [20: Job REST API v1 구현 보고서](./reports/job-rest-api-v1-implementation-report.md)
 - [21: W02 Redis Streams 및 SSE 계획 리뷰 보고서](./reports/redis-streams-sse-planning-report.md)
 - [22: W02 Redis 이벤트 저장소 보고서](./reports/redis-event-store-report.md)
+- [23: W02 진행 이벤트 SSE API 보고서](./reports/job-sse-api-report.md)
