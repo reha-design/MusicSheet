@@ -10,6 +10,8 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from musicsheet_common import ArtifactRef, JobStatus
+from musicsheet_pipeline.contracts import StageMessage
+from musicsheet_pipeline.outbox import enqueue_stage
 from starlette.datastructures import UploadFile
 from starlette.types import Receive, Scope, Send
 
@@ -131,11 +133,15 @@ async def create_youtube_job(
 
     repository = _job_repository(request)
     try:
-        job = await repository.create_job(
-            source_type="YOUTUBE",
-            source_url=canonical_url,
-            target_instrument=body.target_instrument,
-        )
+        async with request.app.state.db_pool.acquire() as connection:
+            async with connection.transaction():
+                job = await repository.create_job(
+                    source_type="YOUTUBE",
+                    source_url=canonical_url,
+                    target_instrument=body.target_instrument,
+                    connection=connection,
+                )
+                await enqueue_stage(connection,StageMessage(job.id,"DOWNLOAD",1))
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

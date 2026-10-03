@@ -25,6 +25,7 @@ class Database:
         self.artifacts = {OTHER: artifact().model_dump()}
         self.outbox = {}
         self.locks = set()
+        self.outbox_locks = set()
 
 
 class Transaction:
@@ -38,6 +39,8 @@ class Transaction:
 
     async def __aexit__(self, typ, value, tb):
         self.c.in_transaction = False
+        self.c.db.outbox_locks.difference_update(self.c.locked_outbox)
+        self.c.locked_outbox.clear()
         if typ or self.c.fail_commit:
             self.c.db.jobs, self.c.db.attempts, self.c.db.artifacts, self.c.db.outbox = self.snapshot
             if not typ:
@@ -52,6 +55,7 @@ class Connection:
         self.closed = False
         self.listeners = []
         self.held_locks = set()
+        self.locked_outbox = set()
         self.fail_outbox = False
         self.fail_commit = False
         self.fail_query = False
@@ -105,6 +109,15 @@ class Connection:
 
     async def fetchrow(self, query, *args):
         tag = self.tag(query, args)
+        if tag == "pipeline.dispatch.next":
+            rows=[dict(row,status=self.db.jobs[row["job_id"]]["status"]) for row in self.db.outbox.values()
+                  if row["published_at"] is None and row["available_at"]<=datetime.now(timezone.utc) and row["id"] not in self.db.outbox_locks]
+            if not rows:
+                return None
+            row=sorted(rows,key=lambda r:(r["available_at"],r["id"]))[0]
+            self.db.outbox_locks.add(row["id"])
+            self.locked_outbox.add(row["id"])
+            return row
         if tag == "pipeline.job":
             return copy.deepcopy(self.db.jobs.get(args[0]))
         if tag == "pipeline.reservation":
@@ -135,6 +148,9 @@ class Connection:
 
     async def execute(self, query, *args):
         tag = self.tag(query, args)
+        if tag == "pipeline.dispatch.sent":
+            next(row for row in self.db.outbox.values() if row["id"]==args[0])["published_at"]=datetime.now(timezone.utc)
+            return "UPDATE 1"
         if tag == "pipeline.enqueue":
             if self.fail_outbox:
                 raise OSError("secret-outbox")

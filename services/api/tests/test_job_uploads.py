@@ -51,6 +51,12 @@ class FakeConnection:
     def transaction(self) -> FakeTransaction:
         return FakeTransaction(self)
 
+    async def execute(self,query,*args):
+        self.calls.append((query,args))
+        if "INSERT INTO pipeline_outbox" in query:
+            return "INSERT 0 1"
+        raise AssertionError("unexpected SQL")
+
     async def fetchrow(self, query: str, *args: object) -> dict[str, Any]:
         self.calls.append((query, args))
         if query.startswith("INSERT INTO jobs"):
@@ -242,6 +248,7 @@ def test_upload_registers_job_and_source_artifact(tmp_path: Path) -> None:
     assert [query.split("(")[0] for query, _ in connection.calls] == [
         "INSERT INTO jobs ",
         "INSERT INTO artifacts ",
+        "/* pipeline.enqueue */ INSERT INTO pipeline_outbox ",
     ]
     assert connection.transaction_events == ["begin", "commit"]
     artifact_args = connection.calls[1][1]
