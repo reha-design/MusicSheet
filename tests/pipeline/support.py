@@ -34,8 +34,10 @@ class Transaction:
     async def __aenter__(self):
         self.snapshot = copy.deepcopy((self.c.db.jobs, self.c.db.attempts, self.c.db.artifacts, self.c.db.outbox))
         self.c.transactions += 1
+        self.c.in_transaction = True
 
     async def __aexit__(self, typ, value, tb):
+        self.c.in_transaction = False
         if typ or self.c.fail_commit:
             self.c.db.jobs, self.c.db.attempts, self.c.db.artifacts, self.c.db.outbox = self.snapshot
             if not typ:
@@ -46,6 +48,7 @@ class Connection:
     def __init__(self, database=None):
         self.db = database or Database()
         self.transactions = 0
+        self.in_transaction = False
         self.closed = False
         self.listeners = []
         self.held_locks = set()

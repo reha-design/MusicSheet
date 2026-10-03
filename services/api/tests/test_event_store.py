@@ -10,7 +10,7 @@ import pytest
 from redis.exceptions import ResponseError
 from musicsheet_common import JobProgressEvent
 
-from musicsheet_api.events import store as store_module
+from musicsheet_pipeline import events as store_module
 from musicsheet_api.events.store import (
     EventStoreUnavailable,
     InvalidEventCursor,

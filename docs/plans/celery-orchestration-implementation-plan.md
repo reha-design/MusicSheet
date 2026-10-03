@@ -14,7 +14,7 @@
 - 기준: `4c86e91`, branch `codex/celery-orchestration`
 - 사용자 설계 승인: 2026-10-03 `w03진행`
 - 독립 계획 점수: R1 94 → R2 100 → R3 **99/100**, blocker0/important0/minor1(과거 상태 문구, 아래에 해결 기록). 관련 의존성 변경 게이트 통과.
-- 작성된 실행 계획의 사용자 실행 승인: 2026-10-03 `다음 task 진행`. Task1 완료(독립 구현99점), Task2 진행 예정.
+- 작성된 실행 계획의 사용자 실행 승인: 2026-10-03 `다음 task 진행`. Task1·Task2 완료(각 독립 구현99점), Task3 진행 예정.
 
 ## Global Constraints
 
@@ -79,12 +79,12 @@
 - 입력·완료 출력·신규 출력의 모든 동기 storage 작업은 함수 내부의 **소유한 asyncio.to_thread task**에서 수행한다. worker thread가 stream을 열고 finally에서 닫으며 매 청크 전에 threading.Event stop을 검사한다. async cancellation/ownership 상실은 stop을 set하고 새 청크를 읽지 않게 한다. wrapper는 shield + 완료 대기로 thread가 닫힐 때까지 drain하며 반복 caller cancellation에서도 thread를 방치하거나 외부에서 동시 close하지 않는다. 진행 중 OS 파일 read 자체를 강제 중단한다고 주장하지 않는다; 검증 종료는 현재 read가 돌아온 뒤 협력적으로 수행되며 monitor는 그동안 계속 동작한다. provider 1800초 제한은 provider에 적용되며 storage의 OS 장애에 대한 hard timeout 보장과 혼동하지 않는다.
 - shared events의 공개 symbol/2초 timeout/100 retention/SSE 사용 계약 동일. API import compatibility는 symbol re-export로 제공하며 monkeypatch 내부 모듈 경로는 새로운 공유 모듈로 바꾼다.
 
-- [ ] **Step 1 — 실패 테스트 작성:** 여섯 stage 완료 순서와 overall `[16,33,50,66,83,100]`; provider 누락 실패; unknown/retryable/permanent 오류; 3회 초과 없음; deadline 초과 `PROVIDER_TIMEOUT` permanent. 업로드 DOWNLOAD가 SOURCE_ORIGINAL을 재사용할 때 metadata 중복 없음. fingerprint mismatch `INPUT_CHANGED`; 손상/누락/타 job·중복 output·잘못된 producer는 `ARTIFACT_INVALID`.
-- [ ] **Step 2 — RED:** 신규 engine/integrity 테스트의 실패를 확인하고 구현한다. prepare가 남긴 transition은 커밋 후 발행한다. RUN에서 입력 integrity+identity input roles를 검사한 뒤 provider를 호출한다. DUPLICATE는 completed output 검증 후 연산 생략; 실제 stage 진행이 이미 앞섰으면 SKIP하며 다음 stage 입력 검증이 손상을 잡는다.
-- [ ] **Step 3 — 취소·소유권 테스트/구현:** asyncio Events로 취소·완료 commit 경쟁 두 순서를 고정한다. monitor는 1초마다 같은 session의 연결로 확인; provider와 monitor DB 조작은 동시에 하지 않도록 session lock으로 serialize한다. monitor는 provider뿐 아니라 입력/출력 검증 전체에서 실행한다. DB monitor 오류는 ownership_lost + cancellation set, provider.cancel 및 gather; 결과 commit 금지. 완료 직전 monitor를 정리하고 최종 transaction에서 취소 재검사. timeout·외부 task cancellation에서도 모든 task/stream/session close를 확인한다. cooperative 종료를 거부하는 provider는 별도 adapter가 필요하며 테스트 provider는 항상 종료에 응답한다.
-- [ ] **Step 3a — 느린 validation 회귀:** thread read double은 threading.Event로 차단하고 테스트 finally에서 항상 release한다. 각 input/completed-output/new-output 모드에서 read가 막힌 동안 monitor가 실행됨을 관찰한다. input 검사 중 취소 후 provider 호출0, validation 중 lock 연결 상실 후 metadata/성공 commit0, release 이후 stream close1·남은 thread task0을 assert한다. 실제 무한 파일 I/O를 만들어 테스트 runner를 방치하지 않는다. target_instrument가 StageInput/StageContext와 fingerprint에 동일하게 전달되는 테스트도 추가한다.
-- [ ] **Step 4 — 이벤트 경계 테스트/구현:** commit 이전 발행 0, DB 실패 발행 0, commit 이후 Redis 실패에도 provider 재실행 0 및 상태 보존. cancellation은 잡아먹지 않는다. 원시예외 sentinel이 warnings/stdout/stderr/DB/error context에 없음을 검사한다. W02 store의 UTF8 malformed 응답·100 cap·publish/metadata cancellation probe도 permanent pytest로 고정한다.
-- [ ] **Step 5 — GREEN·독립 리뷰·보고서·commit:** root/API 회귀, W02 SSE replay/client ownership 모두 통과; `docs/reports/pipeline-stage-runner-report.md`, `feat(pipeline): execute stages with retry and cancellation`.
+- [x] **Step 1 — 실패 테스트 작성:** 여섯 stage 완료 순서와 overall `[16,33,50,66,83,100]`; provider 누락 실패; unknown/retryable/permanent 오류; 3회 초과 없음; deadline 초과 `PROVIDER_TIMEOUT` permanent. 업로드 DOWNLOAD가 SOURCE_ORIGINAL을 재사용할 때 metadata 중복 없음. fingerprint mismatch `INPUT_CHANGED`; 손상/누락/타 job·중복 output·잘못된 producer는 `ARTIFACT_INVALID`.
+- [x] **Step 2 — RED:** 신규 engine/integrity 테스트의 실패를 확인하고 구현한다. prepare가 남긴 transition은 커밋 후 발행한다. RUN에서 입력 integrity+identity input roles를 검사한 뒤 provider를 호출한다. DUPLICATE는 completed output 검증 후 연산 생략; 실제 stage 진행이 이미 앞섰으면 SKIP하며 다음 stage 입력 검증이 손상을 잡는다.
+- [x] **Step 3 — 취소·소유권 테스트/구현:** asyncio Events로 취소·완료 commit 경쟁 두 순서를 고정한다. monitor는 1초마다 같은 session의 연결로 확인; provider와 monitor DB 조작은 동시에 하지 않도록 session lock으로 serialize한다. monitor는 provider뿐 아니라 입력/출력 검증 전체에서 실행한다. DB monitor 오류는 ownership_lost + cancellation set, provider.cancel 및 gather; 결과 commit 금지. 완료 직전 monitor를 정리하고 최종 transaction에서 취소 재검사. timeout·외부 task cancellation에서도 모든 task/stream/session close를 확인한다. cooperative 종료를 거부하는 provider는 별도 adapter가 필요하며 테스트 provider는 항상 종료에 응답한다.
+- [x] **Step 3a — 느린 validation 회귀:** thread read double은 threading.Event로 차단하고 테스트 finally에서 항상 release한다. 각 input/completed-output/new-output 모드에서 read가 막힌 동안 monitor가 실행됨을 관찰한다. input 검사 중 취소 후 provider 호출0, validation 중 lock 연결 상실 후 metadata/성공 commit0, release 이후 stream close1·남은 thread task0을 assert한다. 실제 무한 파일 I/O를 만들어 테스트 runner를 방치하지 않는다. target_instrument가 StageInput/StageContext와 fingerprint에 동일하게 전달되는 테스트도 추가한다.
+- [x] **Step 4 — 이벤트 경계 테스트/구현:** commit 이전 발행 0, DB 실패 발행 0, commit 이후 Redis 실패에도 provider 재실행 0 및 상태 보존. cancellation은 잡아먹지 않는다. 원시예외 sentinel이 warnings/stdout/stderr/DB/error context에 없음을 검사한다. W02 store의 UTF8 malformed 응답·100 cap·publish/metadata cancellation probe도 permanent pytest로 고정한다.
+- [x] **Step 5 — GREEN·독립 리뷰·보고서·commit:** root/API 회귀, W02 SSE replay/client ownership 모두 통과; `docs/reports/pipeline-stage-runner-report.md`, `feat(pipeline): execute stages with retry and cancellation`.
 
 ## Task 3: Celery task·dispatcher·API 등록 원자성
 
