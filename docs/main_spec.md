@@ -54,7 +54,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Job REST API v1 설계:** [등록과 처리 경계, 요청·데이터 흐름](./superpowers/specs/2026-09-27-job-rest-api-v1-design.md)
 - **W02 Redis Streams 및 SSE 설계:** [이벤트 저장·재생, 연결 수명과 오류 계약](./superpowers/specs/2026-10-02-redis-streams-sse-design.md) (Revision 1, 사용자 설계 승인)
 - **W02 Redis Streams 및 SSE 구현 계획:** [저장소·SSE·통합 검증의 단위별 실행 계획](./plans/redis-streams-sse-implementation-plan.md) (계획 Revision 2 100/100, 구현 최종 98/100, 실제 Redis 성공 경로 미검증)
-- **W03 Celery 오케스트레이션 설계:** [등록·단계 전달·재시도·취소와 DB 실행 기록](./superpowers/specs/2026-10-03-celery-orchestration-design.md) (Revision 1, 사용자 설계 검토 대기, 미구현)
+- **W03 Celery 오케스트레이션 설계:** [등록·단계 전달·재시도·취소와 DB 실행 기록](./superpowers/specs/2026-10-03-celery-orchestration-design.md) (Revision 1, 사용자 설계 승인, 미구현)
+- **W03 Celery 오케스트레이션 실행 계획:** [DB·runner·dispatch·통합 검증](./plans/celery-orchestration-implementation-plan.md) (Revision 2, 독립 계획 100점, 사용자 계획 검토 대기)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
@@ -140,3 +141,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [23: W02 진행 이벤트 SSE API 보고서](./reports/job-sse-api-report.md)
 - [24: W02 Redis Streams 및 SSE 구현 보고서](./reports/redis-streams-sse-implementation-report.md)
 - [25: W03 Celery 오케스트레이션 설계 착수 보고서](./reports/celery-orchestration-design-report.md)
+- [26: W03 Celery 오케스트레이션 계획 리뷰 보고서](./reports/celery-orchestration-planning-report.md)

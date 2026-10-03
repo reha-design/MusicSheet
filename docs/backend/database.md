@@ -66,6 +66,8 @@ CREATE INDEX idx_artifacts_job_id ON artifacts(job_id);
 
 ## 2. 구현 및 운영 상태
 
+W03은 [승인 설계](../superpowers/specs/2026-10-03-celery-orchestration-design.md#4-데이터-계약과-마이그레이션)의 outbox·attempt generation/출력 기록·실행 소유권 컬럼을 migration v2로 추가할 예정입니다. 아직 v2 migration은 구현되지 않았습니다. v1 기록을 유지하고 명시적 migration 명령으로 적용하며, 시작 시 자동 적용하지 않습니다.
+
 `services/api`의 명시적 `musicsheet-migrate` 명령이 버전 1 DDL을 적용합니다. `schema_migrations(version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`가 적용 버전을 기록합니다. 각 버전의 DDL과 ledger 기록은 같은 트랜잭션에서 처리하며, PostgreSQL advisory lock으로 동시 실행을 직렬화합니다. API 시작 시 마이그레이션은 실행하지 않습니다.
 
 API 프로젝트 디렉터리에서 `DATABASE_URL`을 설정한 후 `uv run --locked --python 3.13 musicsheet-migrate`를 실행합니다. 성공 시 새로 적용한 버전과 현재 버전을 표시하고, 실패 시 URL·호스트·인증정보·원시 드라이버 예외 없이 일반적인 오류만 표시합니다. 데이터베이스가 없거나 연결이 실패해도 API 기동과 `/health/live`는 유지되고 선택적 `app.state.db_pool`은 `None`입니다. 열린 풀은 종료 시 닫힙니다.

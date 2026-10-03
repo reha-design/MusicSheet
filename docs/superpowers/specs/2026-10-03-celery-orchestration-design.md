@@ -2,7 +2,7 @@
 
 - Revision: 1
 - 작성일: 2026-10-03 (Asia/Seoul)
-- 상태: 사용자 설계 검토 대기 — 구현 계획과 제품 코드는 아직 작성하지 않음
+- 상태: 사용자 설계 승인 (2026-10-03 `w03진행`); 실행 계획 작성 단계, 미구현
 - 기준: W02 완료 `2d39ed9`
 - 사양: [Celery](../../backend/celery.md), [파이프라인](../../architecture/job-pipeline.md), [상태 머신](../../domain/job-state.md), [DB](../../backend/database.md)
 
@@ -37,7 +37,7 @@
 명시적 migration v2를 추가한다. API/worker 시작 시 자동 적용하지 않는다. 기존 v1 데이터를 유지한다.
 
 1. `pipeline_outbox`: `id` UUID 문자열 PK, `job_id` FK, `stage`, `generation` 양의 정수, `available_at` timestamptz, `published_at` nullable, `created_at`. `(job_id, stage, generation)` unique와 미발행·예약 시각 인덱스를 둔다. payload에는 ID·stage·generation만 사용하며 URL·파일·인증정보는 넣지 않는다.
-2. `stage_attempts`: 기존 컬럼에 `input_fingerprint` nullable SHA-256 문자열, `output_artifact_ids` JSONB 배열 기본 `[]`를 추가한다. `(job_id, stage, attempt)` unique를 추가하기 전 기존 중복이 있으면 명시적이고 비밀 없는 migration 오류로 중단한다. 역사 데이터를 임의 삭제하지 않는다.
+2. `stage_attempts`: 기존 컬럼에 `generation` 양의 정수, `input_fingerprint` nullable SHA-256 문자열, `output_artifact_ids` JSONB 배열 기본 `[]`를 추가한다. generation은 메시지와 attempt를 연결하며 기존 행은 attempt 값으로 채운다. `(job_id, stage, attempt)` unique를 추가하기 전 기존 중복 또는 비양수 attempt가 있으면 명시적이고 비밀 없는 migration 오류로 중단한다. 역사 데이터를 임의 삭제하지 않는다.
 3. `jobs`: 내부 실행 소유권을 비교할 `active_attempt_id` nullable 문자열을 추가한다. REST response와 공용 JobStatus/PipelineStage/JobProgressEvent 필드는 변경하지 않는다.
 
 Task 입력은 canonical UUID `job_id`, 명시적 stage, 양의 정수 generation이다. bool을 generation으로 허용하지 않는다. 형식 오류·없는 job·예약 기록 없는 메시지는 provider와 DB 상태 변경 없이 거부하며 고정 오류만 기록한다. 현재 generation은 해당 job/stage의 예약된 outbox 최대 generation으로 판단한다. 최초·다음 stage는 generation 1, 같은 stage 재시도는 이전 값 +1이다. provider에는 DB에서 읽은 source 정보와 같은 job에 속하는 검증된 아티팩트만 전달한다. output은 `ArtifactRef` 목록이며, 같은 job_id·지원 role·실제 저장 파일·size·SHA-256·provider/version을 검증한다. 성공한 attempt의 출력 ID 목록이 다음 단계 입력의 기준이다.
@@ -72,7 +72,7 @@ Worker는 task마다 하나의 asyncio loop에서 DB/Redis 연결을 열고 닫�
 1. UUID에서 결정적으로 계산한 signed bigint의 PostgreSQL session advisory lock을 **job 단위**로 try-acquire한다. 다른 실행이 소유하면 연산 없이 5초 뒤 재전달하도록 처리한다. 이 경합은 provider attempt 횟수를 늘리지 않는다.
 2. 짧은 row-lock 트랜잭션으로 job과 attempt를 검사한다. terminal job과 과거 generation 메시지는 상태를 바꾸지 않고 종료한다. 현재 stage보다 앞선 메시지는 실행하지 않는다. 미래 stage 메시지는 일반적인 protocol 오류로 기록하되 job의 정상 진행을 훼손하지 않는다.
 3. 같은 generation의 완료 attempt가 있으면 provider를 다시 실행하지 않는다. output의 존재·size·SHA-256을 확인한다. 유효하면 이미 기록된 후속 outbox를 그대로 사용한다. 손실·손상 출력은 `ARTIFACT_INVALID` 실패로 기록하며 다음 단계로 진행하지 않는다.
-4. 이전 실행이 종료되어 advisory lock을 새 worker가 취득했지만 attempt가 RUNNING이면 `WORKER_INTERRUPTED`로 닫고 새 attempt를 만든다. 실행 시작 때 jobs.active_attempt_id를 새 attempt ID로 지정하고 provider를 트랜잭션 밖에서 호출한다. 긴 DB 트랜잭션을 유지하지 않는다.
+4. 이전 실행이 종료되어 advisory lock을 새 worker가 취득했지만 attempt가 RUNNING이면 `WORKER_INTERRUPTED`로 닫고 재시도 규칙에 따라 다음 generation을 예약한다. 해당 메시지에서는 provider를 실행하지 않는다. 새 generation 실행 시작 때 jobs.active_attempt_id를 새 attempt ID로 지정하고 provider를 트랜잭션 밖에서 호출한다. 긴 DB 트랜잭션을 유지하지 않는다.
 5. provider 종료 후 다시 row lock을 잡고 active_attempt_id·stage·status를 비교한다. 소유권을 잃은 결과는 등록하지 않는다. 출력 metadata, attempt 완료, 진행 상태와 **다음 stage outbox**를 같은 트랜잭션으로 커밋한다. RENDER 성공 시에만 job을 COMPLETED로 전환한다.
 
 advisory lock 연결이 끊겼을 때 기존 provider가 계속 살아 있을 수 있다. 해당 실행은 소유권 상실을 영구 기록하고 새 연결에서 결과를 커밋하지 않는다. attempt ID 비교가 늦게 도착한 DB 쓰기도 거부하고, provider는 attempt별 고유 파일명으로 출력하여 새 실행의 파일을 덮어쓰지 않는다. 외부 모델 연산 자체의 exactly-once는 보장하지 않는다. 실패한 미등록 파일의 자동 GC는 후속 운영 범위이며, 경로·attempt ID를 운영 기록으로 찾을 수 있게 한다.
