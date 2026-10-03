@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-- **W03 — Celery 오케스트레이션:** [설계 Revision 1](superpowers/specs/2026-10-03-celery-orchestration-design.md) 승인, [실행 계획 Revision 2](plans/celery-orchestration-implementation-plan.md) 독립 리뷰 **100점**. 작성된 계획의 사용자 검토 대기이며 구현은 아직 시작하지 않았습니다.
+- **W03 — Celery 오케스트레이션:** [실행 계획 Revision 3](plans/celery-orchestration-implementation-plan.md) 독립 리뷰 **99점**, 사용자 실행 승인. Task1 DB 실행·발행 대기 저장소 독립 구현 리뷰99점 완료. Task2 실행 엔진으로 이어갑니다.
 
 ## 다음 작업 후보
 

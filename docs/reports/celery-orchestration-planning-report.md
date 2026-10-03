@@ -4,7 +4,7 @@
 - 코드 기준: `4c86e91`
 - 범위: 승인 설계 상태·Canonical Celery/DB 사양 정합성·W03 실행 계획·진행 색인
 - 사용자 설계 승인: `w03진행`
-- 상태: 계획 Revision 2 독립 리뷰 100점, 작성된 계획의 사용자 검토 대기. 제품 코드·API 동작·runtime·lockfile·DB schema 미변경.
+- 작성 당시 상태: 계획 Revision 2 독립 리뷰 100점, 사용자 계획 검토 대기, 제품 미변경. 이후 `다음 task 진행`으로 실행 승인됐으며 Task1 작성 중 resolver 충돌을 발견해 R3 재평가99점을 받았다.
 
 ## 실행 계획
 
@@ -23,7 +23,9 @@ Reviewer: `/root/w03_plan_review`, 2026-10-03. Revision 1 **94/100** (24/25·18/
 - minor: root live suite API migration/SSE 접근 경계 → API 환경 사전 sync·명시적 migration, root version 검사, 소유 API subprocess와 stdlib SSE client 종료 책임 명시.
 - minor: provider 입력 target 누락 → StageInput/StageContext target_instrument 및 fingerprint 전달 테스트 추가.
 
-Revision 2 **100/100** (25/25·20/20·20/20·25/25·10/10), blocker0/important0/minor0. 같은 reviewer가 네 지적의 해결을 확인하고 현재 버전의 계획 점수 게이트 통과로 판정했다. 점수는 R2에만 적용된다. 구현 리뷰와 실제 서비스 성공 경로 검증은 아직 미실시다. 작성된 계획의 사용자 검토도 대기 중이다.
+Revision 2 **100/100** (25/25·20/20·20/20·25/25·10/10), blocker0/important0/minor0. 같은 reviewer가 네 지적의 해결을 확인하고 당시 버전의 계획 점수 게이트 통과로 판정했다. 점수는 R2에만 적용된다. 이후 작성된 계획에 사용자 실행 승인을 받았다.
+
+Revision 3 **99/100** (25/25·20/20·20/20·25/25·9/10), blocker0/important0/minor1. 실제 resolver가 Celery Redis extra `<6.5`와 API Redis `>=8.1.0`의 충돌을 확인하여 안정 공통 범위 `>=6.4.0,<6.5`와 W02 회귀 요구로 조정했다. Reviewer는 공식 요구사항과 공개 클라이언트 API를 독립 확인했다. minor인 과거 대기/미착수 상태 문구는 역사와 현재 상태를 구분해 해결했다. 구현 리뷰와 실제 서비스 성공 경로 증거는 별도다.
 
 ## 검증
 

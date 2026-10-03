@@ -10,16 +10,16 @@
 
 **Spec:** [승인 설계 Revision 1](../superpowers/specs/2026-10-03-celery-orchestration-design.md), [Celery](../backend/celery.md), [DB](../backend/database.md), [상태](../domain/job-state.md), [파이프라인](../architecture/job-pipeline.md).
 
-- Plan Revision: 2 (2026-10-03, Asia/Seoul)
+- Plan Revision: 3 (2026-10-03, Asia/Seoul)
 - 기준: `4c86e91`, branch `codex/celery-orchestration`
 - 사용자 설계 승인: 2026-10-03 `w03진행`
-- 독립 계획 점수: Revision 1 94/100 → Revision 2 **100/100**, blocker/important/minor 0. 계획 점수 게이트 통과; 작성된 계획의 사용자 검토 전 구현 시작 금지.
-- 작성된 실행 계획의 사용자 검토: 대기.
+- 독립 계획 점수: R1 94 → R2 100 → R3 **99/100**, blocker0/important0/minor1(과거 상태 문구, 아래에 해결 기록). 관련 의존성 변경 게이트 통과.
+- 작성된 실행 계획의 사용자 실행 승인: 2026-10-03 `다음 task 진행`. Task1 완료(독립 구현99점), Task2 진행 예정.
 
 ## Global Constraints
 
 - backend Python `>=3.13,<3.14`; Basic Pitch Python 3.12 환경은 변경하지 않는다.
-- `celery[redis]>=5.6,<6`, asyncpg `>=0.31.0`, Redis `>=8.1.0`; root/API lock을 resolver로 갱신하고 설치 버전 기록. lock 수동 편집 금지.
+- `celery[redis]>=5.6,<6`, asyncpg `>=0.31.0`, Redis **`>=6.4.0,<6.5`**; root/API lock을 resolver로 갱신하고 설치 버전 기록. Kombu 5.6의 redis extra 상한 `<6.5` 때문에 기존 API `>=8.1.0`과 동시 설치 불가임을 resolver로 확인했다. 지원되는 안정 버전 공통 범위로 맞추며 extras 제거·강제 override·pre-release·별도 AI 환경 변경은 사용하지 않는다. lock 수동 편집 금지.
 - 세 큐와 여섯 task 이름은 승인 설계 표 그대로; 실제 worker는 Linux/WSL2, Windows는 단위·eager 검증.
 - provider 최초 포함 stage별 최대 3 attempts, 대기 5·10초; 중단된 RUNNING도 한도 소모. DB 전용 재전달은 countdown 5초.
 - DB 연결 timeout 2초/명령 5초; broker 연결·명령 2초; 이벤트 기존 2초; provider 제한 1800초; broker visibility 3600초; 취소 확인 1초.
@@ -60,12 +60,12 @@
 - `StageSession.prepare(identity: ProviderIdentity | None) -> PreparedStage`: `PreparedStage(action: RUN|DUPLICATE|SKIP, context: StageInput | None, transition: Transition | None, completed_outputs: tuple[ArtifactRef,...])`. 현재 stage/generation/available_at·terminal·cancel·이전 완료/실행 이력을 같은 row-lock transaction에서 검사한다. runner는 StageInput에 storage/cancellation을 결합해 StageContext를 만든다.
 - `StageSession.complete(attempt_id, outputs: tuple[ArtifactRef,...]) -> Transition | None`, `fail(attempt_id, *, code: str, retryable: bool) -> Transition | None`, `cancel_if_requested() -> Transition | None`, `invalidate_completed(*, code: str) -> Transition | None`, `check_ownership(attempt_id) -> bool`. 모든 terminal 쓰기는 job row lock + active_attempt_id/stage/status 조건. lost connection에서 재접속 commit 금지.
 
-- [ ] **Step 1 — 실패 테스트 작성:** `test_contract_rejects_boolean_generation`, `test_enqueue_uses_callers_transaction`, `test_finish_rolls_back_artifacts_and_next_message_together`, `test_cancel_wins_before_completion`, `test_terminal_is_immutable`, `test_interrupted_third_attempt_fails_without_next_generation`, `test_early_future_or_unreserved_message_does_not_run`, `test_busy_does_not_create_attempt`, `test_recover_pending_is_idempotent`.
-- [ ] **Step 2 — RED:** root 신규 테스트를 실행해 패키지/함수 부재로 실패함을 확인. 시작 전 테스트 cache 부모 폴더를 생성한다.
-- [ ] **Step 3 — 구현:** packages/storage와 같이 hatchling으로 wheel package를 구성한다. root dependency/workspace/sources에 pipeline 추가, API dependency/path source에 `../../packages/pipeline` 추가; common/storage source는 기존 root workspace/API 경로를 사용한다. uv lock/sync를 실행한다. v2는 outbox와 active_attempt_id, attempt generation/fingerprint/output IDs 및 unique/check를 추가한다. generation 기존 값=attempt, 새 행 기본값1; 중복·attempt<=0이면 `Pipeline history is invalid`로 중단. 기존 행 삭제 금지. fresh migration `[1,2]`, 이미 v1 `[2]`, 재실행 `[]`; integration 기존 기대값도 갱신한다.
-- [ ] **Step 4 — 전이 구현:** 첫 실행 PENDING->RUNNING; 다음 stage는 바로 앞 완료 attempt 존재할 때만 시작. stage 완료 후 current_stage는 완료 stage에 남고 후속 task 진입 시 다음 stage로 변경한다. fingerprint는 source/type/target, provider config 정규 JSON, inputs를 `(role,id)` 정렬한 id/sha로 계산한다. retry/interruption은 이전 RUNNING/실패를 닫고 next generation outbox 예약 후 SKIP; 셋째 실패는 FAILED. jobs.active_attempt_id는 완료·실패·취소 시 clear. 오류 저장은 고정 code/message로 제한한다.
-- [ ] **Step 5 — GREEN + migration 검증:** transaction fake는 rollback snapshot을 실제 복구하여 단순 SQL 문자열 비교에 그치지 않는다. live opt-in `test_v1_upgrade_preserves_jobs_artifacts_attempts`, `test_v2_duplicate_history_rolls_back`, `test_concurrent_migration_applies_once`, `test_two_sessions_only_one_claim`를 API integration에 추가. test DB 마커 확인 없이는 reset 금지. v1 historical row는 outputs/fingerprint 부재로 자동 캐시 재사용하지 않고 기존 PENDING 자동 dispatch도 하지 않는다.
-- [ ] **Step 6 — 독립 리뷰·보고서·commit:** root/API 회귀와 lock checks, score>=95 기록; `docs/reports/pipeline-persistence-report.md` 및 main_spec 색인, `feat(pipeline): persist stage execution and dispatch intent`.
+- [x] **Step 1 — 실패 테스트 작성:** `test_contract_rejects_boolean_generation`, `test_enqueue_uses_callers_transaction`, `test_finish_rolls_back_artifacts_and_next_message_together`, `test_cancel_wins_before_completion`, `test_terminal_is_immutable`, `test_interrupted_third_attempt_fails_without_next_generation`, `test_early_future_or_unreserved_message_does_not_run`, `test_busy_does_not_create_attempt`, `test_recover_pending_is_idempotent`.
+- [x] **Step 2 — RED:** root 신규 테스트를 실행해 패키지/함수 부재로 실패함을 확인. 시작 전 테스트 cache 부모 폴더를 생성한다.
+- [x] **Step 3 — 구현:** packages/storage와 같이 hatchling으로 wheel package를 구성한다. root dependency/workspace/sources에 pipeline 추가, API dependency/path source에 `../../packages/pipeline` 추가; common/storage source는 기존 root workspace/API 경로를 사용한다. API/pipeline Redis 제약을 Global Constraints의 공통 안정 범위로 맞춘 후 uv lock/sync를 실행한다. 실제 Celery/Kombu/Redis 설치 버전과 W02 store/SSE 모든 회귀 통과를 보고하고 Redis API 호환 문제는 해결 후 재리뷰한다. v2는 outbox와 active_attempt_id, attempt generation/fingerprint/output IDs 및 unique/check를 추가한다. generation 기존 값=attempt, 새 행 기본값1; 중복·attempt<=0이면 `Pipeline history is invalid`로 중단. 기존 행 삭제 금지. fresh migration `[1,2]`, 이미 v1 `[2]`, 재실행 `[]`; integration 기존 기대값도 갱신한다.
+- [x] **Step 4 — 전이 구현:** 첫 실행 PENDING->RUNNING; 다음 stage는 바로 앞 완료 attempt 존재할 때만 시작. stage 완료 후 current_stage는 완료 stage에 남고 후속 task 진입 시 다음 stage로 변경한다. fingerprint는 source/type/target, provider config 정규 JSON, inputs를 `(role,id)` 정렬한 id/sha로 계산한다. retry/interruption은 이전 RUNNING/실패를 닫고 next generation outbox 예약 후 SKIP; 셋째 실패는 FAILED. jobs.active_attempt_id는 완료·실패·취소 시 clear. 오류 저장은 고정 code/message로 제한한다.
+- [x] **Step 5 — GREEN + migration 검증:** transaction fake는 rollback snapshot을 실제 복구하여 단순 SQL 문자열 비교에 그치지 않는다. live opt-in `test_v1_upgrade_preserves_jobs_artifacts_attempts`, `test_v2_duplicate_history_rolls_back`, `test_concurrent_migration_applies_once`, `test_two_sessions_only_one_claim`를 API integration에 추가. test DB 마커 확인 없이는 reset 금지. v1 historical row는 outputs/fingerprint 부재로 자동 캐시 재사용하지 않고 기존 PENDING 자동 dispatch도 하지 않는다.
+- [x] **Step 6 — 독립 리뷰·보고서·commit:** root/API 회귀와 lock checks, score>=95 기록; `docs/reports/pipeline-persistence-report.md` 및 main_spec 색인, `feat(pipeline): persist stage execution and dispatch intent`.
 
 ## Task 2: provider 실행·결과 검증·W02 이벤트 공유
 
@@ -143,5 +143,6 @@ RED는 해당 단위의 신규 tests만 `pytest tests/pipeline/<file>.py -q` 또
 | --- | --- | --- | --- |
 | R1 | /root/w03_plan_review · 2026-10-03 | 24+18+20+22+10 = **94** | important2: 취소 발행 enum·동기 무결성 검사 경계. minor2: API live 환경 경계·target 필드. R2에 명시적 처리 및 회귀 검증 추가 |
 | R2 | /root/w03_plan_review · 2026-10-03 | 25+20+20+25+10 = **100** | R1 지적4개 해결 확인. blocker0/important0/minor0. 현재 버전에 대한 독립 평가 |
+| R3 | /root/w03_plan_review · 2026-10-03 | 25+20+20+25+9 = **99** | Redis 공통 안정 범위 확인. blocker0/important0/minor1: 실행 승인/착수 후에도 과거 대기 상태가 남음 → 현재 상태와 역사 문구로 정리 |
 
-작성자는 수정 후 타입·사양 범위·테스트 준비 순서·취소/정리 책임을 자체 검토했다. 제품 코드·dependency 설치·DB migration 실행은 아직 시작하지 않았다.
+R2 작성 당시 자체 검토는 타입·사양 범위·테스트 준비 순서·취소/정리 책임을 대상으로 했고 제품 코드·설치는 미착수였다. 현재는 사용자 실행 승인 후 Task1을 작성 중이며 R3 의존성 재평가99점을 받은 뒤 lock/sync와 회귀를 진행한다. live DB migration은 실행하지 않았다.

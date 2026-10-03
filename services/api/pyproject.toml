@@ -9,8 +9,9 @@ dependencies = [
     "fastapi>=0.141.1",
     "musicsheet-common",
     "musicsheet-storage",
+    "musicsheet-pipeline",
     "python-multipart>=0.0.32",
-    "redis>=8.1.0",
+    "redis>=6.4.0,<6.5",
     "uvicorn>=0.54.0",
 ]
 
@@ -31,6 +32,7 @@ dev = [
 [tool.uv.sources]
 musicsheet-common = { path = "../../packages/common", editable = true }
 musicsheet-storage = { path = "../../packages/storage", editable = true }
+musicsheet-pipeline = { path = "../../packages/pipeline", editable = true }
 
 [tool.pytest.ini_options]
 markers = [

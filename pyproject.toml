@@ -7,6 +7,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "musicsheet-common",
     "musicsheet-storage",
+    "musicsheet-pipeline",
 ]
 
 [dependency-groups]
@@ -15,11 +16,12 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/common", "packages/storage"]
+members = ["packages/common", "packages/storage", "packages/pipeline"]
 
 [tool.uv.sources]
 musicsheet-common = { workspace = true }
 musicsheet-storage = { workspace = true }
+musicsheet-pipeline = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

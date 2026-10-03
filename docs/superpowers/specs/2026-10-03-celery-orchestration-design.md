@@ -29,7 +29,7 @@
 - `packages/pipeline`에 `musicsheet-pipeline` Python 3.13 workspace 패키지를 추가한다. 공용 스키마·스토리지, asyncpg, Redis, Celery에 의존한다. FastAPI와 AI 모델 패키지는 의존하지 않는다.
 - API는 pipeline의 outbox 등록 함수를 호출한다. 이 함수의 import는 Celery 앱 생성, Redis/DB 연결, worker 시작을 일으키지 않는다.
 - W02 `events/store.py`를 pipeline의 공유 이벤트 모듈로 옮기고 API 경로에는 기존 import 호환 re-export를 남긴다. 기존 SSE 오류·재생 계약과 테스트를 유지한다.
-- Celery 의존성은 `celery[redis]>=5.6,<6`로 시작해 실제 Python 3.13 resolver 결과를 lockfile에 고정한다. API 별도 lock과 root workspace lock을 함께 갱신한다. Python 3.12 Basic Pitch 환경은 변경하지 않는다.
+- Celery 의존성은 `celery[redis]>=5.6,<6`로 시작해 실제 Python 3.13 resolver 결과를 lockfile에 고정한다. Kombu 5.6의 Redis extra 상한 `<6.5`와 기존 API Redis `>=8.1.0`의 충돌을 실제 resolver로 발견하여, 실행 계획 R3에서 API/pipeline을 공통 안정 범위 `redis>=6.4.0,<6.5`로 조정하고 독립 재리뷰와 W02 회귀 검증을 요구한다. API 별도 lock과 root workspace lock을 함께 갱신한다. Python 3.12 Basic Pitch 환경은 변경하지 않는다.
 - 실제 worker의 지원 실행 환경은 Linux/WSL2다. Windows에서는 단위 테스트와 eager 실행만 검증한다. GPU 큐의 consumer는 이후 격리된 모델 worker를 호출할 수 있다.
 
 ## 4. 데이터 계약과 마이그레이션
