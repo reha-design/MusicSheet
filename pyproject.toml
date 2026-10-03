@@ -27,4 +27,4 @@ musicsheet-pipeline = { workspace = true }
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-m 'not ml_integration'"
-markers = ["ml_integration: runs the isolated Basic Pitch model and requires its runtime"]
+markers = ["ml_integration: runs the isolated Basic Pitch model and requires its runtime", "celery_integration: opt-in actual Linux workers with disposable DB and Redis"]

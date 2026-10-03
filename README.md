@@ -1,7 +1,7 @@
 # MusicSheet
 
 > 오디오에서 피아노 연주를 분리·전사해 악보를 만드는 시스템을 목표로 합니다.
-> **현재 저장소에는 작업 등록·저장·조회 API와 독립된 전사 PoC가 있습니다.** Python 3.13 공용 패키지와 FastAPI, PostgreSQL 작업 저장소, LocalStorage, 개발용 Redis, 별도 Python 3.12 환경의 Basic Pitch CPU worker가 있습니다. 등록된 작업을 처리하는 Celery 파이프라인과 악보 생성은 아직 연결되지 않았습니다.
+> **현재 저장소에는 작업 등록 API·Celery 오케스트레이션·독립 전사 PoC가 있습니다.** 등록과 단계 전달·재시도·취소·이벤트 발행은 연결됐으며, 제품 provider는 후속 작업입니다. 실제 YouTube 처리·AI 연결·악보 생성과 실 Linux worker 성공 경로는 아직 미검증입니다.
 
 ## 현재 구현 범위
 
@@ -13,10 +13,11 @@
 | 개발 인프라 | PostgreSQL 16, Redis 7 (`docker/docker-compose.yml`) |
 | PostgreSQL 작업 저장 | 명시적 migration, API connection pool, 작업·아티팩트 metadata repository |
 | FastAPI | 상태 확인, YouTube/파일 업로드 작업 등록, 상태 조회·취소, 아티팩트 목록·다운로드 |
-| 진행 이벤트 | Redis Streams 발행 모듈, SSE 구독과 Last-Event-ID 재생; worker 자동 발행은 W03에서 연결 |
+| 진행 이벤트 | 공용 Redis Streams store, SSE 재생, worker의 DB commit 후 발행 |
+| Celery 오케스트레이션 | API 최초 outbox 예약, dispatcher, CPU/AI/render 여섯 task, 재시도·멱등·취소; 기본 provider는 빈 registry |
 | Basic Pitch PoC | 별도 CLI worker가 ONNX CPU 추론 후 JSON/MIDI 생성 |
 | 테스트 | 공용 스키마·스토리지·API 테스트, 선택형 PostgreSQL·Basic Pitch 통합 테스트 |
-| Celery 실행·음원 분리·리듬/퀀타이즈·악보 렌더링·웹 앱 | 설계 문서만 있으며 미구현 |
+| 실제 다운로드·음원 분리·리듬/퀀타이즈·악보 렌더링·웹 앱 | provider 연결 및 기능 구현 대기 |
 
 `docs/`의 아키텍처 문서에는 목표 설계도 포함됩니다. 병합된 구현과 남은 연결 작업은 [구현 현황 브리핑](docs/reports/current-implementation-briefing.md)에 정리했습니다.
 
@@ -43,13 +44,15 @@ uv run pytest
 ```mermaid
 flowchart LR
     Web[Next.js Web, planned] -->|REST / SSE| API[FastAPI REST / SSE 구현]
-    API -->|enqueue task| Broker[Redis DB 0, Celery broker]
-    Broker --> Workers[CPU / GPU workers, planned]
+    API -->|job + outbox transaction| PostgreSQL
+    PostgreSQL --> Dispatcher[durable dispatcher 구현]
+    Dispatcher --> Broker[Redis DB 0, Celery broker]
+    Broker --> Workers[Celery workers 구현, providers planned]
     Workers -->|XADD progress| Events[Redis DB 2, application event Streams]
     Events -->|SSE replay| API
     API <--> PostgreSQL[(PostgreSQL, authoritative job state)]
     Workers -->|task result| Results[Redis DB 1, Celery result backend]
-    Workers --> Storage[LocalStorage 구현, worker 연결 계획]
+    Workers --> Storage[LocalStorage, integrity 검사 연결]
 ```
 
 Celery 작업 브로커, Celery 결과 저장소, SSE 이벤트 Stream은 서로 다른 역할입니다. [Redis 이벤트 명세](docs/backend/redis-streams.md)를 참조하세요.
@@ -65,6 +68,7 @@ MusicSheet/
 ├── outputs/             # 작업 결과물 위치
 ├── packages/common/     # 공용 Pydantic 스키마
 ├── packages/storage/    # ArtifactStorage 및 LocalStorage
+├── packages/pipeline/   # Celery·dispatcher·실행 엔진
 ├── services/api/         # 독립 FastAPI 프로젝트
 ├── services/ml/         # 격리된 Basic Pitch PoC worker
 ├── tests/               # 기반·인프라·스키마 테스트

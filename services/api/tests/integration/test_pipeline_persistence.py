@@ -9,6 +9,10 @@ from musicsheet_api.migrations.runner import MIGRATIONS, apply_migrations
 from musicsheet_pipeline.contracts import StageMessage, StageBusy
 from musicsheet_pipeline.outbox import enqueue_stage
 from musicsheet_pipeline.repository import PipelineRepository
+from musicsheet_pipeline.contracts import ProviderIdentity
+from musicsheet_common import ArtifactRef,ArtifactRole
+from musicsheet_pipeline.dispatcher import dispatch_once
+from musicsheet_pipeline.outbox import recover_pending
 from test_postgres_persistence import database_url, clean_database, _assert_disposable
 
 pytestmark = pytest.mark.integration
@@ -18,7 +22,7 @@ def run(coroutine):
     failed = False
     try:
         return asyncio.run(asyncio.wait_for(coroutine, 15))
-    except (AssertionError, ValueError):
+    except AssertionError:
         raise
     except Exception:
         failed = True
@@ -91,6 +95,113 @@ def test_two_sessions_only_one_claim(clean_database):
             async with PipelineRepository(second).stage_session(message):
                 pass
         finally:
+            await second.close()
+            await c.close()
+    run(check())
+
+
+async def create_job(connection):
+    job=str(uuid4())
+    await connection.execute("INSERT INTO jobs(id,source_type) VALUES($1,'UPLOAD')",job)
+    ref=ArtifactRef(id=str(uuid4()),job_id=job,role=ArtifactRole.SOURCE_ORIGINAL,
+        filename="source.wav",uri="file:///test/source.wav",mime_type="audio/wav",size_bytes=3,
+        sha256="a"*64,producer="test",producer_version="1")
+    await connection.execute("INSERT INTO artifacts(id,job_id,role,filename,uri,mime_type,size_bytes,sha256,producer,producer_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        ref.id,job,ref.role.value,ref.filename,ref.uri,ref.mime_type,ref.size_bytes,ref.sha256,ref.producer,ref.producer_version)
+    await enqueue_stage(connection,StageMessage(job,"DOWNLOAD",1))
+    return job,ref
+
+
+IDENTITY=ProviderIdentity("test","1",{},frozenset({ArtifactRole.SOURCE_ORIGINAL}),frozenset({ArtifactRole.SOURCE_ORIGINAL}))
+
+
+@pytest.mark.parametrize("cancel_first",[True,False])
+def test_actual_cancel_and_completion_order_preserves_terminal(clean_database,cancel_first):
+    async def check():
+        await apply_migrations(clean_database)
+        c=await asyncpg.connect(clean_database,timeout=2,command_timeout=5)
+        second=await asyncpg.connect(clean_database,timeout=2,command_timeout=5)
+        job,ref=await create_job(c)
+        try:
+            from musicsheet_common import PipelineStage
+            for stage in PipelineStage:
+                message=StageMessage(job,stage,1)
+                async with PipelineRepository(c).stage_session(message) as session:
+                    prepared=await session.prepare(IDENTITY)
+                    if stage.value=="RENDER" and cancel_first:
+                        async with second.transaction():
+                            await second.execute("UPDATE jobs SET status='CANCEL_REQUESTED' WHERE id=$1",job)
+                            completion=asyncio.create_task(session.complete(prepared.context.attempt_id,(ref,)))
+                            await asyncio.sleep(.01)
+                            assert not completion.done()
+                        result=await completion
+                    else:
+                        result=await session.complete(prepared.context.attempt_id,(ref,))
+            assert result.job.status.value==("CANCELED" if cancel_first else "COMPLETED")
+            late=await second.fetchval("UPDATE jobs SET status='CANCEL_REQUESTED' WHERE id=$1 AND status IN ('PENDING','RUNNING','RETRYING') RETURNING id",job)
+            assert late is None
+        finally:
+            await second.close()
+            await c.close()
+    run(check())
+
+
+def test_actual_three_attempts_and_completed_reference_reuse(clean_database):
+    async def check():
+        await apply_migrations(clean_database)
+        c=await asyncpg.connect(clean_database,timeout=2,command_timeout=5)
+        try:
+            job,ref=await create_job(c)
+            for generation in (1,2,3):
+                await c.execute("UPDATE pipeline_outbox SET available_at=CURRENT_TIMESTAMP WHERE job_id=$1",job)
+                async with PipelineRepository(c).stage_session(StageMessage(job,"DOWNLOAD",generation)) as session:
+                    p=await session.prepare(IDENTITY)
+                    await session.fail(p.context.attempt_id,code="PROVIDER_RETRYABLE",retryable=True)
+            assert await c.fetchval("SELECT status FROM jobs WHERE id=$1",job)=="FAILED"
+            assert [(r["attempt"],r["generation"]) for r in await c.fetch("SELECT attempt,generation FROM stage_attempts WHERE job_id=$1 ORDER BY attempt",job)]==[(1,1),(2,2),(3,3)]
+            assert await c.fetchval("SELECT count(*) FROM pipeline_outbox WHERE job_id=$1",job)==3
+            other,source=await create_job(c)
+            async with PipelineRepository(c).stage_session(StageMessage(other,"DOWNLOAD",1)) as session:
+                p=await session.prepare(IDENTITY)
+                await session.complete(p.context.attempt_id,(source,))
+                duplicate=await session.prepare(IDENTITY)
+                assert duplicate.action=="DUPLICATE" and duplicate.completed_outputs==(source,)
+            assert await c.fetchval("SELECT count(*) FROM artifacts WHERE job_id=$1",other)==1
+        finally:
+            await c.close()
+    run(check())
+
+
+def test_actual_dispatchers_lock_one_row_and_recovery_is_bounded(clean_database):
+    async def check():
+        import threading
+        await apply_migrations(clean_database)
+        c=await asyncpg.connect(clean_database,timeout=2,command_timeout=5)
+        second=await asyncpg.connect(clean_database,timeout=2,command_timeout=5)
+        entered,release=threading.Event(),threading.Event()
+        calls=[]
+        class Publisher:
+            def publish(self,message,*,task_id):
+                entered.set()
+                assert release.wait(2)
+                calls.append(task_id)
+        task=None
+        try:
+            job,_=await create_job(c)
+            task=asyncio.create_task(dispatch_once(c,Publisher()))
+            assert await asyncio.to_thread(entered.wait,1)
+            assert await dispatch_once(second,Publisher())==0
+            release.set()
+            assert await task==1 and len(calls)==1
+            for _ in range(3):
+                await c.execute("INSERT INTO jobs(id,source_type) VALUES($1,'YOUTUBE')",str(uuid4()))
+            async with c.transaction(): assert await recover_pending(c,limit=2)==2
+            async with c.transaction(): assert await recover_pending(c,limit=2)==1
+            async with c.transaction(): assert await recover_pending(c,limit=2)==0
+        finally:
+            release.set()
+            if task:
+                await asyncio.gather(task,return_exceptions=True)
             await second.close()
             await c.close()
     run(check())

@@ -44,7 +44,7 @@ async def _owned_cleanup(coroutine):
             canceled=True
     task.result()
     if canceled:
-        raise asyncio.CancelledError
+        raise asyncio.CancelledError from None
 
 
 @asynccontextmanager

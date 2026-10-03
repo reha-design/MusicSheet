@@ -3,9 +3,9 @@
 > **Canonical Owner:** `docs/backend/celery.md`  
 > **관련 문서:** [docs/architecture/job-pipeline.md](../architecture/job-pipeline.md)
 >
-> **구현 상태:** 아래 코드는 목표 설정 예시입니다. 현재 저장소에는 Celery 앱과 worker가 없습니다. Redis Streams는 SSE 이벤트용이며 Celery 브로커 큐와 별도 역할입니다. [Redis 이벤트 명세](./redis-streams.md)를 참조하세요.
+> **구현 상태:** `packages/pipeline/musicsheet_pipeline`에 Celery 앱·여섯 task·durable outbox dispatcher·실행 엔진이 구현됐습니다. [운영 명령](../../packages/pipeline/README.md)을 참조하세요. 제품 provider registry는 비어 있어 실제 다운로드·AI·렌더링은 후속 범위입니다. 현재 호스트에서는 실제 Linux worker 성공·복구 경로가 미검증입니다. 아래 코드는 목표 예시이며 실제 설정은 factory 코드가 기준입니다. Redis Streams는 SSE 이벤트용이며 Celery 브로커 큐와 별도 역할입니다.
 >
-> **W03 승인 설계:** [DB outbox와 단계 실행 계약](../superpowers/specs/2026-10-03-celery-orchestration-design.md). 구현 전 실행 계획의 독립 리뷰 단계입니다.
+> **W03 승인 설계:** [DB outbox와 단계 실행 계약](../superpowers/specs/2026-10-03-celery-orchestration-design.md), [실행 계획](../plans/celery-orchestration-implementation-plan.md).
 
 ---
 

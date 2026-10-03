@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. worker 자동 이벤트 발행, Celery orchestration, 기본 AI provider 선택, 프리페치 스크립트, 악보 렌더링, 웹 앱은 아직 구현되지 않았습니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. `packages/pipeline`에는 durable outbox dispatcher, Celery 여섯 task, 단계 실행·재시도·취소와 DB 커밋 후 자동 이벤트 발행이 구현됐습니다. 제품 provider registry는 비어 있으며 기본 AI provider 선택, 실제 YouTube 다운로드·전사 연결·악보 렌더링과 웹 앱은 후속 범위입니다. 실제 PostgreSQL·Redis·Linux prefork 통합 성공은 현재 Windows 호스트에서 미검증입니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -145,3 +145,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [27: W03 단계 실행·발행 대기 저장소 보고서](./reports/pipeline-persistence-report.md)
 - [28: W03 provider 실행·무결성·취소·이벤트 보고서](./reports/pipeline-stage-runner-report.md)
 - [29: W03 Celery·dispatcher·API 원자성 보고서](./reports/celery-dispatch-api-report.md)
+- [30: W03 Celery 오케스트레이션 구현 통합 보고서](./reports/celery-orchestration-implementation-report.md)
