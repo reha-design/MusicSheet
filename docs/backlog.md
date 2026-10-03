@@ -2,14 +2,6 @@
 
 이 문서는 아직 시작하지 않은 작업의 요약 목록입니다. 각 작업을 시작할 때 관련 사양을 확인하고 별도 구현 계획을 작성합니다. 계획 독립 리뷰에서 95/100 이상을 받고 blocker/important 지적이 없어야 구현을 시작합니다.
 
-## W03: Celery Orchestration
-
-상태: `Planned` · 권장 선행 작업: W01, W02
-
-완료 기준: CPU·AI 큐와 단계 연결, 재시도, 멱등 실행, PostgreSQL 상태 기록을 구현합니다.
-
-사양: [Celery](backend/celery.md), [작업 파이프라인](architecture/job-pipeline.md), [작업 상태](domain/job-state.md)
-
 ## W04: Basic Pitch 제품 파이프라인 연결
 
 상태: `Planned` · 권장 선행 작업: W03
