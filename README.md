@@ -1,7 +1,7 @@
 # MusicSheet
 
 > 오디오에서 피아노 연주를 분리·전사해 악보를 만드는 시스템을 목표로 합니다.
-> **현재 저장소에는 작업 등록 API·Celery 오케스트레이션·독립 전사 PoC가 있습니다.** 등록과 단계 전달·재시도·취소·이벤트 발행은 연결됐으며, 제품 provider는 후속 작업입니다. 테스트 provider를 사용한 실제 Linux worker8개 시나리오와 PostgreSQL·Redis·HTTP SSE 검증은 통과했습니다. 실제 YouTube 처리·AI 연결·악보 생성은 후속 범위입니다. [실행 결과와 테스트 조건](docs/reports/celery-live-verification-report.md)을 참조하세요.
+> **현재 저장소에는 작업 등록 API·Celery 오케스트레이션·선택형 Basic Pitch 전사 provider가 있습니다.** 등록과 단계 전달·재시도·취소·이벤트 발행은 연결됐으며, 전사 provider 연결의 제어용 worker 테스트를 통과했습니다. 테스트 provider를 사용한 실제 Linux worker8개 시나리오와 PostgreSQL·Redis·HTTP SSE 검증도 통과했습니다. 실제 모델의 제품 경로·DB 등록은 W04 최종 검증 중이며 전체 YouTube 처리·악보 생성은 후속 범위입니다. [Linux worker 실행 조건](docs/reports/celery-live-verification-report.md)을 참조하세요.
 
 ## 현재 구현 범위
 
@@ -16,6 +16,7 @@
 | 진행 이벤트 | 공용 Redis Streams store, SSE 재생, worker의 DB commit 후 발행 |
 | Celery 오케스트레이션 | API 최초 outbox 예약, dispatcher, CPU/AI/render 여섯 task, 재시도·멱등·취소; 기본 provider는 빈 registry |
 | Basic Pitch PoC | 별도 CLI worker가 ONNX CPU 추론 후 JSON/MIDI 생성 |
+| 제품 전사 연결 | opt-in TRANSCRIBE provider·WAV 준비·독립 worker 호출·JSON/MIDI 검증 및 저장; 실제 모델/DB 검증 진행 중 |
 | 테스트 | 공용 스키마·스토리지·API 테스트, 선택형 PostgreSQL·Basic Pitch 통합 테스트 |
 | 실제 다운로드·음원 분리·리듬/퀀타이즈·악보 렌더링·웹 앱 | provider 연결 및 기능 구현 대기 |
 
@@ -90,6 +91,14 @@ MusicSheet/
 - [uv 독립 환경 구성 해설](docs/blog/uv-isolated-environments-in-monorepo.md), [구현 현황 브리핑](docs/reports/current-implementation-briefing.md)
 
 ## 다음 개발 단계
+
+### Basic Pitch TRANSCRIBE 연결
+
+제품 전사 provider는 명시적으로 활성화합니다. 먼저 `uv sync --locked --project services/ml/basic-pitch-worker --python 3.12`로 독립 worker를 설치하고 FFmpeg를 설치합니다. `.env.example`의 `TRANSCRIPTION_PROVIDER=basic-pitch`, `BASIC_PITCH_PYTHON`, `FFMPEG_EXECUTABLE`을 설정하며 두 실행기 경로는 절대 경로여야 합니다. 기본값은 비활성입니다. 작업 실행 중 설치·다운로드는 하지 않습니다.
+
+Celery delivery가 소유한 runtime은 Python3.12·worker0.1.0·Basic Pitch0.4.0·ONNX Runtime 설치 및 FFmpeg를 각각5초 이내로 점검합니다. 설정 점검 실패는 TRANSCRIBE의 영구 실패로 기록합니다. 모델 실행은 별도 프로세스에서 이루어지며 WAV 준비, JSON/MIDI 검증, attempt별 결과 저장과 취소 시 정리를 수행합니다. DOWNLOAD·PREPROCESS·SEPARATE·POSTPROCESS·RENDER는 아직 제품 provider가 없으므로 전체 YouTube 변환은 실행할 수 없습니다.
+
+Windows에서는 Job Object, Linux에서는 프로세스 그룹으로 자식 실행을 관리합니다. 현재 이 연결 단위는 제어용 worker 테스트를 통과했으며 실제 모델·DB 등록과 Linux 회귀는 W04의 최종 검증 단계에서 확인합니다. Linux 실제 모델을 사용하는 Celery 운영 환경의 검증은 별도 범위입니다.
 
 현재 활성 작업과 완료 기준은 [개발 작업목록](docs/roadmap.md)에서 관리합니다.
 

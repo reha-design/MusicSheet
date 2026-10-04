@@ -14,7 +14,7 @@ from celery.exceptions import Retry,Reject
 from musicsheet_storage import LocalStorage
 from .contracts import InfrastructureUnavailable
 from .events import RedisEventStore
-from .providers import PROVIDERS
+from .providers import build_providers
 from .runner import run_stage
 
 _logger=logging.getLogger(__name__)
@@ -56,7 +56,7 @@ async def runtime(settings):
         if settings.redis_url:
             redis=Redis.from_url(settings.redis_url,socket_connect_timeout=2,socket_timeout=2)
         yield SimpleNamespace(connection=connection,storage=LocalStorage(settings.local_storage_dir),
-            providers=PROVIDERS,event_store=RedisEventStore(redis) if redis is not None else None)
+            providers=await build_providers(settings),event_store=RedisEventStore(redis) if redis is not None else None)
     finally:
         await _owned_cleanup(_close_resources(connection,redis))
 

@@ -114,3 +114,31 @@ def test_apps_do_not_share_injected_runtime_or_queue_prefix(tmp_path):
     assert second.conf.task_routes[TASK_NAMES[PipelineStage.DOWNLOAD]]["queue"]=="two_cpu_io_queue"
     first.close()
     second.close()
+
+
+def test_runtime_probe_failure_fails_transcribe_without_celery_retry(tmp_path, monkeypatch):
+    from pathlib import Path
+    from musicsheet_pipeline import tasks
+    from musicsheet_pipeline.basic_pitch import process
+    from musicsheet_pipeline.config import BasicPitchSettings
+    from .test_basic_pitch_provider import preceding_stages
+    c, storage = asyncio.run(preceding_stages(tmp_path))
+    async def connect(*args, **kwargs):
+        return c
+    async def bad_probe(*args, **kwargs):
+        raise OSError("secret-sentinel")
+    async def close(*args, **kwargs):
+        c.terminate()
+    monkeypatch.setattr(tasks.asyncpg, "connect", connect)
+    monkeypatch.setattr(process, "run_owned_process", bad_probe)
+    monkeypatch.setattr(c, "close", close, raising=False)
+    configured = PipelineSettings("postgresql://test:secret-sentinel@localhost/test", "redis://localhost/0",
+        None, None, storage.base_dir, BasicPitchSettings(Path(sys.executable), tmp_path / "missing-ffmpeg"))
+    class Task:
+        def retry(self, **kwargs):
+            raise AssertionError("permanent model setup error must not retry infrastructure")
+    execute_task(Task(), StageMessage(JOB, "TRANSCRIBE", 1), settings=configured)
+    assert c.db.jobs[JOB]["error_code"] == "PROVIDER_FAILED"
+    assert not any(key[1] == "POSTPROCESS" for key in c.db.outbox)
+    assert "secret-sentinel" not in str(c.db.jobs) + str(c.db.attempts)
+    assert c.is_closed()
