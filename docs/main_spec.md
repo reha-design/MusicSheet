@@ -158,3 +158,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [37: W04 Task2 WAV 준비·결과 검증·저장](./reports/basic-pitch-result-storage-report.md)
 - [38: W04 Task3 제품 TRANSCRIBE provider 연결](./reports/basic-pitch-provider-report.md)
 - [39: W04 실제 모델·DB·Linux 제품 연결 검증](./reports/basic-pitch-pipeline-implementation-report.md)
+- [40: W05 기본 전사 모델 평가 착수 조사](./reports/transcription-model-evaluation-preparation-report.md)

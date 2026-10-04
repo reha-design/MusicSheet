@@ -2,14 +2,6 @@
 
 이 문서는 아직 시작하지 않은 작업의 요약 목록입니다. 각 작업을 시작할 때 관련 사양을 확인하고 별도 구현 계획을 작성합니다. 계획 독립 리뷰에서 95/100 이상을 받고 blocker/important 지적이 없어야 구현을 시작합니다.
 
-## W05: 기본 전사 모델 결정
-
-상태: `Planned` · 권장 선행 작업: W04
-
-완료 기준: 고정 평가 음원으로 후보 provider의 정확도·속도·실패율을 비교하고 기본 AMT provider와 fallback 정책을 기록합니다.
-
-사양: [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [노트 이벤트](domain/note-events.md)
-
 ## W06: 음원 분리
 
 상태: `Planned` · 권장 선행 작업: W03, W05
