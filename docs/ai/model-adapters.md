@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/ai/model-adapters.md`  
 > **관련 문서:** [docs/ai/separation.md](./separation.md), [docs/ai/transcription.md](./transcription.md)
 >
-> **구현 상태:** 아래 ABC는 목표 인터페이스 예시입니다. 현재 `packages/pipeline`에는 비동기 `StageProvider` 계약과 실행기가 있고 제품 provider registry는 비어 있습니다. 격리된 Basic Pitch CLI는 구현됐으며 제품 연결은 W04 승인 설계에 따라 계획 중입니다.
+> **구현 상태:** 아래 ABC는 목표 인터페이스 예시입니다. 제품 실행은 비동기 `StageProvider` 계약을 사용하며 명시적 설정에서 Basic Pitch TRANSCRIBE provider를 등록합니다. Windows 실제 모델·PostgreSQL 등록과 Linux 실행기·root 회귀를 검증했습니다. 기본 registry는 비활성이며 다른 단계 provider·Linux 실제 모델 운영은 후속 범위입니다. [W04 검증 보고서](../reports/basic-pitch-pipeline-implementation-report.md)를 참조하세요.
 
 ---
 

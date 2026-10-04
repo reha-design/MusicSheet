@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/infrastructure/runtime.md`
 > **관련 문서:** [docs/adr/004-python-313-runtime.md](../adr/004-python-313-runtime.md)
 >
-> **구현 상태:** Python 3.13 workspace·공용 스키마·LocalStorage·독립 FastAPI 프로젝트·Celery 단계 실행기와 격리된 Basic Pitch Python 3.12 worker가 있습니다. Basic Pitch 제품 provider 연결은 W04 계획 중이며 다른 모델 실행환경은 아직 구현되지 않았습니다.
+> **구현 상태:** Python 3.13 workspace·공용 스키마·LocalStorage·독립 FastAPI 프로젝트·Celery 단계 실행기와 격리된 Basic Pitch Python 3.12 worker가 있습니다. opt-in TRANSCRIBE 제품 연결은 Windows 실제 모델/DB와 Linux 실행기/root 회귀를 검증했습니다. Linux 실제 모델·Celery 모델 환경과 다른 모델은 미검증입니다.
 
 ---
 
@@ -14,7 +14,7 @@
 - API와 Celery orchestration은 구현됐고 테스트 provider를 사용하는 Linux 실제 worker 검증을 완료했습니다 ([후속 검증 보고서](../reports/celery-live-verification-report.md)). Basic Pitch worker는 독립 Python 3.12 + ONNX CPU 환경에서 Windows smoke 검증을 마쳤으며, 상세 결과는 [Basic Pitch worker smoke 보고서](../reports/basic-pitch-worker-smoke-report.md)에 있습니다. 두 증거를 Linux 모델 검증으로 합쳐 해석하지 않습니다.
 - **모델 추론 런타임은 호환성 그룹별로 선택:** 모델 의존성이 Python/OS/native library/framework/CUDA 조합에서 호환되면 같은 독립 AI 프로젝트를 공유할 수 있습니다. 검증되지 않은 조합을 한 환경으로 단정하지 않으며, 모델마다 무조건 환경 하나씩을 만들지도 않습니다.
 - 모델 추론이 백엔드와 다른 Python 또는 native dependency를 요구하면 별도 uv 프로젝트·lockfile·`.venv`에서 실행하고 파일/버전 지정 JSON 또는 명시된 프로세스 계약으로 연결합니다. AI 프로젝트는 루트 uv workspace 멤버가 아니므로 백엔드 의존성을 오염시키지 않습니다. ADR 004의 런타임 범위 예외는 구현 전에 별도 ADR로 명시합니다.
-- Spotify Basic Pitch PR [#201](https://github.com/spotify/basic-pitch/pull/201)의 미병합 Python 3.12 dependency marker를 고정한 격리 worker는 Windows에서 독립 설치 및 실제 ONNX CPU 추론을 검증했습니다. 이 저장소의 PoC 결과는 upstream 공식 지원이나 제품 default provider 채택을 뜻하지 않으며, root Python 3.13 workspace와 API/Celery는 연결되지 않았습니다 ([Basic Pitch smoke 보고서](../reports/basic-pitch-worker-smoke-report.md), [worker 설계](../superpowers/specs/2026-09-26-basic-pitch-worker-design.md)).
+- Spotify Basic Pitch PR [#201](https://github.com/spotify/basic-pitch/pull/201)의 Python 3.12 dependency marker를 고정한 격리 worker는 Windows에서 실제 ONNX CPU 추론과 Python3.13 제품 provider·실DB 등록을 검증했습니다. 이 결과는 upstream 공식 지원이나 제품 default 모델 채택을 뜻하지 않습니다. API/Celery runtime에는 factory를 연결했으며 실제 Linux Celery의 모델 실행은 미검증입니다 ([W04 제품 보고서](../reports/basic-pitch-pipeline-implementation-report.md), [worker 설계](../superpowers/specs/2026-09-26-basic-pitch-worker-design.md)).
 - uv 환경 분리는 패키지와 프로세스를 분리할 뿐 호스트의 GPU, GPU 메모리, CUDA 드라이버 및 CPU를 격리하지 않습니다. GPU 동시성은 worker scheduler가 제어해야 합니다.
 
 ---
@@ -47,4 +47,4 @@ uv run --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker
 uv run --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker -Q gpu_ai_queue -c 1 -l info
 ```
 
-모델별 실행환경은 해당 모델의 호환성 검증과 ADR을 따릅니다. Basic Pitch 독립 설치·실행 명령은 [worker README](../../services/ml/basic-pitch-worker/README.md), 제품 연결은 [W04 승인 설계](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)와 [실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)을 따릅니다. W04의 절대 경로 설정과 probe는 계획 단계이며 아직 실행 가능한 제품 기능이 아닙니다.
+모델별 실행환경은 해당 모델의 호환성 검증과 ADR을 따릅니다. Basic Pitch 독립 설치·실행 명령은 [worker README](../../services/ml/basic-pitch-worker/README.md), 제품 연결은 [W04 승인 설계](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)와 [실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)을 따릅니다. 절대 경로 설정과 각5초의 Python/FFmpeg probe는 구현됐으며 요청 실행 중 uv 설치·다운로드를 수행하지 않습니다.

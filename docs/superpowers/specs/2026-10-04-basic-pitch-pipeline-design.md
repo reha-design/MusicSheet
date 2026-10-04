@@ -1,7 +1,7 @@
 # W04 — Basic Pitch 제품 파이프라인 연결 설계
 
 - Revision: 1 · 작성일: 2026-10-04 (Asia/Seoul)
-- 상태: 2026-10-04 `다음작업 진행`으로 서면 설계 R1 승인. 실행 계획 R3 독립100점·미해결 지적0개로 설계·계획 완료. 제품 구현 미착수.
+- 상태: 2026-10-04 `다음작업 진행`으로 서면 설계 R1 승인. 실행 계획 R4 독립100점·Task1~4 구현 각100점·전체 독립 리뷰100점. Windows 실제 모델/DB·Linux 실행기/root 검증 완료.
 - 기준 코드: `84c3a7b` (W03 실제 Linux worker 후속 검증 완료)
 - 요구사항: [W04 진행 현황](../../roadmap.md), [전사](../../ai/transcription.md), [모델 어댑터](../../ai/model-adapters.md), [런타임](../../infrastructure/runtime.md), [아티팩트](../../domain/artifacts.md)
 - 선행 계약: [독립 worker 설계](2026-09-26-basic-pitch-worker-design.md), [worker 실제 추론 증거](../../reports/basic-pitch-worker-smoke-report.md), [W03 설계](2026-10-03-celery-orchestration-design.md)
@@ -10,7 +10,7 @@
 
 사용자의 요청은 완료된 Celery 검증 다음 작업을 진행하는 것이다. 현황 문서의 다음 작업인 W04를 선택했다. 성공 기준은 Python 3.13 단계 실행기가 별도 Python 3.12 Basic Pitch worker를 호출하고, version 1 JSON과 MIDI를 검증한 뒤 기존 스토리지·DB 아티팩트 경로에 등록하는 것이다.
 
-현재 `packages/pipeline`의 `StageProvider`와 runner는 구현돼 있지만 제품 registry는 비어 있다. `services/ml/basic-pitch-worker`는 실제 Windows ONNX CPU 추론을 통과한 독립 CLI이며, 입력은 22,050 Hz mono WAV다. runner는 직전 완료 attempt의 출력만 다음 단계 입력으로 전달하고, 성공한 출력의 SHA-256·크기·job 소유권·producer·attempt 접두사를 검사한다. 따라서 URL이나 사용자가 전달한 로컬 경로를 모델 CLI 입력으로 직접 사용하지 않는다.
+설계 시작 기준의 `packages/pipeline`에는 `StageProvider`와 runner가 구현돼 있었지만 제품 registry는 비어 있었다. 구현·검증 현황은 [W04 결과보고서](../../reports/basic-pitch-pipeline-implementation-report.md)에 기록한다. `services/ml/basic-pitch-worker`는 실제 Windows ONNX CPU 추론을 통과한 독립 CLI이며, 입력은 22,050 Hz mono WAV다. runner는 직전 완료 attempt의 출력만 다음 단계 입력으로 전달하고, 성공한 출력의 SHA-256·크기·job 소유권·producer·attempt 접두사를 검사한다. 따라서 URL이나 사용자가 전달한 로컬 경로를 모델 CLI 입력으로 직접 사용하지 않는다.
 
 이번 설계의 가정은 Basic Pitch를 명시적으로 활성화할 수 있는 첫 전사 provider로 연결한다는 것이다. 기본 모델 선정은 W05에서 평가한다. 기존 Celery·Kombu·Redis 버전, Python 3.13 표준 환경과 ADR 005의 모델 환경 예외를 유지한다.
 
@@ -95,6 +95,8 @@ W04는 DOWNLOAD·PREPROCESS·SEPARATE 제품 provider, 웹 UI, PDF 생성, 새 A
 실제 YouTube URL의 다운로드부터 악보까지 테스트는 W09 전체 통합 범위다. W04에서는 네트워크 입력 대신 재현 가능한 fixture로 실제 모델 경계를 확인한다. 이후 W05는 동일 평가 입력으로 모델 선택, W06은 stem 입력 계약, W11은 운영 배포·owner death·orphan 정리를 다룬다.
 
 ## 9. 승인·리뷰 상태
+
+> 아래는 설계 완료 시점의 기록이다. 이후 R4 구현과 실환경 검증은 완료됐으며 최신 상태는 문서 상단과 W04 결과보고서를 따른다.
 
 자체 검토는 기존 CLI entrypoint, 입력 sample rate, 직전 attempt 입력 제한, MIDI 생략 가능성, Windows/Linux 증거 차이와 강제 종료 한계를 설계에 반영했다. 제품 동작은 아직 변경하지 않았다.
 

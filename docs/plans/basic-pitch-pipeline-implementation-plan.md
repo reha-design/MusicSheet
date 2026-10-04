@@ -17,6 +17,8 @@
 - R4 독립 계획 재평가: **100/100**, blocker0/important0/minor0 (2026-10-04, /root/w04_plan_review). 계획 게이트와 별도로 Task1 수정 코드95점·미해결 blocker/important0 확인 전 다음 구현 단위를 시작하지 않는다.
 - 설계 단계 목표 `설계완료까지 계속해서 진행`은 완료했다. 현재 W04 제품 구현을 실행하며 단위별 검증·독립 코드 리뷰 점수는 각각 기록한다.
 
+- 최종 구현 리뷰: Task1~4 각 **100/100**, 전체 **100/100** (2026-10-04), 미해결 blocker/important/minor0. Windows 실제 모델/DB·Linux 실행기/root 검증 완료. 기본 모델·Linux Celery 모델·YouTube 전체는 후속 범위.
+
 ## Global Constraints
 
 - backend `>=3.13,<3.14`, isolated worker `>=3.12,<3.13`; worker package `0.1.0`, Basic Pitch `0.4.0`, source `049dc8a01a170c2370d7b246ec1c2067e060c3bf`, `nmp.onnx`, ONNX CPU, schema integer `1`.
@@ -102,11 +104,11 @@ R4 Task1 보완: gate는 Python SIGTERM handler 설치 후 byte-level `READY\n`�
 
 **Interfaces:** 제품 build_providers/BasicPitchProvider/run_stage 그대로 사용. marker `ml_integration`, DB 검증은 새 `pipeline_db_integration`; default addopts에서 후자도 제외. `MUSICSHEET_TEST_DATABASE_URL` 명시 환경과 DB marker guard를 공통 test helper에서 사용하며 api import를 root 제품에 추가하지 않는다.
 
-- [ ] **Step1 — 실제-model RED:** CC0 fixture SHA256 `2970c7fca3ccc442c078eb0a4edb2f788731e9d36f5049cc2558fa68e599366a`를 확인하고, 실제 product factory→provider→LocalStorage를 통해 JSON/MIDI 두 Ref·nonempty notes·pinned provider·빈 pedal·SHA/size/attempt filename을 검사한다. 테스트 선언 후 실제 실행해 행동 RED를 확인하며 기존 unit implementation에서 이미 GREEN이면 RED를 꾸며 기록하지 않는다.
-- [ ] **Step2 — DB fixture:** 별도 postgres16 container, loopback의 임의 port, DB `musicsheet_test`, `current_database()`와 `shobj_description` marker `MUSICSHEET_DISPOSABLE_TEST_DB_V1`를 확인한다. API migration v1/v2를 명시 실행한 뒤 root tests는 asyncpg 연결만 사용한다. 테스트마다 UUID job/source/stem과 선행 stage 완료를 테스트 helper로 준비한다. 직접 fake completed row만 넣어 fingerprint를 우회하지 않고 기존 runner로 선행 test providers를 완료한다. enqueue된 POSTPROCESS는 소비하지 않는다.
-- [ ] **Step3 — live DB GREEN:** `test_real_model_transcribe_commits_two_artifacts`에 ml_integration+pipeline_db_integration 두 marker, `test_cancel_during_transcribe_has_no_registered_outputs`와 `test_transcribe_db_ownership_loss_fences_completion`은 후자 marker와 제어용 blocking child 사용. 성공 시 attempt COMPLETED+output IDs2+metadata2+POSTPROCESS outbox1+job RUNNING/TRANSCRIBE, 중복 재전달 worker call1. 실패/취소/connection loss 시 신규 metadata0·후속 outbox0. thread/process marker로 상태를 기다리고 각 wait<=30초, finally에서 owned process·connection·job rows·temp files를 정리한다.
-- [ ] **Step4 — 플랫폼·회귀:** 아래 명령 표 모두 실행해 실제 결과를 기록한다. Windows 실제 ONNX CPU 모델/provider와 실DB를 필수 실행한다. Linux에서는 Task1 process 선택 tests 및 root 회귀를 필수 실행한다. Linux의 실제 Basic Pitch/Celery 검증은 Python3.12 모델 환경을 먼저 설치·검증한 경우에만 별도 실행하고 결과를 구분한다; 미실행이면 Linux 실제 모델 미검증이라고 명시한다. Windows 테스트를 Linux Celery 지원 근거로 쓰지 않는다.
-- [ ] **Step5 — 리뷰·완료 commit:** 단위 Task4 >=95 리뷰 후 전체 변경 독립 리뷰 >=95/blocker0/important0. root/API/worker lock 검사, docs 상태와 실행 증거 일치, report/index, roadmap에서 W04 제거·completed-work에 점수/일자/commit 추가. `test(pipeline): verify Basic Pitch stage integration`. 최종 report는 모델 통합·DB·Celery·OS별 증거 및 강제 owner death/orphan 한계를 별도로 기록한다.
+- [x] **Step1 — 실제-model RED:** CC0 fixture SHA256 `2970c7fca3ccc442c078eb0a4edb2f788731e9d36f5049cc2558fa68e599366a`를 확인하고, 실제 product factory→provider→LocalStorage를 통해 JSON/MIDI 두 Ref·nonempty notes·pinned provider·빈 pedal·SHA/size/attempt filename을 검사한다. 테스트 선언 후 실제 실행해 행동 RED를 확인하며 기존 unit implementation에서 이미 GREEN이면 RED를 꾸며 기록하지 않는다.
+- [x] **Step2 — DB fixture:** 별도 postgres16 container, loopback의 임의 port, DB `musicsheet_test`, `current_database()`와 `shobj_description` marker `MUSICSHEET_DISPOSABLE_TEST_DB_V1`를 확인한다. API migration v1/v2를 명시 실행한 뒤 root tests는 asyncpg 연결만 사용한다. 테스트마다 UUID job/source/stem과 선행 stage 완료를 테스트 helper로 준비한다. 직접 fake completed row만 넣어 fingerprint를 우회하지 않고 기존 runner로 선행 test providers를 완료한다. enqueue된 POSTPROCESS는 소비하지 않는다.
+- [x] **Step3 — live DB GREEN:** `test_real_model_transcribe_commits_two_artifacts`에 ml_integration+pipeline_db_integration 두 marker, `test_cancel_during_transcribe_has_no_registered_outputs`와 `test_transcribe_db_ownership_loss_fences_completion`은 후자 marker와 제어용 blocking child 사용. 성공 시 attempt COMPLETED+output IDs2+metadata2+POSTPROCESS outbox1+job RUNNING/TRANSCRIBE, 중복 재전달 worker call1. 실패/취소/connection loss 시 신규 metadata0·후속 outbox0. thread/process marker로 상태를 기다리고 각 wait<=30초, finally에서 owned process·connection·job rows·temp files를 정리한다.
+- [x] **Step4 — 플랫폼·회귀:** 아래 명령 표 모두 실행해 실제 결과를 기록한다. Windows 실제 ONNX CPU 모델/provider와 실DB를 필수 실행한다. Linux에서는 Task1 process 선택 tests 및 root 회귀를 필수 실행한다. Linux의 실제 Basic Pitch/Celery 검증은 Python3.12 모델 환경을 먼저 설치·검증한 경우에만 별도 실행하고 결과를 구분한다; 미실행이면 Linux 실제 모델 미검증이라고 명시한다. Windows 테스트를 Linux Celery 지원 근거로 쓰지 않는다.
+- [x] **Step5 — 리뷰·완료 commit:** 단위 Task4 >=95 리뷰 후 전체 변경 독립 리뷰 >=95/blocker0/important0. root/API/worker lock 검사, docs 상태와 실행 증거 일치, report/index, roadmap에서 W04 제거·completed-work에 점수/일자/commit 추가. `test(pipeline): verify Basic Pitch stage integration`. 최종 report는 모델 통합·DB·Celery·OS별 증거 및 강제 owner death/orphan 한계를 별도로 기록한다.
 
 ## 실행 명령과 재현 조건
 
@@ -147,8 +149,9 @@ Linux 재현은 Docker `python:3.13-slim`에 잠긴 root 소스와 변경 테스
 | 2026-10-04 | 구현 | Task1 최종, a1fd862 대비 실행기/설정/테스트/보고서/색인 전체 | /root/w04_process_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. 90/94점 지적과 Windows timeout fixture 부하 민감성 모두 해결. Windows root236/16skip/4deselect·Linux root242/10skip/4deselect, 선택28/4skip·13/1skip |
 | 2026-10-04 | 구현 | Task2 첫 구현, 0381b6f 대비 제품3/test4/dependency/lock/report/index | /root/w04_result_storage_review | 24/25 · 22/25 · 23/25 · 15/15 · 10/10 | 94/100 | blocker0/important1/minor0. event/task 취소 전달이 loop 지연 때 저장2를 막지 못함. 실제 두 방식 RED2failed/.60s 후 put 시작 허가를 loop의 취소 fence로 보완·재리뷰 |
 | 2026-10-04 | 구현 | Task2 최종, 동일0381b6f 대비 전체 | /root/w04_result_storage_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. put 허가 fence·두 취소 경쟁 해결, reviewer 선택53/1skip·root289/17skip/4deselect·API232/25skip/1warning, locks 통과 |
-
 | 2026-10-04 | 구현 | Task3 최종, 4844773 대비 provider/factory/runtime/tests/env/docs | /root/w04_provider_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. 선택25pass·연결회귀88pass/5skip, root308/17skip/4deselect·API232/25skip. 실제 설치 probe 확인, lock 불변 |
+| 2026-10-04 | 구현 | Task4 최종, 4d0abe8 대비 실제 모델/DB tests·marker·문서 전체 | /root/w04_live_integration_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. reviewer 실제DB3/3.38s·root308/17skip/8deselect11.42s, Windows ML5·Linux313 회귀. 과거 문서 상태·timing 수정 확인 |
+| 2026-10-04 | 전체 구현 | a1fd862 대비 Task1~4 및 최신 문서 전체 | /root/w04_whole_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. reviewer root308/17skip/8deselect11.03s·locks/hash/diff 통과. 실제 모델/DB는 실행/독립 기록, Linux는 원본 logs 확인. 승인 범위 밖은 후속 기록 |
 
 구현 기록은 단위 완료 때 이 표에 별도로 추가한다. 계획 점수를 코드 점수로 사용하지 않는다. 계획의 실질 변경은 revision 증가와 재리뷰 후 진행한다.
 

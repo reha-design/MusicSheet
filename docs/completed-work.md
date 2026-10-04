@@ -10,3 +10,4 @@
 | 2026-09-28 | Job REST API v1 | 96/100 | [보고서](reports/job-rest-api-v1-implementation-report.md) | `8408993`, `46a890d`, `ebce351` |
 | 2026-10-03 | W02 Redis Streams 및 SSE | 계획 100/100 · 단위 99/98/100 · 최종 98/100 | [보고서 — 실 Redis 성공 경로 미검증](reports/redis-streams-sse-implementation-report.md) | `c1ca195`, `f675ec9` |
 | 2026-10-04 | W03 Celery 오케스트레이션 | 계획99/100 · 단위99/99/99/99 · 최종99/100 | [당시 구현 보고서](reports/celery-orchestration-implementation-report.md) · [후속 실 PostgreSQL·Redis·Linux worker 검증](reports/celery-live-verification-report.md) | `83915c7`, `1d9898f`, `60e1f24`, `1bded7d` |
+| 2026-10-04 | W04 Basic Pitch 제품 파이프라인 연결 | 계획100/100 · 단위100/100/100/100 · 전체100/100 | [Windows 실제 모델/DB·Linux 실행기/root 검증](reports/basic-pitch-pipeline-implementation-report.md) | `0381b6f`, `4844773`, `4d0abe8` · 최종 검증 커밋은 보고서 참조 |

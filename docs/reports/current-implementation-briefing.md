@@ -1,5 +1,7 @@
 # MusicSheet 현재 구현 현황 브리핑
 
+> 최신 상태(2026-10-04): opt-in Basic Pitch TRANSCRIBE 제품 연결의 Windows 실제 모델/DB·Linux 실행기/root 검증이 통과했습니다. 아래 내용은 당시 브리핑 기록이며 최신 결과는 [W04 보고서](basic-pitch-pipeline-implementation-report.md)와 [개발 현황](../roadmap.md)을 참조하세요.
+
 > **2026-10-03 현재 작업 브랜치 추가:** `codex/redis-streams-sse`에는 W02 Redis 이벤트 발행 모듈과 SSE 재접속 재생 API를 구현했습니다. worker 자동 발행은 W03에서 연결합니다. API 222 passed/17 skipped; 실 Redis 7개는 URL 미설정으로 미검증입니다. 아래 본문은 기존 `148040c` 병합 시점의 기록이며 W02 추가 내용은 [W02 구현 보고서](redis-streams-sse-implementation-report.md)를 기준으로 확인합니다.
 
 > **기준일:** 2026-10-01

@@ -10,7 +10,7 @@
 | 모델 | 대상 악기 | 주요 특징 | 실행 방식 및 큐 |
 | :--- | :--- | :--- | :--- |
 | **ByteDance Piano AMT** (Kong et al.) | 피아노 전용 | 벨로시티·서스테인 페달 출력 후보. 실제 지원 범위는 동일한 fixture로 검증 필요 | Python·PyTorch·CUDA 조합 미확정. 호환성 검증 후 실행 환경과 큐 결정 |
-| **Spotify Basic Pitch** | 범용 악기 / 피아노 | 다성부 전사와 pitch bend MIDI 출력. worker JSON note contract는 pitch bend detail을 보존하지 않음 | Windows Python 3.12 + ONNX CPU 독립 CLI PoC 검증 완료. upstream 공식 지원, API/Celery 연결, 기본 provider 채택은 별도 |
+| **Spotify Basic Pitch** | 범용 악기 / 피아노 | 다성부 전사와 pitch bend MIDI 출력. worker JSON note contract는 pitch bend detail을 보존하지 않음 | Windows Python 3.12 + ONNX CPU 독립 CLI와 opt-in TRANSCRIBE 제품 연결·DB 등록 검증 완료. upstream 공식 지원과 기본 모델 채택은 별도 |
 
 ### 실행환경 경계
 
@@ -18,7 +18,7 @@
 - Python·OS wheel·프레임워크·native library·CUDA 조합을 함께 검증한 모델끼리는 AI 실행환경을 공유할 수 있습니다. 모델마다 무조건 환경을 하나씩 만들지는 않습니다.
 - Basic Pitch worker는 `services/ml/basic-pitch-worker`의 독립 Python 3.12 프로젝트에서 설치와 실제 추론을 검증했습니다. 22,050 Hz mono CC0 piano fixture 결과는 root Python 3.13 `TranscriptionResult`에서도 검증됐습니다. 재현 환경과 결과는 [Basic Pitch worker smoke 보고서](../reports/basic-pitch-worker-smoke-report.md)를 참조합니다.
 - PR [#201](https://github.com/spotify/basic-pitch/pull/201)은 2026-09-26 확인 시 미병합이므로 이 PoC는 upstream의 공식 Python 3.12 지원을 의미하지 않습니다. Python 3.13 workspace나 기존 런타임 결정을 바꾸지 않습니다.
-- 검증 범위는 독립 CLI, ONNX CPU 추론, version 1 JSON 및 MIDI 산출입니다. 정확도 benchmark, API/Celery pipeline 연동과 기본 provider 승격은 별도 작업/결정으로 남습니다. 2026-09-25 호환성 보고서는 PoC 전 평가이며 최신 실행 증거는 smoke 보고서에 있습니다.
+- 독립 CLI와 제품 factory/provider/runner 경로의 Windows ONNX CPU 추론·version1 JSON/MIDI·실DB 등록을 검증했습니다. Celery runtime에는 factory를 연결했지만 실제 Linux Celery의 모델 실행은 미검증입니다. 정확도 benchmark와 기본 모델 선정은 W05에 남습니다. 최신 제품 경로 증거는 [W04 보고서](../reports/basic-pitch-pipeline-implementation-report.md)에 있습니다.
 
 ---
 
@@ -41,7 +41,7 @@ Canonical Audio (44.1kHz Stereo)
 
 ## 4. W04 제품 연결 목표 계약
 
-2026-10-04 승인된 [W04 설계 R1](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)에 따른 **구현 전 목표 계약**이다. 현재 제품 registry에는 아직 연결되지 않았다.
+2026-10-04 승인된 [W04 설계 R1](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)에 따른 **구현된 opt-in 계약**이다. `TRANSCRIPTION_PROVIDER=basic-pitch`와 사전 설치된 worker Python·FFmpeg의 절대 경로를 설정하면 TRANSCRIBE만 등록한다. 기본 모델로 선정한 것은 아니다.
 
 - 명시적 `TRANSCRIPTION_PROVIDER=basic-pitch` 설정으로만 TRANSCRIBE provider를 활성화한다. 기본 모델 채택은 W05에서 결정한다.
 - 입력은 직전 SEPARATE 완료 attempt의 `SEPARATED_AUDIO` WAV 하나다. 연결부가 작업별 임시 22,050 Hz mono PCM WAV를 준비하며, 다른 규격이면 로컬 FFmpeg로 변환한다. 이미 맞는 PCM 입력은 변환을 생략한다. 임시 모델 입력은 별도 MODEL_INPUT 아티팩트로 등록하지 않는다.

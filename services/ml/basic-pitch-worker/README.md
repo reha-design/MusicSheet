@@ -25,6 +25,8 @@ The output directory must not already exist. Input must be a readable WAV with o
 
 ## Platform validation
 
+The product `BasicPitchProvider` now invokes this preinstalled worker from Python3.13 using a fixed isolated bootstrap. It prepares local WAV input and validates both JSON and MIDI before storage. Set `TRANSCRIPTION_PROVIDER=basic-pitch`, `BASIC_PITCH_PYTHON` and `FFMPEG_EXECUTABLE` to absolute installed executable paths in the orchestration environment; the default remains disabled. Windows actual model and PostgreSQL registration, duplicate delivery, cancellation and connection-loss fencing passed W04 verification. Linux subprocess/root tests passed, while Linux actual model/Celery execution remains unverified. See the [W04 report](../../../docs/reports/basic-pitch-pipeline-implementation-report.md).
+
 This proof of concept was validated on Windows with `CPUExecutionProvider`. macOS and Linux are unverified and are outside the supported scope. Basic Pitch chooses its inference backend using the pinned upstream defaults; before adding another operating system, verify the loaded model and actual ONNX Runtime provider on that platform. The `nmp.onnx` metadata value alone does not establish which backend ran.
 
 ## Outputs and exit codes

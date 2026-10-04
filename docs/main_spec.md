@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. `packages/pipeline`에는 durable outbox dispatcher, Celery 여섯 task, 단계 실행·재시도·취소와 DB 커밋 후 자동 이벤트 발행이 구현됐습니다. 제품 provider registry는 비어 있으며 기본 AI provider 선택, 실제 YouTube 다운로드·전사 연결·악보 렌더링과 웹 앱은 후속 범위입니다. Docker Linux에서 테스트 provider를 사용한 worker8개 시나리오와 실제 PostgreSQL·Redis·HTTP SSE 검증은 통과했으며, 운영 복구 시간과 실제 AI 자원 정리는 후속 검증입니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하며 opt-in TRANSCRIBE provider와 Celery runtime factory에 연결됐습니다. Windows 실제 모델·DB 등록과 Linux 실행기/root 회귀가 통과했고, Linux Celery의 실제 모델 실행은 미검증입니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. `packages/pipeline`에는 durable outbox dispatcher, Celery 여섯 task, 단계 실행·재시도·취소와 DB 커밋 후 자동 이벤트 발행이 구현됐습니다. 제품 provider registry는 기본 비활성이며 명시적 설정에서 TRANSCRIBE만 등록합니다. 기본 AI 모델 선택, 실제 YouTube 다운로드·분리·후처리·악보 렌더링과 웹 앱은 후속 범위입니다. Docker Linux에서 테스트 provider를 사용한 worker8개 시나리오와 실제 PostgreSQL·Redis·HTTP SSE 검증은 통과했으며, 운영 복구 시간과 실제 AI 자원 정리는 후속 검증입니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -59,8 +59,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Celery 실제 Linux worker 후속 검증:** [격리 환경·장애 복구·취소와 Linux 회귀 수정](./plans/celery-live-verification-plan.md) (R4 독립 계획99점, 구현98/99점·최종98점, 실제 worker8개 통과)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
-- **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 구현 진행 중)
-- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1/2/3 구현 각100점 완료·Task4 실제 검증 진행)
+- **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 연결 및 최종 리뷰 완료)
+- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1~4 각100점·전체100점 완료, Windows 실제 모델/DB·Linux 실행기/root 검증)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -157,3 +157,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [36: W04 Task1 프로세스 수명과 설정 계약](./reports/basic-pitch-process-report.md)
 - [37: W04 Task2 WAV 준비·결과 검증·저장](./reports/basic-pitch-result-storage-report.md)
 - [38: W04 Task3 제품 TRANSCRIBE provider 연결](./reports/basic-pitch-provider-report.md)
+- [39: W04 실제 모델·DB·Linux 제품 연결 검증](./reports/basic-pitch-pipeline-implementation-report.md)
