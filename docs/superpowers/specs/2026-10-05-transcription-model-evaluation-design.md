@@ -1,6 +1,6 @@
 # W05 전사 모델 평가 설계
 
-2026-10-05 · Revision 1 · **서면 설계 사용자 검토 대기**. 평가 방향은 승인됐지만 이 서면 설계와 실행 계획은 아직 승인되지 않았다. 이 문서는 목표 설계이며 실행된 benchmark 결과가 아니다.
+2026-10-05 · Revision 2 · **R1 조건부 승인 리뷰 반영, 수정본 검토 대기**. R1의 사용자 리뷰는 표기92/100·blocker0·important6·minor3이었다. 실행 계획 독립95점 게이트는 아직 수행하지 않았다. 이 문서는 목표 설계이며 실행된 benchmark 결과가 아니다.
 
 ## 1. 목적과 범위
 
@@ -22,6 +22,8 @@
 | 보고/선정 | 고정 manifest·전체 실행 기록 → 비교 표·선정 상태·대체 정책 | 실행 이후, 원시 기록을 덮어쓰지 않음 |
 
 평가 프로젝트는 `tools/transcription-eval`의 독립 Python 3.13 uv 프로젝트로 만든다. 평가 dependency와 lock을 여기서 관리한다. `musicsheet-common`·`musicsheet-pipeline` 및 그 로컬 package dependency를 명시적 path source로 사용해 기존 결과 검사와 소유 프로세스 실행기를 재사용한다. `mir_eval`·수치 계산 dependency를 root/API에 추가하지 않는다. 모델 inference package도 평가 프로세스에 import하지 않는다.
+
+Python 3.13 유지 이유는 재사용하는 common/pipeline의 `requires-python=">=3.13,<3.14"` 계약이다. evaluator를 3.12로 낮추면 이 계약을 깨거나 검증된 실행기/결과 검사를 복제해야 한다. 실행 계획의 **첫 준비 게이트**에서 독립 평가 프로젝트의 `uv sync --locked`와 common·pipeline·실제 사용할 소유 프로세스/결과 검증 모듈·mir_eval import 및 합성 fixture 평가를 확인한다. 실패는 `evaluator_setup_failure`이며 모델 실패로 세지 않는다. 이 게이트 통과 전 모델 설치나 dataset 취득을 시작하지 않는다.
 
 Basic Pitch는 기존 `services/ml/basic-pitch-worker` Python 3.12·ONNX CPU 설치와 CLI를 사용한다. ByteDance는 `services/ml/piano-amt-worker` 독립 환경의 **평가 전용 CLI**로 감싼다. 새 환경은 Python 3.12 CPU 호환성부터 검증하고, 성공한 Python/PyTorch/dependency 조합을 lock과 실행 영수증에 고정한다. 실패하면 해당 조합의 설치/실행 실패를 보고한다. 검증 없이 Python 3.7/PyTorch 1.4로 전체 프로젝트를 낮추거나 기존 Basic Pitch 환경을 바꾸지 않는다.
 
@@ -48,10 +50,12 @@ MAESTRO v3.0.0의 공식 test만 사용한다. ByteDance가 MAESTRO2 학습을 �
 
 1. v3/test와 v2/test가 일치하고 metadata duration이 유한한 90초 이상인 녹음을 모집단으로 삼는다. 정규화한 상대 `audio_filename`과 `midi_filename`의 일치·유일성을 확인한다.
 2. 각 행의 `SHA256(UTF8("MusicSheet-W05-R1\n" + audio_filename))` 오름차순으로 정렬하고 앞의 12개를 선택한다. 동률은 audio_filename 순이다. 정확도·모델 출력·주관적 청취로 곡을 고르지 않는다.
-3. 각 구간 시작은 정수 초 `floor((metadata_duration - 30) / 2)`이며 입력은 `[start, start+30)`이다. 원본 WAV에서 해당 구간과 규격이 유효한지 확인한다. 데이터 오류나 취득 실패 시 임의로 다른 곡으로 교체하지 않고 준비 실패를 기록한다.
+3. crop 위치는 곡 선택과 다른 salt로 결정한다. `available = floor(metadata_duration) - 30`, `crop_hash = SHA256(UTF8("MusicSheet-W05-R2-CROP\n" + audio_filename))`, `start = int.from_bytes(crop_hash.digest(), "big") % (available + 1)`이다. 입력은 `[start, start+30)`다. 모든 곡의 중앙을 고르지 않고 가능한 정수 시작 위치에 결정적으로 분산한다. 유한12개 subset의 대표성이나 통계적 완전 무편향을 보장하지는 않는다. 원본 WAV에서 해당 구간과 규격이 유효한지 확인하고, 데이터 오류나 취득 실패 시 다른 구간/곡으로 바꾸지 않고 준비 실패를 기록한다.
 4. 파일 취득 후 원본/파생 SHA256·실제 frame 수·metadata hash·split 대조·crop·source URL·선정 규칙 revision을 manifest에 고정한다. 모델별 WAV와 reference를 모두 만든 뒤 manifest hash를 확정하고 이후 추론한다.
 
-공식 v3/v2 JSON metadata와 v3 archive를 사용한다. 전체 archive를 자동 다운로드하지 않는다. 원본은 검증된 로컬 archive/추출본을 사용할 수 있으며, 없는 파일은 공식 v3 ZIP의 HTTP Range로 선택한 audio/MIDI member만 취득한다. 2026-10-04 읽기 전용 probe에서 `206`, `Content-Range: bytes 0-0/108445099632`를 확인했다. 이것은 ZIP64 부분 추출 구현이나 무결성 검증의 완료 증거는 아니다.
+공식 v3/v2 JSON metadata와 v3 archive를 사용한다. 취득 우선순위는 **① 검증된 로컬 archive/추출본 → ② 기존 Range/ZIP library → ③ 별도 custom 취득 단위**다. 로컬 전체 archive는 공식 전체 SHA256을 대조한다. 추출본은 신뢰 가능한 archive 검증/추출 영수증과 member hash를 확인하며 출처 불명 파일을 검증 완료로 다루지 않는다. 전체 archive를 자동 다운로드하지 않는다. 2026-10-04 공식 ZIP header probe에서 `206`, `Content-Range: bytes 0-0/108445099632`를 확인했지만 이것은 library 적합성이나 부분 추출 성공의 증거가 아니다.
+
+로컬 데이터가 없으면 실행 계획의 취득 단위에서 기존 library의 source/version/license·ZIP64·streaming/cap 지원을 조사하고 아래 acceptance test로 검증한다. 라이브러리가 통과하면 좁은 전송/무결성 wrapper만 작성한다. 모두 부적합하면 `acquisition_unavailable`로 기록한다. custom ZIP64 parser는 benchmark/metric과 묶어 구현하지 않는다. 필요성이 확인된 경우 별도 설계·실행 계획·독립95점 리뷰를 가진 취득 단위로 분리한 뒤 진행한다. 이번 설계가 검증되지 않은 library 사용이나 custom 구현을 자동 허용하는 것은 아니다.
 
 취득기는 ZIP/ZIP64 central directory와 member header를 검증하고 상대 경로만 허용한다. 절대 경로·`..`·symlink·암호화·중복 member·허용하지 않은 압축 방식과 범위/길이 불일치를 거부한다. range 요청의 `206`·정확한 Content-Range·고정 object ETag/총 길이를 검사한다. `200` 전체 응답은 스트리밍 header 단계에서 중단하고 archive 전체를 읽지 않는다. member CRC32·압축/해제 크기 확인 후 SHA256을 계산하고 staging 파일을 완료 경로로 이동한다. 부분 취득에서는 공식 전체 archive SHA256을 검증했다고 주장하지 않는다.
 
@@ -61,7 +65,7 @@ MAESTRO v3.0.0의 공식 test만 사용한다. ByteDance가 MAESTRO2 학습을 �
 
 ## 5. 오디오와 정답 의미
 
-원본 stereo PCM의 같은 시작 frame에서 정확히 30초를 crop한다. 원본 sample rate를 보존한 crop에서 `mono = (L + R) / 2`로 downmix하고 각 후보 규격으로 한 번만 resample한다. FFmpeg version·명시적 filter/출력 PCM 규격·명령·frame 수를 기록한다. normalization, source separation, denoise, tempo 변경을 하지 않는다. 두 후보가 같은 source crop을 받았는지 manifest로 검사한다.
+원본 stereo PCM의 같은 시작 frame에서 정확히30초를 crop한다. 원본 PCM16 값을32768로 나누어 float64 intermediate로 변환하고 원본 sample rate에서 `mono = (L + R) / 2`로 downmix한다. 다른 원본 PCM subtype은 무단 변환하지 않고 준비 실패로 기록한다. float64 mono WAV를 공유 중간 입력으로 고정하고 FFmpeg `swr`의 filter_size32·phase_shift10·linear_interp1·cutoff0.97·float64 output에서 각 후보 규격으로 한 번만 resample한다. 최종 sample은 `[-1,1]`로 clip 후 `round_ties_to_even(sample*32768)`을 int16 범위로 포화시켜 little-endian `PCM_S16LE` WAV로 저장한다. dithering은 사용하지 않는다. FFmpeg version·설정·PCM 변환 코드 revision·명령·frame 수를 기록하고 반올림 경계 fixture로 검증한다. RMS/peak gain normalization, source separation, denoise, tempo 변경을 하지 않는다. 두 후보가 같은 source crop을 받았는지 manifest로 검사한다.
 
 입력은 30초지만 평가할 onset 구간은 crop 좌표 **[2, 28)**다. 앞/뒤 2초는 모델 문맥용이다. 정답과 예측 모두 같은 onset 구간으로 선별하며, 정답을 보고 예측을 제거하거나 octave·음역 밖 추정을 버리지 않는다. 0~127 pitch의 유효 예측은 모두 대상이다. 원본 결과는 유지하며 변환된 metric 입력을 별도로 보관한다.
 
@@ -89,7 +93,7 @@ MIDI는 전체 recording을 먼저 parse한다. 모든 track을 절대 tick 순�
 
 실행된 유효 빈 예측은 정상 결과로 평가하며 reference가 있으면 TP0/FN 전체다. reference가 없는 구간은 P/R/F1을 `null`로 기록하고 FP 수를 보고하며 macro에서 제외한 개수를 명시한다. paired 비교는 양 후보가 유효한 동일한 nonempty-reference 녹음만 사용하며 8개 미만이면 선정 불가다. runtime 실패는 원인·상태와 함께 보존하며 성공-only 정확도와 구분해 예정된 12개 기준의 operational recall(`첫 반복의 성공 실행 TP 합계 / 예정 12개 reference note 합계`)을 별도로 계산한다. 실패를 성공한 빈 예측으로 위장하지 않는다. 준비 실패 후보는 정확도 `not_measured`이며 다른 모델의 정확도 우위 근거가 아니다.
 
-페달/velocity는 원본 출력·지원 상태·정답과 매칭된 note의 velocity 절대 오차 진단을 남긴다. confidence/activation은 정확도 F1이 아니며 후보 간 같은 척도로 비교하지 않는다. ByteDance에 존재하지 않는 calibrated confidence를 만들지 않는다. Basic Pitch의 pedal 미지원은 `unsupported`이며 pedal F1=0을 임의 부여하지 않는다. 별도의 pedal F1은 이번 최소 비교 범위에 넣지 않는다.
+페달/velocity는 원본 출력·지원 상태를 남긴다. velocity MAE는 **pitch+onset (`offset_ratio=None`) 일대일 matching**의 pair만 사용하고 reference의 MIDI1~127 값과 예측의 해당 scale 값을 비교한다. 이벤트를 pitch/onset/offset/velocity 순으로 정렬한 후 pinned `mir_eval.transcription.match_notes`가 반환한 pair를 사용하며 pair index·count를 저장한다. 동률 해를 고르는 새 matcher를 만들지 않고 같은 fixture/version에서 pair 재현성을 검사한다. matched pair가 없으면 MAE는 `null`이며 임의 평균 velocity를 넣지 않는다. confidence/activation은 정확도 F1이 아니며 후보 간 같은 척도로 비교하지 않는다. ByteDance에 존재하지 않는 calibrated confidence를 만들지 않는다. Basic Pitch의 pedal 미지원은 `unsupported`이며 pedal F1=0을 임의 부여하지 않는다. 별도의 pedal F1은 이번 최소 비교 범위에 넣지 않는다.
 
 ## 7. 실행 조건·시간·실패
 
@@ -97,9 +101,17 @@ MIDI는 전체 recording을 먼저 parse한다. 모든 track을 절대 tick 순�
 
 각 모델/녹음은 새 프로세스로 3회 실행한다(후보당 예정 36회). 반복 0/2는 manifest 순서에서 각 녹음마다 Basic Pitch→ByteDance를 실행하고, 반복 1은 녹음 역순에서 각 녹음마다 ByteDance→Basic Pitch를 실행한다. 병렬 모델 추론은 하지 않는다. GPU 실행이 추가되면 별도 run ID·예정 36회 분모를 사용한다. CPU와 GPU 정확도가 같다고 가정하지 않는다.
 
+반복 결과는 **결정성 검사**를 수행한다. 원본 유효성 검사를 통과한 crop 전체의 note `(pitch,onset,offset,velocity)`와 pedal `(type,onset,offset,value)`만 정규화한다. ID·timestamp·device/timing metadata는 제외하고, 유한 수치는 IEEE754 binary64 little-endian(음의0은0), null은 별도 tag로 직렬화한다. 이벤트는 필드 순서의 사전식으로 정렬하되 nullable 필드는null이 수치보다 먼저 오며 pedal type은UTF8 byte 순이다. note/pedal 구획과 개수를 포함해 SHA256을 계산한다. 중복 이벤트는 제거하지 않는다. 같은 입력/device에서 성공한3회 hash가 같으면 `deterministic_observed`다. 정확한 hash가 다르면 `nondeterministic_output`을 기록하고 각 반복 F1·최솟값/최댓값을 진단한다. 사후 tolerance를 도입하지 않는다. 첫 실행만 대표 정확도로 사용해 자동 선정하는 것을 중단하고 `selection_requires_review`로 남긴다. 반복 부족은 `determinism_incomplete`이며 성공/결정성으로 추정하지 않는다.
+
 입력 준비 시간은 crop/downmix/resample wall time으로 별도 기록한다. 모델 `elapsed_sec`는 준비된 입력에서 프로세스 시작 직전부터 종료·자식 정리·출력 검증 완료까지 monotonic clock으로 잰다. **RTF = elapsed_sec / 30**이며 다운로드·설치 시간은 제외한다. 중앙값과 개별 36개 시간을 제공하고 p95는 오름차순 표본의 `ceil(0.95*n)`번째 값(nearest rank)으로 계산한다. 작은 표본의 보조값으로만 표시한다. 현재 CLI는 모델을 상주시켜 측정하지 않으므로 이를 warm inference 시간이나 순수 neural network 연산 시간으로 부르지 않는다.
 
 한 추론의 timeout은 300초, CPU 세션 총 실행 예산은 2시간이다. 한 실행 실패를 자동 재시도하지 않으며 이미 예정된 반복은 별도 실행으로 남긴다. 전체 예산/사용자 취소로 실행 못 한 slot은 `not_run`으로 기록하고 완전 비교로 선정하지 않는다. 모델 예외, timeout, 출력 누락, wire/schema/수치 오류, 설정/준비 실패, 사용자 취소를 구분한다. failure rate는 실제 시작한 실행 분모와 예정 36회 중 미실행 개수를 함께 표시한다.
+
+시작 전에 기존 CC0 smoke fixture에서 만든 고정30초 비평가 입력(원본을 이어붙여30초 crop, hash 기록)을 후보별 fresh process로2회 실행한다. 모델 loading/output/정리와 시간을 확인하고 `1.5 * 36 * (Basic Pitch smoke 최대 elapsed + ByteDance smoke 최대 elapsed)`가2시간 이하인지 검사한다. 준비/다운로드 시간은 별도다. 이 추정은 곡 난이도에 따른 시간 보장이 아니며 실제 budget stop은 유지한다. probe failure 또는 예상 초과이면 benchmark를 시작하지 않고 `preflight_failure`/`budget_preflight_failure`를 기록한다. 예산을 늘리거나 표본을 줄이려면 예측 전 계획 revision으로 처리한다. smoke는 평가/36회 성공률/정확도 분모에 포함하지 않는다.
+
+**benchmark validity와 model reliability를 분리한다.** 첫 accuracy 반복12개가 모두 유효하고, 입력·환경·runner 검증이 통과해야 정확도 비교 가능이다. 반복1/2의 실패는 원시 성공률과 원인별 횟수로 남기며 단1회 실패로 모델을 운영 부적격이라 하지 않는다. 실패마다 `model`·`infrastructure`·`unresolved` attribution과 근거를 기록한다. 입력/hash나 runner/환경 검증 실패는 infrastructure다. 고정 입력/환경·정상 runner에서 같은 모델 오류가 독립 실행2회 이상 발생하면 reproducible model failure다. attribution이 미해결이면 model failure라고 추정하지 않는다.
+
+재현 여부는 예정 반복을 먼저 사용하며 부족하면 실패 slot별 진단 실행 최대1회만 허용한다. 진단 실행은 별도 ID로 남기고 실패 slot을 성공으로 교체하지 않는다. 정확도·36회 분모·속도 표에서 제외하고 세션 총 budget에는 포함한다. 원시 실패율에는 예정된 모든 시작 실행을 포함하고, model-only 실패율은 model-attributed 실패 수/(원인 미해결·infrastructure를 제외한 시작 실행 수)로 분모와 함께 보고한다. 분모0이면 `null`이다. 진단 성공 출력은 결정성 확인에만 사용할 수 있으며 원래 실패/추가 실행을 숨기지 않는다. infrastructure/unresolved slot은 속도 표에서 제외한 사유/개수를 밝힌다. 성공 slot만 모아36/36 성공처럼 표현하지 않는다.
 
 기존 W04 소유 프로세스 실행기·allowlist 환경·Windows Job/Linux group 정리를 재사용한다. shell 실행·서비스 credential 전달·요청 중 모델 다운로드를 하지 않는다. 취소/timeout에서 자식 종료와 owned 임시 파일 정리를 기다리고, 미완성 결과로 metric을 계산하지 않는다. blocking I/O drain으로 timeout 반환이 지연될 수 있다는 기존 한계도 남긴다.
 
@@ -107,11 +119,13 @@ ByteDance 평가 wire는 version1·고정 provenance·input hash·device·notes(
 
 ## 8. 사전 고정한 선정과 대체 정책
 
-1. 후보가 공통 CPU 조건의 예정 36회 전체에서 정상 종료·유효 출력·정리 검증을 통과해야 **운영 적격**이다. 빈 결과는 유효하지만 낮은 정확도에 그대로 반영된다. 실패 후보는 운영 부적격이며 정확도 미측정/부분 측정 상태를 분리한다.
-2. 두 후보 적격 시 첫 반복 12개 녹음의 pitch+onset macro F1 차이를 paired bootstrap 10,000회, seed20261005, percentile 95% interval로 비교한다. 차이 절댓값 0.01 이상이고 interval이 0을 포함하지 않을 때만 이번 subset의 명확한 우위로 간주한다. 이 구간은 작은 subset의 불확실성 표시이며 모집단 보장으로 표현하지 않는다.
-3. onset 우위 후보가 sustain offset macro F1에서 0.01을 초과해 낮아지면 자동 winner를 만들지 않고 `tradeoff_requires_review`로 결정을 남긴다. 그렇지 않으면 `selected_for_subset`이다. key-release 진단도 선정 보고서에 함께 제시한다.
-4. onset 차이가 위 기준을 충족하지 못하면 sustain offset을 같은 paired 규칙으로 비교한다. 그것도 구별되지 않으면 CPU elapsed 중앙값이 20% 이상 낮은 후보를 운영 우선안으로 제시한다. 차이가 작으면 기존에 제품 연결된 Basic Pitch를 `provisional_operational_default`로 유지한다. 정확도 우위를 주장하지 않는다.
-5. 한 후보만 운영 적격이면 그 후보를 잠정 운영안으로 기록하되 미측정 후보와의 정확도 winner라고 하지 않는다. 둘 다 부적격·데이터 부족·실행 미완료이면 `no_selection`이다. GPU-only 성공은 공통 CPU 적격을 대신하지 않는다.
+1. 첫 accuracy 반복12/12 유효와 evaluator/input/runner gate를 **비교 가능 조건**으로 삼는다. 예정36개 slot의 상태·reliability는 별도로 보고한다. 재현 가능한 model failure만 `operationally_ineligible`로 분류한다. 단발 모델 실패나 미해결 원인, infrastructure 실패로 반복/결정성 검증이 부족하면 `selection_requires_review`이며 단순 운영 부적격으로 단정하지 않는다. 미실행 slot·첫 반복 실패·invalid benchmark는 `no_selection`이다. 빈 유효 예측은 정확도에 그대로 반영한다.
+2. 두 후보 비교 가능하고 녹음별 성공3회(진단 성공을 포함할 수 있음) 출력이 결정적인 경우, 첫 반복12개 녹음의 pitch+onset macro F1 차이를 paired bootstrap10,000회, seed20261005, percentile95% interval로 비교한다. 차이 절댓값0.01 이상이고 interval이0을 포함하지 않을 때만 이번 subset의 명확한 우위로 간주한다. 최소8개 nonempty-reference pair 조건은 유지한다. 이 구간은 작은 subset의 불확실성 표시이며 모집단 보장으로 표현하지 않는다.
+3. onset macro 우위 후보가 **onset micro F1에서0.01 이상 낮거나**, sustain offset macro F1에서0.01을 초과해 낮으면 `tradeoff_requires_review`다. 그렇지 않으면 `selected_for_subset`이다. key-release 진단도 함께 제시한다. micro 충돌은 사전 고정한 effect-size guard이며 유의성 검정을 했다고 표현하지 않는다.
+4. onset 차이가 위 기준을 충족하지 못하면 sustain offset에 같은 paired 규칙을 적용한다. sustain macro winner가 sustain micro에서0.01 이상 낮거나 onset micro에서0.01 이상 낮으면 역시 `tradeoff_requires_review`다. 그것도 구별되지 않으면 성공/유효 CPU 시간 표본이 후보별24개 이상일 때만 중앙값20% 차이를 운영 우선안 근거로 사용한다. 시간 표본 부족이면 `selection_requires_review`다. 시간 우선 후보도 onset/sustain micro가0.01 이상 낮으면 `tradeoff_requires_review`다. 충돌이 없고 시간 차이가 작으면 기존 Basic Pitch를 `provisional_operational_default`로 유지한다. 정확도 우위를 주장하지 않는다.
+5. 한 후보의 재현 가능한 model failure가 확인되면 다른 비교 가능·결정성 검증 후보를 잠정 운영안으로 기록하되 정확도 winner라고 하지 않는다. 후보의 준비 실패·미측정·원인 미해결 상태에서는 추천 근거와 남은 문제를 기록하고 기본 모델 결정은 보류한다. GPU-only 성공은 공통 CPU 비교를 대신하지 않는다.
+
+선정 상태가 충돌하면 `invalid/no_selection` → `operationally_ineligible` 원인 확인 → `selection_requires_review` → `tradeoff_requires_review` → winner/tie-break 순으로 처리한다. infrastructure 실패가 진단에서 해소됐더라도 원시 실패 기록은 유지하며, first accuracy run 실패를 진단 성공으로 대체하지 않는다. 결정성 해시가 같아도 반복 신뢰도가100%라고 주장하지 않는다.
 
 최종 결정 기록에는 manifest/run hashes·정확도·속도·실패·12개 subset 한계·환경 지원·선정 상태·필요한 제품 연결을 포함한다. 선정 규칙을 예측 후 바꾸면 새 revision/run으로 표시하고 기존 결과를 유지한다. root/API·기존 worker locks 및 제품 selector의 자동 변경은 하지 않는다.
 
@@ -121,9 +135,9 @@ fallback 정책은 **설치·실제 실행·출력 검증·제품 연결까지 �
 
 실행 계획은 다음 실패 사례와 합격 기준을 포함해야 한다.
 
-- 선정 재현·v2/v3 split 불일치·중복/경로 오류·manifest 변경 거부. ZIP64/Range cap·200 응답·object 변경·CRC·경로 탈출·중단 파일 정리.
+- evaluator locked sync/import·합성 metric 게이트. 선정/crop hash 재현·v2/v3 split 불일치·중복/경로 오류·manifest 변경 거부. 로컬 영수증/library 우선 및 ZIP64/Range cap·200 응답·object 변경·CRC·경로 탈출·중단 파일 정리.
 - tempo 변경·velocity0 note-off·페달 선행 상태·재타건·CC64 경계·말단 절단·정답 오류. pitch/onset/offset 허용 경계·최대 일대일 matching·추가/누락/중복·empty-reference·failed-run 집계를 손으로 확인 가능한 합성 fixture로 검증.
-- 실제 모델 없는 기본 suite에서 optional dependency import/다운로드를 하지 않음. fake worker로 malformed JSON/MIDI·provenance/hash 불일치·timeout·취소·자식 수명·실행 순서·시간/분모를 검증.
+- 실제 모델 없는 기본 suite에서 optional dependency import/다운로드를 하지 않음. fake worker로 malformed JSON/MIDI·provenance/hash 불일치·timeout·취소·자식 수명·실행 순서·시간/분모·단발/재현/model/infrastructure/unresolved attribution을 검증. 반복 hash 일치/불일치·중복 보존·진단 출력과 첫 accuracy slot 분리·budget preflight·macro/micro 반전을 검증.
 - 별도 opt-in 실제 환경 probe·설치 lock 검증 후 두 후보/동일 manifest CPU 실행. GPU는 별도 probe와 보고. 기존 root/API/Basic Pitch 회귀·lock 불변 확인.
 - 단위별 결과보고서·재현 명령·실제 RED/수정/재검증·독립 리뷰를 남김. AGENTS.md에 따라 실행 계획 95점 이상·미해결 blocker/important0, 각 구현 단위도 별도 95점 이상이어야 다음 단위로 진행.
 
@@ -131,6 +145,6 @@ W05 비교 완료는 고정 dataset·두 후보 측정/실패 원인·전체 실
 
 ## 10. 현재 상태와 승인 경계
 
-방향 승인: 비상업 평가, 두 후보, MAESTRO test 12개 고정 구간, 정확도/시간/실패를 분리한 비교. 이번 문서의 자기 검토는 범위·모순·미정 표현·경계 조건 확인이며 독립 계획 점수를 대신하지 않는다.
+방향 승인: 비상업 평가, 두 후보, MAESTRO test12개 고정 구간, 정확도/시간/실패를 분리한 비교. R1 사용자 조건부 승인에서 important6·minor3을 검토해R2로 수정했다. Python3.12 evaluator 제안은 저장소의3.13 package 계약 때문에 그대로 적용하지 않고 제안의 대안인 초기 compatibility gate를 채택했다. 나머지 지적의 반영 위치·검증은 [R2 리뷰 처리 보고서](../../reports/transcription-model-evaluation-design-review-report.md)에 기록한다. 이번 문서의 자기 검토와 사용자 표기 점수는 작성되지 않은 실행 계획의 독립 점수를 대신하지 않는다.
 
 이 문서 작성 시점에는 dataset/checkpoint 취득, ByteDance 설치, benchmark 구현·실제 비교를 수행하지 않았다. 다음 단계는 **이 서면 설계 사용자 검토 후 실행 계획 작성과 독립 평가**다. 제품 기능 구현 승인이나 모델 선정 성공을 미리 기록하지 않는다.

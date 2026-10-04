@@ -55,4 +55,4 @@ Canonical Audio (44.1kHz Stereo)
 
 ## 5. W05 모델 평가 설계
 
-[W05 서면 설계 R1](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)은 사용자 검토 대기 중인 목표 설계다. 승인한 방향은 비상업 연구·개인 개발 범위의 MAESTRO test 12개 고정 구간에서 Basic Pitch와 ByteDance의 정확도·시간·실패를 비교하는 것이다. 데이터 선정·정답 offset/페달 의미·metric·실행 조건·선정 및 대체 정책은 해당 설계에서 상세 관리한다. 실제 비교와 기본 모델 선정, ByteDance 제품 연결은 아직 완료되지 않았다.
+[W05 서면 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)는 R1 조건부 승인 리뷰를 반영한 검토 대기 목표 설계다. 승인한 방향은 비상업 연구·개인 개발 범위의 MAESTRO test12개 고정 구간에서 Basic Pitch와 ByteDance의 정확도·시간·실패를 비교하는 것이다. 데이터 선정·정답 offset/페달 의미·metric·실행 조건·선정 및 대체 정책은 해당 설계에서 상세 관리한다. 실제 비교와 기본 모델 선정, ByteDance 제품 연결은 아직 완료되지 않았다.

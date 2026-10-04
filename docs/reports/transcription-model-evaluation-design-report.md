@@ -2,6 +2,8 @@
 
 2026-10-05 · 기준 commit `998c0cc` · 산출물: [설계 R1](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md). 상태: **서면 설계 사용자 검토 대기**. 코드 구현·모델 비교 완료 보고서가 아니다.
 
+이 보고서는 R1 작성 당시 기록이다. 후속 사용자 조건부 승인과 R2 수정 내용은 [리뷰 처리 보고서](transcription-model-evaluation-design-review-report.md)를 참조한다. 연결된 설계 파일은 현재 최신 revision을 담는다.
+
 ## 작성한 내용
 
 사용자가 확인한 비상업 연구·개인 개발 범위와 두 후보·MAESTRO test 12개 고정 구간 비교 방향을 서면 설계로 구체화했다. 정답을 가진 실제 음원의 동일 30초 입력·중앙 onset 구간, v2/test 대조와 SHA 기반 선정, 원본/파생 무결성 manifest, 제한된 부분 취득, MIDI tempo/건반 해제/sustain 의미를 고정했다. pitch+onset과 offset 포함 F1을 구분하고 빈 결과·실패·미측정 상태를 분리한다.
