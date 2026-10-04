@@ -10,10 +10,11 @@
 
 **Spec:** [사용자 승인 설계 R1](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md), [전사](../ai/transcription.md), [모델 어댑터](../ai/model-adapters.md), [런타임](../infrastructure/runtime.md), [아티팩트](../domain/artifacts.md).
 
-- Plan Revision: 2 · 2026-10-04 (Asia/Seoul) · 기준 `ef21c57`, branch `codex/celery-orchestration`.
+- Plan Revision: 3 · 2026-10-04 (Asia/Seoul) · 기준 `47981c7`, branch `codex/celery-orchestration`.
 - 사용자 서면 설계 승인: 2026-10-04 `다음작업 진행` (설계 R1 제시 후 응답).
-- 독립 계획 리뷰: R1 **94/100** → R2 **99/100**, blocker0/important0/minor1. R2 계획 점수 게이트 통과. 작성된 실행 계획의 사용자 검토·실행 방식 선택은 별도 대기 중이다.
+- 독립 계획 리뷰: R1 **94/100** → R2 **99/100** → R3 **100/100**, blocker0/important0/minor0. R3 전체에 대한 독립 재리뷰로 설계·계획 단계를 완료했다. 제품 구현은 아직 시작하지 않았다.
 - 작성된 실행 계획의 사용자 검토·실행 방식 선택: 대기. 권장 방식은 주 에이전트 구현 + 각 단위 독립 reviewer다.
+- 현재 사용자 목표: `설계완료까지 계속해서 진행`. 이번 단계의 완료 대상은 설계·실행 계획·문서 정합성·독립 계획 리뷰이며 제품 구현과 실제 모델/DB 실행은 이후 단계다.
 
 ## Global Constraints
 
@@ -70,9 +71,9 @@
 
 **Interfaces:** 위 prepare_input/validate_result_files/run_owned_io/store_outputs. Task1의 run_owned_process·BasicPitchSettings와 기존 ArtifactStorage·TranscriptionResult·InvalidArtifact를 사용한다.
 
-- [ ] **Step1 — RED 테스트:** 잘린/빈 WAV·틀린 role/count는 모델 실행 전에 실패. `test_22050_mono_pcm_skips_conversion`과 `test_stereo_44100_is_converted_to_22050_mono`에서 실제 frame/sample rate/channel을 assert. 결과 테스트는 pinned provenance의 정상/빈 notes 성공과 문자열 숫자·bool pitch·중복 note_id/key·NaN·Infinity·비어 있지 않은 pedal·잘못된 provenance·누락 MIDI·과대 파일·symlink 실패를 고정한다. MIDI는 header만 정상/잘린 track/종료 없는 track/후행 bytes와 정상 빈 notes 파일을 구분한다.
+- [ ] **Step1 — RED 테스트:** 잘린/빈 WAV·틀린 role/count는 모델 실행 전에 실패. `test_22050_mono_pcm_skips_conversion`과 `test_stereo_44100_is_converted_to_22050_mono`에서 실제 frame/sample rate/channel을 assert. `test_ieee_float_wav_uses_ffmpeg_instead_of_rejecting_wave_error`는 작은44.1kHz stereo IEEE float32 RIFF fixture를 stdlib struct로 생성하고 변환 후22,050Hz/mono/PCM16/비어 있지 않은 frames를 assert한다. `test_truncated_float_wav_fails_before_model`은 data chunk 크기보다 짧은 payload에서 모델 호출0을 assert한다. 결과 테스트는 pinned provenance의 정상/빈 notes 성공과 문자열 숫자·bool pitch·중복 note_id/key·NaN·Infinity·비어 있지 않은 pedal·잘못된 provenance·누락 MIDI·과대 파일·symlink 실패를 고정한다. MIDI는 header만 정상/잘린 track/종료 없는 track/후행 bytes와 정상 빈 notes 파일을 구분한다.
 - [ ] **Step2 — RED 실행:** `uv run --project . pytest tests/pipeline/test_basic_pitch_audio.py tests/pipeline/test_basic_pitch_result.py tests/pipeline/test_basic_pitch_io.py -q`.
-- [ ] **Step3 — dependency/input 구현:** pipeline mido==1.3.3을 resolver로 root/API lock에 반영하고 locked sync한다. prepare_input은 materialize를 owned thread에서 수행한다. wave 검사는 block 단위 읽기로 header frame 수와 실제 읽힌 수를 비교한다. FFmpeg argv는 `-nostdin -hide_banner -loglevel error -protocol_whitelist file,pipe -f wav -i <materialized> -vn -ac 1 -ar 22050 -c:a pcm_s16le <new-temp-wav>`; 기존 파일 overwrite·임의 URL·decoder 자동 선택을 하지 않는다. input의 선언 MIME만으로 WAV라고 판단하지 않는다.
+- [ ] **Step3 — dependency/input 구현:** pipeline mido==1.3.3을 resolver로 root/API lock에 반영하고 locked sync한다. prepare_input은 materialize를 owned thread에서 수행한다. RIFF/RIFX 입력은 chunk header/payload/padding과 선언한 container/data 범위가 실제 파일 안에 있는지 먼저 검사하여 잘린 float WAV도 변환으로 감추지 않는다. `wave`의 PCM 검사는 block 단위 읽기로 header frame 수와 실제 읽힌 수를 비교한다. 읽을 수 있는 PCM이22,050Hz mono이면 재사용한다. `wave.Error`만으로 손상이라고 판단하지 않으며 유효한 IEEE float 등 비PCM WAV는 FFmpeg로 디코드한다. FFmpeg argv는 `-nostdin -hide_banner -loglevel error -protocol_whitelist file,pipe -f wav -i <materialized> -vn -ac 1 -ar 22050 -c:a pcm_s16le <new-temp-wav>`; 기존 파일 overwrite·임의 URL·decoder 자동 선택을 하지 않는다. 변환 후 PCM WAV는 같은 frame 검사를 통과해야 하며 decoder 실패/빈 출력은 모델 전에 영구 실패다. input의 선언 MIME만으로 WAV라고 판단하지 않는다.
 - [ ] **Step4 — result 구현:** output_dir와 두 filename lstat·resolve 검사 후 크기+1까지 bounded read, UTF-8/duplicate key/parse_constant 거부, schema 1 및 provider/notes의 wire 타입 검사, 공용 model 검증. 선택적 nullable activation/velocity/source_chunk 허용, source_chunk는 null 또는 정확한 int. unknown JSON field는 기존 version1 공용 schema와 같이 허용하지만 알려진 field 검사를 회피하지 못한다. `mido.MidiFile(file=BytesIO(data), clip=False)`로 전체 파일을 읽고 stream 끝/유효 format·track 수/각 track 마지막의 end_of_track 한 개를 확인한다. MIDI/JSON의 note 개수 일치는 요구하지 않는다.
 - [ ] **Step5 — I/O 구현 및 GREEN:** run_owned_io는 thread stop event와 asyncio cancellation event를 연결하고 shield+drain한다. 현재 materialize 호출은 자체 stop 인자가 없으므로 호출 완료까지 기다린다. put은 stop을 확인하는 bounded binary reader로 파일을 전달한다. thread 내부에서 성공 Ref를 즉시 기록하고 exception/cancel 시 drain 후 기록된 Ref를 storage.delete한다. 저장2 전에 stop 재확인. 성공 전 두 결과 검사, 취소 후 반환 없음. `test_cancel_during_put_keeps_returned_ref_for_rollback`, `test_second_put_failure_deletes_first`, `test_blocked_materialize_drains_before_temp_cleanup`, `test_cleanup_failure_is_sanitized`를 threading.Event로 결정적으로 검증한다. delete 실패는 고정 오류/로그로 표시하며 부분 Ref를 성공으로 반환하지 않는다; 확인되지 않은 put/프로세스 강제 종료 orphan 파일은 W11 제한으로 기록한다.
 - [ ] **Step6 — 리뷰·commit:** Task2 선택 tests·root/API 회귀·root/API `uv lock --check`·worker lock 불변 확인, 실제 FFmpeg 변환 실행, 모델 dependency 경계 검사. >=95 독립 리뷰, 보고서/색인, `feat(pipeline): validate and store isolated transcription outputs`.
@@ -134,6 +135,7 @@ Linux 재현은 Docker `python:3.13-slim`에 잠긴 root 소스와 변경 테스
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 2026-10-04 | 계획 | R1 전체 | /root/w04_plan_review | 24/25 · 18/20 · 20/20 · 23/25 · 9/10 | 94/100 | important2: stdout EOF 교착·SIGTERM leader 보존. minor2: 반환 직전 rollback·Linux 재현/설계 상태. R2 보완 후 재평가 |
 | 2026-10-04 | 계획 | R2 전체 | /root/w04_plan_review | 25/25 · 20/20 · 20/20 · 24/25 · 10/10 | 99/100 | blocker0/important0/minor1. R1 지적 모두 해결. 비PCM WAV→FFmpeg 경로의 IEEE float 변환 test 보강 권고는 Task2 구현 리뷰에서 확인 |
+| 2026-10-04 | 계획 | R3 전체 | /root/w04_plan_review | 25/25 · 20/20 · 20/20 · 25/25 · 10/10 | 100/100 | blocker0/important0/minor0. R2 WAV 경계 지적 해결, 승인 설계 범위 준수·설계 산출물 완결성 확인 |
 
 구현 기록은 단위 완료 때 이 표에 별도로 추가한다. 계획 점수를 코드 점수로 사용하지 않는다. 계획의 실질 변경은 revision 증가와 재리뷰 후 진행한다.
 

@@ -1,7 +1,7 @@
 # W04 — Basic Pitch 제품 파이프라인 연결 설계
 
 - Revision: 1 · 작성일: 2026-10-04 (Asia/Seoul)
-- 상태: 2026-10-04 `다음작업 진행`으로 서면 설계 R1 승인. 실행 계획 작성·독립 계획 리뷰 진행, 제품 구현 미착수.
+- 상태: 2026-10-04 `다음작업 진행`으로 서면 설계 R1 승인. 실행 계획 R3 독립100점·미해결 지적0개로 설계·계획 완료. 제품 구현 미착수.
 - 기준 코드: `84c3a7b` (W03 실제 Linux worker 후속 검증 완료)
 - 요구사항: [W04 진행 현황](../../roadmap.md), [전사](../../ai/transcription.md), [모델 어댑터](../../ai/model-adapters.md), [런타임](../../infrastructure/runtime.md), [아티팩트](../../domain/artifacts.md)
 - 선행 계약: [독립 worker 설계](2026-09-26-basic-pitch-worker-design.md), [worker 실제 추론 증거](../../reports/basic-pitch-worker-smoke-report.md), [W03 설계](2026-10-03-celery-orchestration-design.md)
@@ -98,4 +98,4 @@ W04는 DOWNLOAD·PREPROCESS·SEPARATE 제품 provider, 웹 UI, PDF 생성, 새 A
 
 자체 검토는 기존 CLI entrypoint, 입력 sample rate, 직전 attempt 입력 제한, MIDI 생략 가능성, Windows/Linux 증거 차이와 강제 종료 한계를 설계에 반영했다. 제품 동작은 아직 변경하지 않았다.
 
-사용자 서면 설계 R1은 2026-10-04 `다음작업 진행`으로 승인됐다. 관련 canonical spec을 갱신하고 [실행 계획](../../plans/basic-pitch-pipeline-implementation-plan.md)을 작성했다. 독립 계획 리뷰는 95/100 이상이며 blocker/important가 없어야 구현을 시작한다. 작성된 실행 계획의 사용자 검토·실행 방식 선택도 필요하다. 구현 단위별 독립 코드 리뷰에도 별도로 같은 점수 게이트를 적용한다. 구현은 아직 시작하지 않았다.
+사용자 서면 설계 R1은 2026-10-04 `다음작업 진행`으로 승인됐다. 관련 canonical spec을 갱신하고 [실행 계획 R3](../../plans/basic-pitch-pipeline-implementation-plan.md)을 작성했다. 독립 계획 리뷰는 **100/100**, blocker0/important0/minor0으로 통과했고 [설계 완료 보고서](../../reports/basic-pitch-pipeline-design-completion-report.md)에 요구사항별 근거를 기록했다. 사용자 목표 `설계완료까지 계속해서 진행`에 해당하는 설계·계획 단계는 완료했다. 제품 구현 시작 전 작성된 실행 계획의 사용자 검토·실행 방식 선택이 필요하며, 구현 단위별 독립 코드 리뷰에도 별도로 95점 게이트를 적용한다. 구현은 아직 시작하지 않았다.

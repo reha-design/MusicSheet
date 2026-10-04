@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W04 — Basic Pitch 제품 파이프라인 연결**: 서면 설계 R1 사용자 승인. [실행 계획 R2](plans/basic-pitch-pipeline-implementation-plan.md)가 독립 **99/100**, blocker0/important0으로 통과했습니다(R1 94점 지적 보완). [계획 리뷰 보고서](reports/basic-pitch-pipeline-planning-report.md)에 처리 내용을 기록했습니다. 작성된 계획의 사용자 검토·실행 방식 선택 대기이며 제품 구현은 아직 시작하지 않았습니다.
+**W04 — Basic Pitch 제품 파이프라인 연결**: **설계·계획 단계 완료**. 서면 설계 R1 사용자 승인, [최종 실행 계획 R3](plans/basic-pitch-pipeline-implementation-plan.md) 독립 **100/100**, 미해결 지적0개. [설계 완료 보고서](reports/basic-pitch-pipeline-design-completion-report.md)에 요구사항별 근거를 기록했습니다. 다음 단계는 제품 구현이며, 최종 작성 계획의 사용자 검토·실행 방식 선택 후 시작합니다. 제품 구현은 아직 미착수입니다.
 
 ## 다음 작업 후보
 

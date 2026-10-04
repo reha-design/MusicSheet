@@ -59,8 +59,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Celery 실제 Linux worker 후속 검증:** [격리 환경·장애 복구·취소와 Linux 회귀 수정](./plans/celery-live-verification-plan.md) (R4 독립 계획99점, 구현98/99점·최종98점, 실제 worker8개 통과)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
-- **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 구현 미착수)
-- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R2 독립99점·blocker0/important0, 작성된 계획 사용자 검토·실행 방식 선택 대기)
+- **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 설계·계획 완료·제품 구현 미착수)
+- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R3 독립100점·미해결 지적0개, 설계·계획 완료·제품 구현 전 인계 상태)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -153,3 +153,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [32: Celery 실제 Linux worker 장애 복구·취소 검증](./reports/celery-live-verification-report.md)
 - [33: W04 Basic Pitch 제품 파이프라인 설계 착수](./reports/basic-pitch-pipeline-design-report.md)
 - [34: W04 Basic Pitch 제품 연결 계획 리뷰](./reports/basic-pitch-pipeline-planning-report.md)
+- [35: W04 Basic Pitch 제품 연결 설계 완료](./reports/basic-pitch-pipeline-design-completion-report.md)
