@@ -146,3 +146,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [28: W03 provider 실행·무결성·취소·이벤트 보고서](./reports/pipeline-stage-runner-report.md)
 - [29: W03 Celery·dispatcher·API 원자성 보고서](./reports/celery-dispatch-api-report.md)
 - [30: W03 Celery 오케스트레이션 구현 통합 보고서](./reports/celery-orchestration-implementation-report.md)
+- [31: Celery 대체 라이브러리 조사](./reports/celery-alternatives-research-report.md)
