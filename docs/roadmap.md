@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W05 — 기본 전사 모델 결정**: 비상업 연구·개인 개발용 평가와 두 후보·MAESTRO test12개 고정 구간 비교 방향을 승인받았습니다. R1의 조건부 승인 리뷰(표기92점·important6·minor3)를 반영해 [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)를 작성했습니다 ([리뷰 처리](reports/transcription-model-evaluation-design-review-report.md), [R1 작성 기록](reports/transcription-model-evaluation-design-report.md)). 수정본 검토 후 실행 계획 작성·독립95점 게이트로 진행합니다. dataset/checkpoint 취득·ByteDance 설치·모델 비교·기본 모델 결정·제품 동작 변경은 아직 수행하지 않았습니다.
+**W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)를 사용자 승인받아 [실행 계획](plans/transcription-model-evaluation-implementation-plan.md)을 작성했습니다. R3 독립 리뷰100/100·미해결 지적0으로 계획 게이트를 통과했고, 작성된 계획의 사용자 검토/실행 확인 단계입니다 ([계획 보고서](reports/transcription-model-evaluation-planning-report.md)). dataset/checkpoint 취득·ByteDance 설치·모델 비교·기본 모델 결정·제품 동작 변경은 아직 수행하지 않았습니다.
 
 ## 다음 작업 후보
 

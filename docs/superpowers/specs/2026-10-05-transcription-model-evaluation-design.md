@@ -1,6 +1,6 @@
 # W05 전사 모델 평가 설계
 
-2026-10-05 · Revision 2 · **R1 조건부 승인 리뷰 반영, 수정본 검토 대기**. R1의 사용자 리뷰는 표기92/100·blocker0·important6·minor3이었다. 실행 계획 독립95점 게이트는 아직 수행하지 않았다. 이 문서는 목표 설계이며 실행된 benchmark 결과가 아니다.
+2026-10-05 · Revision 2 · **사용자 서면 설계 승인**(수정본 제시 뒤 `진행`, 2026-10-05). R1의 사용자 리뷰는 표기92/100·blocker0·important6·minor3이었고 R2에서 처리했다. 실행 계획 점수는 [별도 계획](../../plans/transcription-model-evaluation-implementation-plan.md)의 리뷰 기록에서 관리한다. 이 문서는 목표 설계이며 실행된 benchmark 결과가 아니다.
 
 ## 1. 목적과 범위
 
@@ -147,4 +147,4 @@ W05 비교 완료는 고정 dataset·두 후보 측정/실패 원인·전체 실
 
 방향 승인: 비상업 평가, 두 후보, MAESTRO test12개 고정 구간, 정확도/시간/실패를 분리한 비교. R1 사용자 조건부 승인에서 important6·minor3을 검토해R2로 수정했다. Python3.12 evaluator 제안은 저장소의3.13 package 계약 때문에 그대로 적용하지 않고 제안의 대안인 초기 compatibility gate를 채택했다. 나머지 지적의 반영 위치·검증은 [R2 리뷰 처리 보고서](../../reports/transcription-model-evaluation-design-review-report.md)에 기록한다. 이번 문서의 자기 검토와 사용자 표기 점수는 작성되지 않은 실행 계획의 독립 점수를 대신하지 않는다.
 
-이 문서 작성 시점에는 dataset/checkpoint 취득, ByteDance 설치, benchmark 구현·실제 비교를 수행하지 않았다. 다음 단계는 **이 서면 설계 사용자 검토 후 실행 계획 작성과 독립 평가**다. 제품 기능 구현 승인이나 모델 선정 성공을 미리 기록하지 않는다.
+서면 설계는 사용자 검토/승인을 마쳤고 [실행 계획](../../plans/transcription-model-evaluation-implementation-plan.md) 작성·독립 평가로 진행했다. dataset/checkpoint 취득, ByteDance 설치, benchmark 구현·실제 비교는 아직 수행하지 않았다. 작성된 계획의 검토/실행 승인과 독립95점 게이트를 모델 선정 성공으로 미리 기록하지 않는다.
