@@ -52,3 +52,7 @@ Canonical Audio (44.1kHz Stereo)
 - 실제 모델 검증은 Windows의 기존 CC0 fixture·ONNX CPU 경로를 기준으로 한다. Linux 실제 모델/Celery 검증은 해당 모델 환경 검증이 먼저 필요하다. 정확도 benchmark와 실제 YouTube 전체 변환은 각각 W05·W09 범위다.
 
 실행 단위·명령·독립 점수 게이트는 [W04 실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)에 기록한다.
+
+## 5. W05 모델 평가 설계
+
+[W05 서면 설계 R1](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)은 사용자 검토 대기 중인 목표 설계다. 승인한 방향은 비상업 연구·개인 개발 범위의 MAESTRO test 12개 고정 구간에서 Basic Pitch와 ByteDance의 정확도·시간·실패를 비교하는 것이다. 데이터 선정·정답 offset/페달 의미·metric·실행 조건·선정 및 대체 정책은 해당 설계에서 상세 관리한다. 실제 비교와 기본 모델 선정, ByteDance 제품 연결은 아직 완료되지 않았다.

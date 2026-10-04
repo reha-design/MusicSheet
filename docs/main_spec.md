@@ -61,6 +61,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 - **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 연결 및 최종 리뷰 완료)
 - **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1~4 각100점·전체100점 완료, Windows 실제 모델/DB·Linux 실행기/root 검증)
+- **W05 전사 모델 평가 서면 설계:** [고정 정답 subset·metric·후보 환경·선정 및 대체 정책](./superpowers/specs/2026-10-05-transcription-model-evaluation-design.md) (R1 사용자 검토 대기, 비교 방향 승인·실제 평가 미실행)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -159,3 +160,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [38: W04 Task3 제품 TRANSCRIBE provider 연결](./reports/basic-pitch-provider-report.md)
 - [39: W04 실제 모델·DB·Linux 제품 연결 검증](./reports/basic-pitch-pipeline-implementation-report.md)
 - [40: W05 기본 전사 모델 평가 착수 조사](./reports/transcription-model-evaluation-preparation-report.md)
+- [41: W05 전사 모델 평가 서면 설계](./reports/transcription-model-evaluation-design-report.md)

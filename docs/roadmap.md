@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W05 — 기본 전사 모델 결정**: 사용자 `다음 작업 진행`으로 착수했습니다. 기존 실행 확인 음원에 정답 MIDI가 없어 별도 평가 데이터가 필요하며, 사용자는 비상업 연구·개인 개발용 평가 범위를 확인했습니다. 두 후보·정답 dataset·metric·실행 환경을 조사했고 평가 설계 방향을 확인 중입니다 ([착수 조사](reports/transcription-model-evaluation-preparation-report.md)). 아직 모델 비교·기본 모델 결정·제품 동작 변경은 수행하지 않았습니다.
+**W05 — 기본 전사 모델 결정**: 비상업 연구·개인 개발용 평가와 두 후보·MAESTRO test 12개 고정 구간 비교 방향을 승인받았습니다. [서면 설계 R1](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)을 작성해 사용자 검토 단계입니다 ([설계 보고서](reports/transcription-model-evaluation-design-report.md), [착수 조사](reports/transcription-model-evaluation-preparation-report.md)). 다음은 서면 설계 검토 후 실행 계획 작성·독립95점 게이트입니다. dataset/checkpoint 취득·ByteDance 설치·모델 비교·기본 모델 결정·제품 동작 변경은 아직 수행하지 않았습니다.
 
 ## 다음 작업 후보
 
