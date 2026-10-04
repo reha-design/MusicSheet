@@ -14,7 +14,7 @@
 - 기준: `4c86e91`, branch `codex/celery-orchestration`
 - 사용자 설계 승인: 2026-10-03 `w03진행`
 - 독립 계획 점수: R1 94 → R2 100 → R3 **99/100**, blocker0/important0/minor1(과거 상태 문구, 아래에 해결 기록). 관련 의존성 변경 게이트 통과.
-- 작성된 실행 계획의 사용자 실행 승인: 2026-10-03 `다음 task 진행`. Task1·Task2·Task3 완료(각 독립 구현99점), Task4 독립 구현99점 통과, 전체 W03 리뷰 대기.
+- 작성된 실행 계획의 사용자 실행 승인: 2026-10-03 `다음 task 진행`. Task1·Task2·Task3 완료(각 독립 구현99점), Task4 독립 구현99점 및 전체 W03 독립99점 통과, 완료.
 
 ## Global Constraints
 
@@ -117,7 +117,7 @@
 - [x] **Step 4 — real worker cases:** six stages actual small artifacts+DB history/SSE; one retry then recovery; duplicate delivery provider call once; blocking provider 두 worker lock 경합; 시작 확인 뒤 소유한 worker process group 종료/재시작 및 redelivery; cancel while blocked, outbox publish후 commit 실패. broker failure는 테스트 소유 TCP proxy 연결을 중단/회복해 유도하며 기존 Redis 서버를 중단하지 않는다. wait deadlines<=30초 per observation, full test<=120초, provider blocker timeout<=20초; visibility override와 실제 운영3600 차이를 보고서에 명시한다.
 - [x] **Step 5 — cleanup:** finally에서 소유한 subprocess를 종료/대기하고 고유 prefix에 해당하는 queue/binding/result keys만 SCAN+삭제한다. Redis URL에 CLIENT LIST/SCAN/DELETE ACL 요구를 문서화. FLUSHDB/FLUSHALL·공유 worker 종료 금지. secret URL repr redaction과 fail을 원시 except 밖에서 생성; negative configured URL subprocess로 sentinel 검증. cleanup failure는 fail이며 주 오류를 덮어쓰지 않는다.
 - [x] **Step 6 — docs and full checks:** worker CPU I/O4~8/GPU1/render2~4 Linux 명령, dispatcher, explicit migration v2, blank provider expected failure, manual recover-pending, orphan files/at-least-once/event loss/visibility downtime 설명. 실제 YouTube 테스트가 없음을 명시. opt-in 실행 불가 시 success 증거 미검증으로 분리하고 README 명령을 실제 실행 주장으로 쓰지 않는다.
-- [ ] **Step 7 — 독립 단위 및 전체 리뷰:** Task4>=95 및 전체 변경 review>=95/blocker·important0; report에 모든 점수·날짜·범위·지적·해결·미검증 기록. roadmap 완료 및 W04 next로 전환; `test(pipeline): verify worker recovery and document operations`. 브랜치·작업 폴더 유지, push/PR/merge 없음.
+- [x] **Step 7 — 독립 단위 및 전체 리뷰:** Task4>=95 및 전체 변경 review>=95/blocker·important0; report에 모든 점수·날짜·범위·지적·해결·미검증 기록. roadmap 완료 및 W04 next로 전환; `test(pipeline): verify worker recovery and document operations`. 브랜치·작업 폴더 유지, push/PR/merge 없음.
 
 ## 공통 검증 명령과 합격 기준
 
@@ -145,4 +145,4 @@ RED는 해당 단위의 신규 tests만 `pytest tests/pipeline/<file>.py -q` 또
 | R2 | /root/w03_plan_review · 2026-10-03 | 25+20+20+25+10 = **100** | R1 지적4개 해결 확인. blocker0/important0/minor0. 현재 버전에 대한 독립 평가 |
 | R3 | /root/w03_plan_review · 2026-10-03 | 25+20+20+25+9 = **99** | Redis 공통 안정 범위 확인. blocker0/important0/minor1: 실행 승인/착수 후에도 과거 대기 상태가 남음 → 현재 상태와 역사 문구로 정리 |
 
-R2 작성 당시 자체 검토는 타입·사양 범위·테스트 준비 순서·취소/정리 책임을 대상으로 했고 제품 코드·설치는 미착수였다. R3 의존성 재평가99점을 받은 뒤 lock/sync와 회귀를 진행했고 Task1~3 각 독립99점으로 완료했다. Task4도 독립99점으로 통과했고 전체 W03 리뷰는 별도로 진행한다. live DB migration은 실행하지 않았다.
+R2 작성 당시 자체 검토는 타입·사양 범위·테스트 준비 순서·취소/정리 책임을 대상으로 했고 제품 코드·설치는 미착수였다. R3 의존성 재평가99점을 받은 뒤 lock/sync와 회귀를 진행했고 Task1~3 각 독립99점으로 완료했다. Task4 및 전체 W03 독립 리뷰도 각99점으로 통과했다. 결과와 증거 제한은 통합 보고서에 기록했다. live DB migration은 실행하지 않았다.
