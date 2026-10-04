@@ -54,6 +54,75 @@ def test_scoped_publisher_connection_keeps_broker_key_prefix():
         publisher.close()
 
 
+def test_live_transport_restores_expired_delivery_on_next_scan_without_changing_production(monkeypatch):
+    """Catch the initial pre-expiry scan suppressing recovery for 100 seconds."""
+    import json
+    import socket
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    from kombu.transport import redis as transport
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("Transport module import opened a socket")
+
+    with monkeypatch.context() as imports:
+        imports.setattr(socket, "socket", no_network)
+        from .integration.redis_transport import VerificationRedisTransport
+
+    clock = [1000]
+    monkeypatch.setattr(transport, "time", lambda: clock[0])
+    monkeypatch.setattr(transport, "Mutex", lambda *a, **k: nullcontext())
+
+    class RedisBoundary:
+        def __init__(self):
+            self.scores = {"delivery": 1000}
+            self.messages = {"delivery": json.dumps([{"body": "original"}, "exchange", "queue"])}
+
+        def zrevrangebyscore(self, key, maximum, minimum, **kwargs):
+            return [(tag, score) for tag, score in self.scores.items() if minimum <= score <= maximum]
+
+        def transaction(self, callback, key):
+            callback(self)
+
+        def hget(self, key, tag):
+            return self.messages.get(tag)
+
+        def multi(self):
+            return None
+
+        def zrem(self, key, tag):
+            self.scores.pop(tag, None)
+            return self
+
+        def hdel(self, key, tag):
+            self.messages.pop(tag, None)
+            return self
+
+    def exercise(qos_type):
+        clock[0] = 1000
+        client = RedisBoundary()
+        restored = []
+        channel = SimpleNamespace(
+            do_restore=False,  # No delivered messages are owned by this boundary double at shutdown.
+            visibility_timeout=5, unacked_key="unacked", unacked_index_key="index",
+            unacked_mutex_key="mutex", unacked_mutex_expire=300,
+            conn_or_acquire=lambda supplied=None: nullcontext(client),
+            _do_restore_message=lambda message, exchange, key, pipe, leftmost:
+                restored.append((message, exchange, key, leftmost)),
+        )
+        qos = qos_type(channel)
+        qos.restore_visible()
+        assert restored == []  # The delivery has not yet expired.
+        clock[0] = 1010
+        qos.restore_visible()
+        return restored
+
+    assert exercise(transport.QoS) == []  # Production retains Kombu's scan cadence.
+    assert exercise(VerificationRedisTransport.Channel.QoS) == [
+        ({"body": "original"}, "exchange", "queue", False)
+    ]
+
+
 def test_harness_cleanup_is_drained_on_repeated_cancel_and_hides_primary_secret(tmp_path,monkeypatch):
     import traceback
     from .integration import support

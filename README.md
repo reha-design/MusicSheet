@@ -1,7 +1,7 @@
 # MusicSheet
 
 > 오디오에서 피아노 연주를 분리·전사해 악보를 만드는 시스템을 목표로 합니다.
-> **현재 저장소에는 작업 등록 API·Celery 오케스트레이션·독립 전사 PoC가 있습니다.** 등록과 단계 전달·재시도·취소·이벤트 발행은 연결됐으며, 제품 provider는 후속 작업입니다. 실제 YouTube 처리·AI 연결·악보 생성과 실 Linux worker 성공 경로는 아직 미검증입니다.
+> **현재 저장소에는 작업 등록 API·Celery 오케스트레이션·독립 전사 PoC가 있습니다.** 등록과 단계 전달·재시도·취소·이벤트 발행은 연결됐으며, 제품 provider는 후속 작업입니다. 테스트 provider를 사용한 실제 Linux worker8개 시나리오와 PostgreSQL·Redis·HTTP SSE 검증은 통과했습니다. 실제 YouTube 처리·AI 연결·악보 생성은 후속 범위입니다. [실행 결과와 테스트 조건](docs/reports/celery-live-verification-report.md)을 참조하세요.
 
 ## 현재 구현 범위
 

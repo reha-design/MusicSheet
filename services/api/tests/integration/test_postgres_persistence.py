@@ -270,9 +270,12 @@ def test_migration_is_repeatable(migrated_database):
     async def check():
         connection = await asyncpg.connect(migrated_database)
         try:
-            assert await connection.fetchval("SELECT count(*) FROM schema_migrations") == 1
-            assert await connection.fetchval("SELECT version FROM schema_migrations") == 1
-            assert await connection.fetchval("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'") == 4
+            versions = await connection.fetch("SELECT version FROM schema_migrations ORDER BY version")
+            assert [row["version"] for row in versions] == [1, 2]
+            tables = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            assert {row["tablename"] for row in tables} == {
+                "jobs", "stage_attempts", "artifacts", "schema_migrations", "pipeline_outbox"
+            }
         finally:
             await connection.close()
 
@@ -287,8 +290,12 @@ def test_concurrent_migration_runners_apply_once(clean_database):
         assert sorted(results) == [[], [1, 2]]
         connection = await asyncpg.connect(clean_database)
         try:
-            assert await connection.fetchval("SELECT count(*) FROM schema_migrations WHERE version = 1") == 1
-            assert await connection.fetchval("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'") == 4
+            versions = await connection.fetch("SELECT version FROM schema_migrations ORDER BY version")
+            assert [row["version"] for row in versions] == [1, 2]
+            tables = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            assert {row["tablename"] for row in tables} == {
+                "jobs", "stage_attempts", "artifacts", "schema_migrations", "pipeline_outbox"
+            }
         finally:
             await connection.close()
 

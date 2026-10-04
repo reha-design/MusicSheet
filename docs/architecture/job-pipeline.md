@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/architecture/job-pipeline.md`  
 > **관련 문서:** [docs/domain/job-state.md](../domain/job-state.md), [docs/backend/celery.md](../backend/celery.md)
 >
-> **구현 상태:** 목표 파이프라인 설계입니다. 현재 저장소에는 pipeline worker가 없습니다.
+> **구현 상태:** `packages/pipeline`에 Celery 단계 전달·실행 worker가 구현됐고, 테스트 provider로 실제 Linux worker8개 시나리오를 검증했습니다. 아래 다운로드·AI·렌더링 provider는 목표 설계이며 제품 registry 연결은 후속 범위입니다. [검증 보고서](../reports/celery-live-verification-report.md)를 참조하세요.
 
 ---
 

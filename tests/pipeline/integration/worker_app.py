@@ -14,6 +14,7 @@ from musicsheet_pipeline.contracts import ProviderIdentity
 from musicsheet_pipeline.providers import RetryableProviderError,PermanentProviderError
 from musicsheet_pipeline.tasks import runtime,_owned_cleanup
 from musicsheet_pipeline import celery_app as module
+from .redis_transport import VerificationRedisTransport
 
 ROOT=Path(os.environ["MUSICSHEET_LIVE_CONTROL"])
 ROLE=dict(zip(PipelineStage,(ArtifactRole.SOURCE_ORIGINAL,ArtifactRole.CANONICAL_AUDIO,
@@ -84,6 +85,7 @@ def execute(*args,**kwargs):
 module.execute_task=execute
 app=module.create_celery_app(PipelineSettings.from_env(),runtime_factory=live_runtime,
     queue_prefix=os.environ["MUSICSHEET_LIVE_QUEUE_PREFIX"])
+app.conf.broker_transport=VerificationRedisTransport
 app.conf.broker_transport_options={**app.conf.broker_transport_options,
     "global_keyprefix":os.environ["MUSICSHEET_LIVE_KEY_PREFIX"],"visibility_timeout":5}
 app.conf.result_backend_transport_options={"visibility_timeout":5,"global_keyprefix":os.environ["MUSICSHEET_LIVE_KEY_PREFIX"]}

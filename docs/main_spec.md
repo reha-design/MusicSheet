@@ -6,7 +6,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 
 ## 현재 구현 상태와 사양의 범위
 
-현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. `packages/pipeline`에는 durable outbox dispatcher, Celery 여섯 task, 단계 실행·재시도·취소와 DB 커밋 후 자동 이벤트 발행이 구현됐습니다. 제품 provider registry는 비어 있으며 기본 AI provider 선택, 실제 YouTube 다운로드·전사 연결·악보 렌더링과 웹 앱은 후속 범위입니다. 실제 PostgreSQL·Redis·Linux prefork 통합 성공은 현재 Windows 호스트에서 미검증입니다.
+현재 저장소에는 Python 3.13 uv workspace와 공용 Pydantic 스키마, `put`/`open_read`/`exists`/`delete`/`materialize`를 제공하는 LocalStorage, PostgreSQL·Redis용 Compose 설정, 그리고 별도 Python 3.12 + ONNX CPU 환경의 Basic Pitch PoC worker가 있습니다. Basic Pitch worker는 JSON/MIDI 결과를 생성하지만 API·Celery pipeline에는 연결되지 않았습니다. 별도 `services/api` FastAPI 프로젝트에는 인프라 health endpoint, 명시적 PostgreSQL migration 명령, 선택적 DB pool, 작업 생성·조회·진행률·취소 저장소, YouTube/업로드 등록·조회·취소 REST API, 아티팩트 목록·다운로드 API, Redis Streams 발행 모듈과 SSE 재생 API가 구현되어 있습니다. `packages/pipeline`에는 durable outbox dispatcher, Celery 여섯 task, 단계 실행·재시도·취소와 DB 커밋 후 자동 이벤트 발행이 구현됐습니다. 제품 provider registry는 비어 있으며 기본 AI provider 선택, 실제 YouTube 다운로드·전사 연결·악보 렌더링과 웹 앱은 후속 범위입니다. Docker Linux에서 테스트 provider를 사용한 worker8개 시나리오와 실제 PostgreSQL·Redis·HTTP SSE 검증은 통과했으며, 운영 복구 시간과 실제 AI 자원 정리는 후속 검증입니다.
 
 이 문서 아래의 아키텍처·백엔드·AI·인프라 사양은 **목표 설계**입니다. 예제 명령과 인터페이스는 대응 구현이 저장소에 추가되기 전까지 실행 가능한 기능으로 간주하지 않습니다. 현재 실행 가능한 범위는 README를 기준으로 확인하고, 구현 결과는 작업 보고서에 기록합니다.
 
@@ -54,8 +54,9 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Job REST API v1 설계:** [등록과 처리 경계, 요청·데이터 흐름](./superpowers/specs/2026-09-27-job-rest-api-v1-design.md)
 - **W02 Redis Streams 및 SSE 설계:** [이벤트 저장·재생, 연결 수명과 오류 계약](./superpowers/specs/2026-10-02-redis-streams-sse-design.md) (Revision 1, 사용자 설계 승인)
 - **W02 Redis Streams 및 SSE 구현 계획:** [저장소·SSE·통합 검증의 단위별 실행 계획](./plans/redis-streams-sse-implementation-plan.md) (계획 Revision 2 100/100, 구현 최종 98/100, 실제 Redis 성공 경로 미검증)
-- **W03 Celery 오케스트레이션 설계:** [등록·단계 전달·재시도·취소와 DB 실행 기록](./superpowers/specs/2026-10-03-celery-orchestration-design.md) (Revision 1, 사용자 설계 승인, Task1~4 구현 완료, 실제 Linux worker 통합 성공 미검증)
+- **W03 Celery 오케스트레이션 설계:** [등록·단계 전달·재시도·취소와 DB 실행 기록](./superpowers/specs/2026-10-03-celery-orchestration-design.md) (Revision 1, 사용자 설계 승인, Task1~4 구현 완료, 후속 테스트 provider Linux worker 검증 통과)
 - **W03 Celery 오케스트레이션 실행 계획:** [DB·runner·dispatch·통합 검증](./plans/celery-orchestration-implementation-plan.md) (Revision 3, 독립 계획 99점, 사용자 실행 승인, Task1~4 각 구현99점·전체 리뷰99점 완료)
+- **Celery 실제 Linux worker 후속 검증:** [격리 환경·장애 복구·취소와 Linux 회귀 수정](./plans/celery-live-verification-plan.md) (R4 독립 계획99점, 구현98/99점·최종98점, 실제 worker8개 통과)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 
@@ -147,3 +148,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [29: W03 Celery·dispatcher·API 원자성 보고서](./reports/celery-dispatch-api-report.md)
 - [30: W03 Celery 오케스트레이션 구현 통합 보고서](./reports/celery-orchestration-implementation-report.md)
 - [31: Celery 대체 라이브러리 조사](./reports/celery-alternatives-research-report.md)
+- [32: Celery 실제 Linux worker 장애 복구·취소 검증](./reports/celery-live-verification-report.md)

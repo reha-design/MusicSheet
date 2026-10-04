@@ -218,6 +218,40 @@ def test_local_storage_put_from_path_copies_bytes_and_returns_metadata(
     assert artifact.producer_version == "2.1"
 
 
+@pytest.mark.parametrize("filename", ["canonical.wav", "canonical.WAV"])
+def test_local_storage_wav_metadata_is_independent_of_system_mime_mapping(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, filename: str,
+) -> None:
+    monkeypatch.setattr("musicsheet_storage.local.mimetypes.guess_type", lambda name: ("audio/x-wav", None))
+    payload = b"RIFF\x00\x00\x00\x00WAVEtest audio"
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = storage.put(
+        "job-wav", filename, ArtifactRole.CANONICAL_AUDIO,
+        io.BytesIO(payload), "normalizer", "1",
+    )
+    assert artifact.mime_type == "audio/wav"
+    assert (storage.base_dir / "job-wav" / filename).read_bytes() == payload
+    assert artifact.sha256 == hashlib.sha256(payload).hexdigest()
+
+
+@pytest.mark.parametrize("filename,system_mime,expected_mime", [
+    ("unknown.bin", None, "application/octet-stream"),
+    ("notes.json", "application/json", "application/json"),
+    ("score.pdf", "application/pdf", "application/pdf"),
+])
+def test_local_storage_non_wav_metadata_preserves_system_mapping_and_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    filename: str, system_mime: str | None, expected_mime: str,
+) -> None:
+    monkeypatch.setattr("musicsheet_storage.local.mimetypes.guess_type", lambda name: (system_mime, None))
+    storage = LocalStorage(tmp_path / "outputs")
+    artifact = storage.put(
+        "job-other", filename, ArtifactRole.MODEL_INPUT,
+        io.BytesIO(b"metadata fixture"), "test", "1",
+    )
+    assert artifact.mime_type == expected_mime
+
+
 def test_local_storage_put_reads_binary_stream_in_bounded_chunks(
     tmp_path: Path,
 ) -> None:
