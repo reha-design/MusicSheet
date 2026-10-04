@@ -38,3 +38,17 @@ Canonical Audio (44.1kHz Stereo)
 ## 3. 출력 데이터 처리
 - 모델의 추론 결과는 온셋, 오프셋, 모델별 activation 및 pitch로 수집되어 [docs/domain/note-events.md](../domain/note-events.md)의 `RawNoteEvent`로 직렬화된다. Activation은 보정된 확률이라고 검증되기 전까지 확률로 부르거나 해석하지 않는다.
 - 페달을 실제로 출력하는 provider만 별도의 `PedalEvent`를 만든다. Basic Pitch는 별도 페달 출력을 확인하기 전까지 `supports_pedal=false`와 빈 페달 목록을 사용한다.
+
+## 4. W04 제품 연결 목표 계약
+
+2026-10-04 승인된 [W04 설계 R1](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)에 따른 **구현 전 목표 계약**이다. 현재 제품 registry에는 아직 연결되지 않았다.
+
+- 명시적 `TRANSCRIPTION_PROVIDER=basic-pitch` 설정으로만 TRANSCRIBE provider를 활성화한다. 기본 모델 채택은 W05에서 결정한다.
+- 입력은 직전 SEPARATE 완료 attempt의 `SEPARATED_AUDIO` WAV 하나다. 연결부가 작업별 임시 22,050 Hz mono PCM WAV를 준비하며, 다른 규격이면 로컬 FFmpeg로 변환한다. 이미 맞는 PCM 입력은 변환을 생략한다. 임시 모델 입력은 별도 MODEL_INPUT 아티팩트로 등록하지 않는다.
+- 설치된 Python 3.12 worker를 별도 프로세스로 호출한다. 요청마다 환경 설치·네트워크 다운로드를 수행하지 않는다. 런타임과 모델 의존성 경계는 [런타임 사양](../infrastructure/runtime.md)을 따른다.
+- JSON은 공용 TranscriptionResult schema1·wire 타입·pinned Basic Pitch provenance와 유한 노트 수치를 검사한다. JSON 최대8 MiB, MIDI 최대16 MiB이며 둘 다 일반 파일이고 symlink를 거부한다. MIDI는 전체 파일과 track 종료 구조를 검사하며, 두 결과가 모두 있어야 성공한다. 빈 노트의 유효 결과는 허용한다.
+- 출력은 RAW_TRANSCRIPTION·MIDI 두 아티팩트다. attempt별 파일 이름과 producer/version을 사용해 저장한 뒤 기존 runner가 SHA-256·크기·소유권을 검사하고 DB 완료와 후속 단계 예약을 반영한다. 생성 파일만으로 완료 처리하지 않는다.
+- 연결부는 정상 취소·시간 초과에 실행한 process tree와 I/O thread를 정리한다. owner 강제 종료의 전체 회수·orphan GC는 W11 범위이며 이 동작이 이미 검증됐다고 가정하지 않는다.
+- 실제 모델 검증은 Windows의 기존 CC0 fixture·ONNX CPU 경로를 기준으로 한다. Linux 실제 모델/Celery 검증은 해당 모델 환경 검증이 먼저 필요하다. 정확도 benchmark와 실제 YouTube 전체 변환은 각각 W05·W09 범위다.
+
+실행 단위·명령·독립 점수 게이트는 [W04 실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)에 기록한다.

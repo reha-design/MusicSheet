@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W04 — Basic Pitch 제품 파이프라인 연결**: 설계 Revision 1 작성, 사용자 서면 설계 검토 대기. [설계](superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)와 [착수 보고서](reports/basic-pitch-pipeline-design-report.md)에 입력 변환·독립 CLI 호출·결과 검증·취소 범위를 기록했습니다. 구현 계획과 독립 점수 리뷰, 제품 구현은 아직 시작하지 않았습니다.
+**W04 — Basic Pitch 제품 파이프라인 연결**: 서면 설계 R1 사용자 승인. [실행 계획 R2](plans/basic-pitch-pipeline-implementation-plan.md)가 독립 **99/100**, blocker0/important0으로 통과했습니다(R1 94점 지적 보완). [계획 리뷰 보고서](reports/basic-pitch-pipeline-planning-report.md)에 처리 내용을 기록했습니다. 작성된 계획의 사용자 검토·실행 방식 선택 대기이며 제품 구현은 아직 시작하지 않았습니다.
 
 ## 다음 작업 후보
 

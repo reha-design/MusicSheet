@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/ai/model-adapters.md`  
 > **관련 문서:** [docs/ai/separation.md](./separation.md), [docs/ai/transcription.md](./transcription.md)
 >
-> **구현 상태:** 목표 인터페이스 예시입니다. 현재 저장소에는 provider 구현 패키지가 없습니다.
+> **구현 상태:** 아래 ABC는 목표 인터페이스 예시입니다. 현재 `packages/pipeline`에는 비동기 `StageProvider` 계약과 실행기가 있고 제품 provider registry는 비어 있습니다. 격리된 Basic Pitch CLI는 구현됐으며 제품 연결은 W04 승인 설계에 따라 계획 중입니다.
 
 ---
 
@@ -26,6 +26,8 @@ class ModelInfo(BaseModel):
 ## 2. 핵심 Provider 추상 인터페이스
 
 아래 Python ABC는 **현재 실행환경과 의존성 호환성이 확인된 provider를 같은 프로세스에서 호출할 때** 사용하는 backend-facing 인터페이스다. Python/CUDA 등 실행환경이 다른 모델은 해당 패키지를 백엔드에 직접 import하지 않는다. 별도 uv 프로젝트의 worker를 프로세스 경계로 실행하고, versioned JSON/아티팩트 계약을 백엔드에서 검증한 뒤 아래 공용 타입으로 변환한다. 따라서 isolated worker도 API 관점에서는 같은 `RawNoteEvent`/`PedalEvent` 결과를 제공하지만, worker 내부에서는 `packages/common`을 설치하거나 import하지 않는다.
+
+제품 단계 실행 경계는 기존 `StageProvider.run(StageContext) -> tuple[ArtifactRef,...]`다. 격리 모델 연결부가 이 계약을 구현하며 아래 동기 ABC를 새로 구현하도록 강제하지 않는다. W04의 입력·출력·검증 계약은 [전사 사양](transcription.md#4-w04-제품-연결-목표-계약), 구체적인 설계와 실행 순서는 [승인 설계](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)와 [실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)을 참조한다.
 
 ```python
 from abc import ABC, abstractmethod
