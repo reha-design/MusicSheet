@@ -60,7 +60,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 - **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 구현 진행 중)
-- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1 구현100점 완료·Task2 진행)
+- **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1/2 구현 각100점 완료·Task3 진행)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -155,3 +155,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [34: W04 Basic Pitch 제품 연결 계획 리뷰](./reports/basic-pitch-pipeline-planning-report.md)
 - [35: W04 Basic Pitch 제품 연결 설계 완료](./reports/basic-pitch-pipeline-design-completion-report.md)
 - [36: W04 Task1 프로세스 수명과 설정 계약](./reports/basic-pitch-process-report.md)
+- [37: W04 Task2 WAV 준비·결과 검증·저장](./reports/basic-pitch-result-storage-report.md)
