@@ -2,14 +2,6 @@
 
 이 문서는 아직 시작하지 않은 작업의 요약 목록입니다. 각 작업을 시작할 때 관련 사양을 확인하고 별도 구현 계획을 작성합니다. 계획 독립 리뷰에서 95/100 이상을 받고 blocker/important 지적이 없어야 구현을 시작합니다.
 
-## W04: Basic Pitch 제품 파이프라인 연결
-
-상태: `Planned` · 권장 선행 작업: W03
-
-완료 기준: Python 3.13 백엔드에서 격리된 Python 3.12 ONNX worker를 호출하고, versioned JSON과 MIDI 결과를 공용 계약으로 검증해 아티팩트로 등록합니다.
-
-사양: [전사](ai/transcription.md), [모델 어댑터](ai/model-adapters.md), [Basic Pitch worker 계획](plans/basic-pitch-isolated-worker-implementation-plan.md)
-
 ## W05: 기본 전사 모델 결정
 
 상태: `Planned` · 권장 선행 작업: W04

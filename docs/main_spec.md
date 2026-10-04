@@ -59,6 +59,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Celery 실제 Linux worker 후속 검증:** [격리 환경·장애 복구·취소와 Linux 회귀 수정](./plans/celery-live-verification-plan.md) (R4 독립 계획99점, 구현98/99점·최종98점, 실제 worker8개 통과)
 - **Basic Pitch 독립 worker 구현 계획:** [Python 3.12 + ONNX worker 및 versioned JSON 계약](./plans/basic-pitch-isolated-worker-implementation-plan.md)
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
+- **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 검토 대기, 구현 미착수)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -149,3 +150,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [30: W03 Celery 오케스트레이션 구현 통합 보고서](./reports/celery-orchestration-implementation-report.md)
 - [31: Celery 대체 라이브러리 조사](./reports/celery-alternatives-research-report.md)
 - [32: Celery 실제 Linux worker 장애 복구·취소 검증](./reports/celery-live-verification-report.md)
+- [33: W04 Basic Pitch 제품 파이프라인 설계 착수](./reports/basic-pitch-pipeline-design-report.md)
