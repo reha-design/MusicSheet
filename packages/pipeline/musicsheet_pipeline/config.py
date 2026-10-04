@@ -21,12 +21,29 @@ def _url(value,schemes):
 
 
 @dataclass(frozen=True)
+class BasicPitchSettings:
+    python: Path = field(repr=False)
+    ffmpeg: Path = field(repr=False)
+
+    def __post_init__(self):
+        try:
+            for name in ("python", "ffmpeg"):
+                path = Path(getattr(self, name))
+                if not path.is_absolute():
+                    raise ValueError
+                object.__setattr__(self, name, path)
+        except Exception:
+            raise ValueError("Invalid pipeline configuration") from None
+
+
+@dataclass(frozen=True)
 class PipelineSettings:
     database_url: str|None=field(repr=False)
     broker_url: str|None=field(repr=False)
     result_backend: str|None=field(repr=False)
     redis_url: str|None=field(repr=False)
     local_storage_dir: Path
+    basic_pitch: BasicPitchSettings | None = None
 
     @classmethod
     def from_env(cls,environ=None,*,working_directory=None):
@@ -36,10 +53,16 @@ class PipelineSettings:
             storage=Path(env.get("LOCAL_STORAGE_DIR") or "outputs")
             if not storage.is_absolute():
                 storage=(cwd/storage).resolve(strict=False)
+            selector = env.get("TRANSCRIPTION_PROVIDER")
+            basic_pitch = None
+            if selector:
+                if selector != "basic-pitch":
+                    raise ValueError
+                basic_pitch = BasicPitchSettings(env.get("BASIC_PITCH_PYTHON"), env.get("FFMPEG_EXECUTABLE"))
             return cls(_url(env.get("DATABASE_URL"),{"postgres","postgresql"}),
                 _url(env.get("CELERY_BROKER_URL"),{"redis","rediss"}),
                 _url(env.get("CELERY_RESULT_BACKEND"),{"redis","rediss"}),
-                _url(env.get("REDIS_URL"),{"redis","rediss"}),storage)
+                _url(env.get("REDIS_URL"),{"redis","rediss"}),storage,basic_pitch)
         except Exception:
             raise ValueError("Invalid pipeline configuration") from None
 

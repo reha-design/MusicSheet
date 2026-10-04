@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W04 — Basic Pitch 제품 파이프라인 연결**: **설계·계획 단계 완료**. 서면 설계 R1 사용자 승인, [최종 실행 계획 R3](plans/basic-pitch-pipeline-implementation-plan.md) 독립 **100/100**, 미해결 지적0개. [설계 완료 보고서](reports/basic-pitch-pipeline-design-completion-report.md)에 요구사항별 근거를 기록했습니다. 다음 단계는 제품 구현이며, 최종 작성 계획의 사용자 검토·실행 방식 선택 후 시작합니다. 제품 구현은 아직 미착수입니다.
+**W04 — Basic Pitch 제품 파이프라인 연결**: 사용자 `다음 과정 진행` 승인으로 **제품 구현 진행 중**. 서면 설계 R1 승인과 [실행 계획 R4](plans/basic-pitch-pipeline-implementation-plan.md) 독립 **100/100**을 기준으로 주 에이전트가 구현하고 각 단위의 독립 코드 리뷰95점 게이트를 유지합니다. Task1 실행·취소 및 자원 회수는 독립 코드 리뷰100점으로 완료했습니다. 다음은 Task2 WAV 준비·결과 검증·저장이며 provider 연결·실제 모델/DB 검증이 뒤따릅니다.
 
 ## 다음 작업 후보
 

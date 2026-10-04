@@ -10,11 +10,12 @@
 
 **Spec:** [사용자 승인 설계 R1](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md), [전사](../ai/transcription.md), [모델 어댑터](../ai/model-adapters.md), [런타임](../infrastructure/runtime.md), [아티팩트](../domain/artifacts.md).
 
-- Plan Revision: 3 · 2026-10-04 (Asia/Seoul) · 기준 `47981c7`, branch `codex/celery-orchestration`.
+- Plan Revision: 4 · 2026-10-04 (Asia/Seoul) · 기준 `a1fd862`, branch `codex/celery-orchestration`. R4는 Task1 독립 구현 리뷰의 Linux 시작/취소 경쟁을 반영한 private gate 준비·완료 handshake 보완이며 공개 provider 계약과 Task2~4 범위는 유지한다.
 - 사용자 서면 설계 승인: 2026-10-04 `다음작업 진행` (설계 R1 제시 후 응답).
-- 독립 계획 리뷰: R1 **94/100** → R2 **99/100** → R3 **100/100**, blocker0/important0/minor0. R3 전체에 대한 독립 재리뷰로 설계·계획 단계를 완료했다. 제품 구현은 아직 시작하지 않았다.
-- 작성된 실행 계획의 사용자 검토·실행 방식 선택: 대기. 권장 방식은 주 에이전트 구현 + 각 단위 독립 reviewer다.
-- 현재 사용자 목표: `설계완료까지 계속해서 진행`. 이번 단계의 완료 대상은 설계·실행 계획·문서 정합성·독립 계획 리뷰이며 제품 구현과 실제 모델/DB 실행은 이후 단계다.
+- 독립 계획 리뷰: R1 **94/100** → R2 **99/100** → R3 **100/100**, blocker0/important0/minor0. R3 전체에 대한 독립 재리뷰로 설계·계획 단계를 완료했다. 아래 실행 승인 이후 제품 구현을 진행한다.
+- 작성된 실행 계획의 사용자 실행 승인: 2026-10-04 `다음 과정 진행`. 주 에이전트 구현 + 각 단위 독립 reviewer 방식으로 실행한다.
+- R4 독립 계획 재평가: **100/100**, blocker0/important0/minor0 (2026-10-04, /root/w04_plan_review). 계획 게이트와 별도로 Task1 수정 코드95점·미해결 blocker/important0 확인 전 다음 구현 단위를 시작하지 않는다.
+- 설계 단계 목표 `설계완료까지 계속해서 진행`은 완료했다. 현재 W04 제품 구현을 실행하며 단위별 검증·독립 코드 리뷰 점수는 각각 기록한다.
 
 ## Global Constraints
 
@@ -31,6 +32,10 @@
 - 계획과 각 구현 단위 독립 리뷰 각각 >=95/100, blocker0/important0 후 다음 단위. 관련 파일만 명시적 stage·보고서·Conventional Commit, push/PR/merge 없음.
 
 ## Review Focus
+
+R4 Task1 보완: gate는 Python SIGTERM handler 설치 후 byte-level `READY\n`을 전송한다. parent는 READY를 확인하고 완료-frame reader를 생성한 뒤에만 R을 전송한다. release 전 취소는 actual tool이 없으므로 stdin EOF와 gate wait로 회수한다. release 후 Linux SIGTERM 정리에서는 **descendant0 AND direct-tool completion reader.done()**가 모두 확인될 때만 EOF로 gate를 종료한다. Popen 직전 scheduling 지연에도 늦게 생성된 tool은 유예5초와 마지막 SIGKILL의 소유권에 포함된다. cleanup의 내부 timeout은 고정 PermanentProviderError이며 실행 deadline만 TimeoutError다. 실패 테스트의 identity monkeypatch는 context로 항상 복원한다.
+
+추가 필수 검증 `test_cancel_after_release_before_tool_spawn_reaps_late_tool`: 실제 gate를 복제한 test-only 파일에서 R 수신 직후/Popen 직전 .5초 지연과 marker만 삽입한다. marker 이후 cancellation을 전달해 CancelledError·gate wait 완료·actual parent/child alive0을 확인하고 finally에서 test가 소유한 PID를 회수한다. Linux 실제 RED는1 failed/5.32s(cleanup TimeoutError), 수정 후 선택/root 회귀를 다시 확인한다. READY는 Windows text newline 변환을 피하도록 bytes로 보낸다. 별도 `test_cleanup_timeout_is_permanent`에서 원시 sentinel 없이 내부 cleanup deadline을 고정 오류로 정규화하는 것도 확인한다.
 
 1. 프로세스 생성 await 중 취소 또는 Windows job 연결 실패: 실제 tool 실행 전에 소유권 확보, 생성 완료를 회수하고 owned tree 종료 (Task1).
 2. 설정 probe 실패가 runtime 예외로 빠져 Celery 무한 retry: 실패 provider를 TRANSCRIBE에만 반환해 runner가 영구 실패를 기록하고 다른 stage 동작 유지 (Task3).
@@ -58,12 +63,12 @@
 
 **Interfaces:** 위 ProcessResult/run_owned_process/WindowsJob/BasicPitchSettings. 이후 모든 모델·FFmpeg/probe 호출은 이 실행기로 통일한다.
 
-- [ ] **Step1 — RED 테스트:** `test_provider_config_is_opt_in_and_preserves_five_argument_constructor`에서 미설정 basic_pitch=None, 활성 경로 절대값, unknown/provider·상대 path·누락 path 고정 ValueError. `test_process_argv_is_literal`은 공백/한글/특수문자 인자가 그대로 전달되고 별도 명령이 실행되지 않음을 assert. `test_cancel_before_gate_release_never_launches_tool`은 시작 gate가 닫힌 상태의 tool marker0을 assert.
-- [ ] **Step2 — RED 실행:** `uv run --project . pytest tests/pipeline/test_basic_pitch_process.py tests/pipeline/test_contracts.py -q`; 새 interface 부재/실제 동작 assertion 실패를 기록한다. import 실패만 있다면 interface scaffold 이후 행동 assertion RED도 확인한다.
-- [ ] **Step3 — 소유권 구현:** create_subprocess_exec 자체를 task로 소유·shield하고 반복 취소에도 생성 완료를 drain한다. POSIX는 별도 session/process group; Windows는 gate PID를 소유한 Job Object에 assign한 후에만 시작 byte를 보낸다. assign 실패는 gate를 종료·wait한 뒤 실패한다. stdlib gate는 worker/model bootstrap과 FFmpeg를 똑같이 감싼다. stderr는 DEVNULL, stdout은 제한 control frame으로 수집하며 자식의 무한 출력은 제한된 메모리로 drain한다.
-- [ ] **Step4 — 종료 구현:** 정상/실패/취소/timeout 모두 tree를 정리한다. Linux gate는 tool spawn 전 SIGTERM **무시 disposition이 아닌 Python no-op handler**를 설치하여 자신은 살아 있고 exec된 tool은 정상 signal disposition을 사용하게 한다. parent는 gate PID의 `/proc` start-time/session/group identity를 시작 전에 기록한다. 종료 시 gate가 살아 있음을 확인하고 group SIGTERM을 한 번 보낸 뒤, gate를 제외한 active descendant가0이 될 때까지 최대5초 기다린다. 모두 종료하면 stdin EOF로 gate를 종료·wait한다. descendant가 남으면 identity를 다시 확인해 group SIGKILL을 **마지막 group 신호로 한 번만** 보내고, 이후 재신호 없이 reap·종료 확인한다. 종료 중 gate가 예기치 않게 먼저 죽거나 identity가 바뀌면 숫자 PGID에 추가 신호를 보내지 않고 고정 cleanup 오류를 보고한다. 정상 정리 성공으로 기록하지 않는다. Linux 검증은 `/proc`를 사용하며 다른 POSIX OS는 W04 지원으로 주장하지 않는다. 자발적으로 setsid/setpgid한 descendant의 회수는 보장하지 않는다. Windows는 TerminateJobObject→최대5초 active-process-count0 확인→gate wait→handle close다. 다른 PID/group 또는 process 이름 전체를 대상으로 종료하지 않는다.
-- [ ] **Step5 — GREEN 경계 검증:** `test_cancel_during_spawn_drains_created_process`, `test_repeated_cancel_reaps_parent_and_grandchild`, `test_timeout_kills_uncooperative_descendant`, `test_normal_exit_with_grandchild_inheriting_stdout_completes_without_provider_timeout`, `test_gate_remains_alive_during_sigterm_grace_period`, `test_unexpected_gate_exit_never_signals_reused_group`, `test_job_assignment_failure_is_closed`, `test_probe_overflow_is_bounded`, `test_child_environment_excludes_database_secret`. normal-exit stdout fixture는 capture_stdout=True이고 종료5초 grace를 포함해10초 이내 완료하며 child/descendant alive0을 assert한다. unexpected-gate fixture의 탈출 child는 test가 별도로 기록한 소유권으로 finally 회수한다. child 환경은 PATH/SystemRoot/WINDIR/COMSPEC/TEMP/TMP/HOME/USERPROFILE/APPDATA/LOCALAPPDATA/LANG/LC_ALL만 상속하고 그 외는 전달하지 않는다. test fixture는 PID·ready marker와 제한 deadline을 사용하며 finally에서 생성한 자원을 회수한다.
-- [ ] **Step6 — 리뷰·commit:** Task1 선택 테스트 + root 회귀, Windows 실제 descendant 검사 및 Linux 별도 Python3.13 container에서 같은 선택 테스트를 실행한다. 해당 플랫폼을 실행하지 못하면 Task1 플랫폼 게이트를 통과 처리하지 않는다. 독립 reviewer >=95/blocker0/important0, 보고서·색인, `feat(pipeline): own transcription process lifecycles`.
+- [x] **Step1 — RED 테스트:** `test_provider_config_is_opt_in_and_preserves_five_argument_constructor`에서 미설정 basic_pitch=None, 활성 경로 절대값, unknown/provider·상대 path·누락 path 고정 ValueError. `test_process_argv_is_literal`은 공백/한글/특수문자 인자가 그대로 전달되고 별도 명령이 실행되지 않음을 assert. `test_cancel_before_gate_release_never_launches_tool`은 시작 gate가 닫힌 상태의 tool marker0을 assert.
+- [x] **Step2 — RED 실행:** `uv run --project . pytest tests/pipeline/test_basic_pitch_process.py tests/pipeline/test_contracts.py -q`; 새 interface 부재/실제 동작 assertion 실패를 기록한다. import 실패만 있다면 interface scaffold 이후 행동 assertion RED도 확인한다.
+- [x] **Step3 — 소유권 구현:** create_subprocess_exec 자체를 task로 소유·shield하고 반복 취소에도 생성 완료를 drain한다. POSIX는 별도 session/process group; Windows는 gate PID를 소유한 Job Object에 assign한 후에만 시작 byte를 보낸다. assign 실패는 gate를 종료·wait한 뒤 실패한다. stdlib gate는 worker/model bootstrap과 FFmpeg를 똑같이 감싼다. stderr는 DEVNULL, stdout은 제한 control frame으로 수집하며 자식의 무한 출력은 제한된 메모리로 drain한다.
+- [x] **Step4 — 종료 구현:** 정상/실패/취소/timeout 모두 tree를 정리한다. Linux gate는 tool spawn 전 SIGTERM **무시 disposition이 아닌 Python no-op handler**를 설치하여 자신은 살아 있고 exec된 tool은 정상 signal disposition을 사용하게 한다. parent는 gate PID의 `/proc` start-time/session/group identity를 시작 전에 기록한다. 종료 시 gate가 살아 있음을 확인하고 group SIGTERM을 한 번 보낸 뒤, gate를 제외한 active descendant가0이 될 때까지 최대5초 기다린다. direct-tool completion frame과 모든 descendant 종료가 함께 확인되면 stdin EOF로 gate를 종료·wait한다. frame이 아직 없으면 Popen 전이라도 유예 종료까지 소유권을 유지한다. descendant가 남으면 identity를 다시 확인해 group SIGKILL을 **마지막 group 신호로 한 번만** 보내고, 이후 재신호 없이 reap·종료 확인한다. 종료 중 gate가 예기치 않게 먼저 죽거나 identity가 바뀌면 숫자 PGID에 추가 신호를 보내지 않고 고정 cleanup 오류를 보고한다. 정상 정리 성공으로 기록하지 않는다. Linux 검증은 `/proc`를 사용하며 다른 POSIX OS는 W04 지원으로 주장하지 않는다. 자발적으로 setsid/setpgid한 descendant의 회수는 보장하지 않는다. Windows는 TerminateJobObject→최대5초 active-process-count0 확인→gate wait→handle close다. 다른 PID/group 또는 process 이름 전체를 대상으로 종료하지 않는다.
+- [x] **Step5 — GREEN 경계 검증:** `test_cancel_during_spawn_drains_created_process`, `test_repeated_cancel_reaps_parent_and_grandchild`, `test_timeout_kills_uncooperative_descendant`, `test_normal_exit_with_grandchild_inheriting_stdout_completes_without_provider_timeout`, `test_gate_remains_alive_during_sigterm_grace_period`, `test_unexpected_gate_exit_never_signals_reused_group`, `test_job_assignment_failure_is_closed`, `test_probe_overflow_is_bounded`, `test_child_environment_excludes_database_secret`. normal-exit stdout fixture는 capture_stdout=True이고 종료5초 grace를 포함해10초 이내 완료하며 child/descendant alive0을 assert한다. unexpected-gate fixture의 탈출 child는 test가 별도로 기록한 소유권으로 finally 회수한다. child 환경은 PATH/SystemRoot/WINDIR/COMSPEC/TEMP/TMP/HOME/USERPROFILE/APPDATA/LOCALAPPDATA/LANG/LC_ALL만 상속하고 그 외는 전달하지 않는다. test fixture는 PID·ready marker와 제한 deadline을 사용하며 finally에서 생성한 자원을 회수한다.
+- [x] **Step6 — 리뷰·commit:** Task1 선택 테스트 + root 회귀, Windows 실제 descendant 검사 및 Linux 별도 Python3.13 container에서 같은 선택 테스트를 실행한다. 해당 플랫폼을 실행하지 못하면 Task1 플랫폼 게이트를 통과 처리하지 않는다. 독립 reviewer >=95/blocker0/important0, 보고서·색인, `feat(pipeline): own transcription process lifecycles`.
 
 ### Task 2: WAV 준비·JSON/MIDI 검증과 취소 가능한 저장
 
@@ -136,6 +141,10 @@ Linux 재현은 Docker `python:3.13-slim`에 잠긴 root 소스와 변경 테스
 | 2026-10-04 | 계획 | R1 전체 | /root/w04_plan_review | 24/25 · 18/20 · 20/20 · 23/25 · 9/10 | 94/100 | important2: stdout EOF 교착·SIGTERM leader 보존. minor2: 반환 직전 rollback·Linux 재현/설계 상태. R2 보완 후 재평가 |
 | 2026-10-04 | 계획 | R2 전체 | /root/w04_plan_review | 25/25 · 20/20 · 20/20 · 24/25 · 10/10 | 99/100 | blocker0/important0/minor1. R1 지적 모두 해결. 비PCM WAV→FFmpeg 경로의 IEEE float 변환 test 보강 권고는 Task2 구현 리뷰에서 확인 |
 | 2026-10-04 | 계획 | R3 전체 | /root/w04_plan_review | 25/25 · 20/20 · 20/20 · 25/25 · 10/10 | 100/100 | blocker0/important0/minor0. R2 WAV 경계 지적 해결, 승인 설계 범위 준수·설계 산출물 완결성 확인 |
+| 2026-10-04 | 계획 | R4 전체 | /root/w04_plan_review | 25/25 · 20/20 · 20/20 · 25/25 · 10/10 | 100/100 | blocker0/important0/minor0. private READY·완료-frame handshake·cleanup timeout 분류·Linux scheduling race 검사 보완. 공개 provider/Task2~4 범위 유지 |
+| 2026-10-04 | 구현 | Task1 수정 전, a1fd862 대비 미커밋 실행기/설정/테스트/보고서/색인 | /root/w04_process_review | 23/25 · 21/25 · 22/25 · 14/15 · 10/10 | 90/100 | blocker0/important2/minor1. Linux 늦은 생성 누수·cleanup timeout 오분류, test identity 복원. R4 계획100점 후 수정 코드 검증·재리뷰 중 |
+| 2026-10-04 | 구현 | Task1 R4 첫 수정, 동일 a1fd862 대비 전체 | /root/w04_process_review | 23/25 · 23/25 · 24/25 · 14/15 · 10/10 | 94/100 | blocker0/important1/minor0. 이전 지적 해결; EOF 직전 leader 재확인·예상 gate exit 검사가 누락. Linux RED1failed/.34s 후 기존 fail-closed 계약 구현 보완·재리뷰 |
+| 2026-10-04 | 구현 | Task1 최종, a1fd862 대비 실행기/설정/테스트/보고서/색인 전체 | /root/w04_process_review | 25/25 · 25/25 · 25/25 · 15/15 · 10/10 | 100/100 | blocker0/important0/minor0. 90/94점 지적과 Windows timeout fixture 부하 민감성 모두 해결. Windows root236/16skip/4deselect·Linux root242/10skip/4deselect, 선택28/4skip·13/1skip |
 
 구현 기록은 단위 완료 때 이 표에 별도로 추가한다. 계획 점수를 코드 점수로 사용하지 않는다. 계획의 실질 변경은 revision 증가와 재리뷰 후 진행한다.
 
