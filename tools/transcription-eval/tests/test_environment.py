@@ -18,3 +18,28 @@ assert not any(name.split('.')[0] in {'torch','tensorflow','onnxruntime','basic_
 """
     result = subprocess.run([sys.executable, "-I", "-c", code], cwd=Path(__file__).parents[3], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
+
+
+def test_cli_help_exposes_prepare_without_network():
+    result = subprocess.run([sys.executable, "-I", "-m", "musicsheet_transcription_eval", "--help"], capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert "prepare" in result.stdout
+
+
+def test_cli_path_escape_rejected_before_network(monkeypatch):
+    import uuid
+    from musicsheet_transcription_eval import cli, dataset
+    repo = Path(__file__).parents[3]
+    name = "test-cli-escape-" + uuid.uuid4().hex
+    output = repo / "outputs" / ".." / name
+    calls = []
+    def forbidden(*args, **kwargs):
+        calls.append(True)
+        raise ValueError("network invoked")
+    monkeypatch.setattr(dataset, "download_metadata", forbidden)
+    try:
+        assert cli.main(["prepare", "--output-root", str(output), "--manifest", str(repo / "docs/evaluations" / (name + ".json")), "--ffmpeg", sys.executable]) == 4
+        assert not calls
+    finally:
+        escaped = repo / name
+        if escaped.exists(): escaped.rmdir()

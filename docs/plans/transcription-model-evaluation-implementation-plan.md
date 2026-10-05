@@ -10,7 +10,7 @@
 
 **Spec:** [사용자 승인 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md), [전사](../ai/transcription.md), [모델 경계](../ai/model-adapters.md), [정답 이벤트](../domain/note-events.md).
 
-Plan Revision5 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestration`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획 R3 사용자 실행 승인: 2026-10-05 `다음 작업 진행`**. R4/5는 Task1 코드 리뷰에서 발견한 evaluator 입력·출력 자원 경계 보완이며 독립 계획 재평가를 적용한다. 기존 주 에이전트 구현＋단위별 독립 reviewer 방식이다. 독립 계획 점수는 마지막 리뷰 기록에서 확인한다. Task1은62개 테스트·독립 코드100점으로 완료, Task2~5는 미시작이다.
+Plan Revision5 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestration`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획 R3 사용자 실행 승인: 2026-10-05 `다음 작업 진행`**. R4/5는 Task1 코드 리뷰에서 발견한 evaluator 입력·출력 자원 경계 보완이며 독립 계획 재평가를 적용한다. 기존 주 에이전트 구현＋단위별 독립 reviewer 방식이다. 독립 계획 점수는 마지막 리뷰 기록에서 확인한다. Task1은62개 테스트·독립 코드100점으로 완료했다. Task2 실제 고정 입력12개·manifest 준비와128개 테스트·독립 코드100점으로 완료했다. Task3~5는 미시작이다.
 
 ## Global Constraints
 
@@ -30,7 +30,7 @@ Plan Revision5 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestra
 ## Review Focus
 
 1. 같은 시각 tempo/note-off/note-on/CC64 충돌: 안정 순서와 재타건·sustain 경계 보존 (Task1 `test_simultaneous_tempo_restrike_pedal`).
-2. Windows 경로·case 충돌·symlink: workspace staging 밖 쓰기/읽기와 manifest 변조 거부 (Task2 `test_member_case_collision_and_symlink`).
+2. Windows 경로·case 충돌·symlink: workspace staging 밖 쓰기/읽기와 manifest 변조 거부 (Task2 `test_member_case_collision_and_traversal`, `test_archive_boundary_rejection_preserves_no_part`).
 3. HTTP200·gzip·object 교체: body 소비 전 거부, 제한된 재시도/rollback (Task2 `test_range_200_never_reads_body`).
 4. 정상 출력 직후 취소/정리 실패: 자식/I/O 정리 확인 전에 측정 성공 처리 금지 (Task4 `test_cancel_after_valid_output_not_success`).
 5. 진단 성공이 실패를 덮거나 float 차이가 winner를 만듦: 원시 ledger 유지·결정성/선정 보류 (Task4 `test_diagnostic_success_preserves_failure`, `test_one_bit_output_change_blocks_selection`).
@@ -96,7 +96,7 @@ def test_duplicate_prediction_is_fp():
 
 **Interfaces:** `selection_digest(audio_filename:str)->str`; `crop_start(duration:float,audio_filename:str)->int`; `select_recordings(v3:Sequence[dict],v2:Sequence[dict])->tuple[dict,...]`; `acquire_members(selection:Sequence[dict],*,source:Path|str,destination:Path,stop:threading.Event)->dict[str,object]`; `RangeReader(url:str,*,client:httpx.Client,stop:threading.Event)`의 `read/seek/tell/close`; `async prepare_audio(source:Path,*,start_sec:int,destination:Path,ffmpeg:Path,cancellation:asyncio.Event)->PreparedAudio`; `async prepare_manifest(selection:Sequence[dict],*,source_root:Path,output_root:Path,metadata_hashes:dict[str,str],source_receipt:dict[str,object],ffmpeg:Path,cancellation:asyncio.Event)->Manifest`; `write_manifest(manifest:Manifest,path:Path)->str`; `load_manifest(path:Path,*,run_root:Path)->Manifest`. 동기 chunk I/O는 run_owned_io, FFmpeg는 run_owned_process로 실행해 취소 시 drain/child 정리를 공유한다. prepare_audio가 AudioPreparationReceipt를 생산하고 prepare_manifest가 canonical JSON hash와 함께 entry에 넣는다. source_frames는 crop의30*source_rate, start_frame은 start_sec*source_rate, target frames는661500/480000이다. version/argv/revision/elapsed 또는frame 수가 누락/불일치면 freeze 거부.
 
-- [ ] **Step1 실패 테스트:** metadata 순서와 무관한 같은12 IDs/crop; v2 불일치·중복·hash 변조·탈출/symlink/case 충돌 거부; 중앙 start 공식 미사용. 유효 local receipt가 있으면 network0. Mock206/200/416/gzip/ETag 변경·truncation·재시도/cap; 200에서 body iterator 호출0. ZIP stored/deflate/forceZIP64(테스트 한정 ZIP64_LIMIT 축소), >4GiB virtual sparse offset·CRC·member/중앙 directory 초과·암호/중복/경로 거부. anti-phase mono0, half-sample rounding/clip, 30초 frame661500/480000. diskspace 부족/중단 시 기존 완료 파일 보존·.part0.
+- [x] **Step1 실패 테스트:** metadata 순서와 무관한 같은12 IDs/crop; v2 불일치·중복·hash 변조·탈출/symlink/case 충돌 거부; 중앙 start 공식 미사용. 유효 local receipt가 있으면 network0. Mock206/200/416/gzip/ETag 변경·truncation·재시도/cap; 200에서 body iterator 호출0. ZIP stored/deflate/forceZIP64(테스트 한정 ZIP64_LIMIT 축소), >4GiB virtual sparse offset·CRC·member/중앙 directory 초과·암호/중복/경로 거부. anti-phase mono0, half-sample rounding/clip, 30초 frame661500/480000. diskspace 부족/중단 시 기존 완료 파일 보존·.part0.
 
 ```python
 def test_selection_crop_golden_lf_bytes():
@@ -107,10 +107,10 @@ def test_selection_crop_golden_lf_bytes():
 ```
 
 `test_selection_order_golden`의 audio_filename은 **`2018/fixture-00.wav`부터 `2018/fixture-12.wav`까지의 전체 상대 경로**다. 이 유효v2/v3 test metadata에서 선택 순서03,10,11,12,05,09,07,04,08,00,01,02 및 제외06을 확인한다. `test_missing_audio_receipt_refuses_freeze`는 frame/ffmpeg_version/argv/pcm_revision/elapsed 각 필드를 제거하고 manifest freeze가 실패함을 확인한다. receipt hash 변조도 거부한다.
-- [ ] **Step2 RED:** 공통 명령의 test directory를 `tools/transcription-eval/tests/test_dataset.py tools/transcription-eval/tests/test_range_io.py tools/transcription-eval/tests/test_audio.py tools/transcription-eval/tests/test_manifest.py`로 교체, config/collect-only 확인 후 새 t2-red. 기대 미구현/행동 FAIL.
-- [ ] **Step3 구현:** 공식 metadata `https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.json`와 v2 대응 URL; v3 ZIP 같은 base의 `maestro-v3.0.0.zip`, member prefix `maestro-v3.0.0/`. 검증된 local source 우선. [Python3.13 zipfile](https://docs.python.org/3.13/library/zipfile.html)이 ZIP64/parser/CRC를 처리하고 [HTTPX streaming](https://www.python-httpx.org/quickstart/)으로 전송한다. RangeReader는 seekable I/O wrapper만 구현, ZIP64 자체 파싱 금지. maxread16MiB/요청chunk<=1MiB, identity encoding/TLS verify/타 origin redirect 금지, status206/range/ETag/길이 확인 후 body. 모든 전송 byte·재시도는 cap에 포함. ZipFile로 선택24개 audio/MIDI만 .part에 stream, CRC/size/hash 확인 후 staging 내부 완료 경로로 이동. `extractall`/무제한read/전체archive testzip 금지. library acceptance 통과 후 실제 취득. 실패 시 acquisition_unavailable, custom parser는 별도 설계/계획/독립 리뷰가 필요.
-- [ ] **Step4 GREEN/준비:** 선택/full evaluator 테스트. 목표 CLI `transcription-eval prepare --output-root D:/develop/MusicSheet/outputs/w05-evaluation --manifest D:/develop/MusicSheet/docs/evaluations/maestro-w05-manifest.json --ffmpeg <절대경로> [--local-source <검증된 archive/dir>]`. 설치된 실행기 경로를 탐색/검증하고 기록, 임의 추정 금지. Task1 reference 사용; sorted finite JSON·상대경로·content hash. source receipt는 전체archive 검증인지 부분 CRC/hash인지 구분. 12개 모든 입력/reference/hash 준비 후 freeze; 실패 시 대체 구간 선택 금지.
-- [ ] **Step5 보고/리뷰/커밋:** source/license/bytes/time/한도/무결성 보증 범위·실패 기록. 독립>=95 뒤 `feat(eval): prepare fixed Maestro evaluation inputs`.
+- [x] **Step2 RED:** 공통 명령의 test directory를 `tools/transcription-eval/tests/test_dataset.py tools/transcription-eval/tests/test_range_io.py tools/transcription-eval/tests/test_audio.py tools/transcription-eval/tests/test_manifest.py`로 교체, config/collect-only 확인 후 새 t2-red. 기대 미구현/행동 FAIL.
+- [x] **Step3 구현:** 공식 metadata `https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.json`와 v2 대응 URL; v3 ZIP 같은 base의 `maestro-v3.0.0.zip`, member prefix `maestro-v3.0.0/`. 검증된 local source 우선. [Python3.13 zipfile](https://docs.python.org/3.13/library/zipfile.html)이 ZIP64/parser/CRC를 처리하고 [HTTPX streaming](https://www.python-httpx.org/quickstart/)으로 전송한다. RangeReader는 seekable I/O wrapper만 구현, ZIP64 자체 파싱 금지. maxread16MiB/요청chunk<=1MiB, identity encoding/TLS verify/타 origin redirect 금지, status206/range/ETag/길이 확인 후 body. 모든 전송 byte·재시도는 cap에 포함. ZipFile로 선택24개 audio/MIDI만 .part에 stream, CRC/size/hash 확인 후 staging 내부 완료 경로로 이동. `extractall`/무제한read/전체archive testzip 금지. library acceptance 통과 후 실제 취득. 실패 시 acquisition_unavailable, custom parser는 별도 설계/계획/독립 리뷰가 필요.
+- [x] **Step4 GREEN/준비:** 선택/full evaluator 테스트. 목표 CLI `transcription-eval prepare --output-root D:/develop/MusicSheet/outputs/w05-evaluation --manifest D:/develop/MusicSheet/docs/evaluations/maestro-w05-manifest.json --ffmpeg <절대경로> [--local-source <검증된 archive/dir>]`. 설치된 실행기 경로를 탐색/검증하고 기록, 임의 추정 금지. Task1 reference 사용; sorted finite JSON·상대경로·content hash. source receipt는 전체archive 검증인지 부분 CRC/hash인지 구분. 12개 모든 입력/reference/hash 준비 후 freeze; 실패 시 대체 구간 선택 금지.
+- [x] **Step5 보고/리뷰/커밋:** source/license/bytes/time/한도/무결성 보증 범위·실패 기록. 독립>=95 뒤 `feat(eval): prepare fixed Maestro evaluation inputs`.
 
 ### Task3: ByteDance 평가 전용 worker·checkpoint
 

@@ -165,3 +165,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [42: W05 전사 모델 평가 설계 R1 리뷰 처리](./reports/transcription-model-evaluation-design-review-report.md)
 - [43: W05 전사 모델 평가 실행 계획 리뷰](./reports/transcription-model-evaluation-planning-report.md)
 - [44: W05 평가 환경·MIDI 정답·점수 계산](./reports/transcription-evaluation-metrics-report.md)
+- [45: W05 고정 데이터·오디오·manifest 준비](./reports/transcription-evaluation-dataset-report.md)

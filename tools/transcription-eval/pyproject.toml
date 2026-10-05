@@ -18,6 +18,9 @@ dependencies = [
 [dependency-groups]
 dev = ["pytest>=8.0.0"]
 
+[project.scripts]
+transcription-eval = "musicsheet_transcription_eval.cli:main"
+
 [tool.uv]
 package = true
 
