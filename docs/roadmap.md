@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)를 사용자 승인받아 [실행 계획](plans/transcription-model-evaluation-implementation-plan.md)을 작성했습니다. R3 독립 리뷰100/100·미해결 지적0으로 계획 게이트를 통과했고, 작성된 계획의 사용자 검토/실행 확인 단계입니다 ([계획 보고서](reports/transcription-model-evaluation-planning-report.md)). dataset/checkpoint 취득·ByteDance 설치·모델 비교·기본 모델 결정·제품 동작 변경은 아직 수행하지 않았습니다.
+**W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)와 실행 계획 R3를 사용자 승인받았습니다. 코드 리뷰에서 보완한 [실행 계획 R5](plans/transcription-model-evaluation-implementation-plan.md)는 독립100점입니다. Task1의 독립 평가 환경·MIDI 정답·점수 계산은62개 테스트와 코드 독립100점으로 완료했습니다 ([Task1 보고서](reports/transcription-evaluation-metrics-report.md)). Task2 고정 데이터·오디오·manifest 준비가 다음이며 dataset/checkpoint 취득·ByteDance 설치·실제 모델 비교·기본 모델 결정은 아직 수행하지 않았습니다.
 
 ## 다음 작업 후보
 

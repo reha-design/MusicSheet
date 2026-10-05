@@ -71,6 +71,10 @@ MAESTRO v3.0.0의 공식 test만 사용한다. ByteDance가 MAESTRO2 학습을 �
 
 MIDI는 전체 recording을 먼저 parse한다. 모든 track을 절대 tick 순으로 병합하고 tempo map을 적용한다. `note_on velocity=0`은 note-off로 처리하며 channel/pitch별 활성 음표를 추적한다. 동일 시각 이벤트는 원본의 안정적인 track/event 순서를 유지한다. 같은 channel/pitch의 겹친 note-on, 짝 없는 note-off, EOF까지 열린 note/pedal, 비양수 note 길이는 malformed reference로 거부한다. crop에서 열렸다는 이유로 원본의 정상 이벤트를 거부하지 않는다.
 
+Task1 독립 코드 리뷰에 따른 자원 경계 보완(2026-10-05): reference MIDI는 최대16MiB와 전체100,000개 이벤트를 모두 만족해야 한다. mido 객체 생성 전에 raw track의 이벤트를 전 track 누적으로 검사한다. meta type은7bit이며 알려진 고정 meta의 payload 길이도 검증한다. 초과/비정상 파일을 자르거나 이벤트를 제거하지 않고 명시적 평가 준비 오류로 중단한다.
+
+같은 raw byte/event/meta gate를 두 후보 출력 MIDI에도 기존 validator/mido 객체 생성 전에 적용한다. 제품 Basic Pitch validator는 변경하지 않고 evaluator가 선검사한다. 자원 cap은 EvaluationLimitError(ValueError 하위타입)로 구분하여 infrastructure/invalid benchmark로 기록하고 모델 실패 분모에서 제외한다. 첫 입력/출력/metric gate가 무효면 no_selection이다.
+
 정답 note-off는 **건반 해제(key release)**다. ByteDance 학습 target은 sustain CC64로 offset을 연장하므로 두 reference 관점을 따로 만든다. 근거는 training source `1ade7dcd4348add669a67c6e6282456c8c6633bd`의 [TargetProcessor/extend_pedal](https://raw.githubusercontent.com/bytedance/piano_transcription/1ade7dcd4348add669a67c6e6282456c8c6633bd/utils/utilities.py)다.
 
 - **key-release reference:** MIDI note-on/note-off를 그대로 사용한다.
@@ -81,6 +85,8 @@ MIDI는 전체 recording을 먼저 parse한다. 모든 track을 절대 tick 순�
 ## 6. 정확도 지표와 집계
 
 `mir_eval.transcription`의 최대 일대일 매칭으로 TP를 계산한다. MIDI pitch는 `440 * 2**((pitch-69)/12)` Hz로 변환한다. onset 허용 50 ms, pitch 허용 50 cents, `strict=False`를 고정한다. offset 포함 시 reference duration의 20%와 50 ms 중 큰 값을 허용한다. 입력 순서를 바꿔도 합계가 같아야 하며 중복 예측은 여러 번 맞았다고 세지 않는다 ([공식 metric 설명](https://mir-eval.readthedocs.io/latest/api/transcription.html)).
+
+Task1 자원 경계 보완: reference×prediction note 수는1,000,000 cells 이하로 제한하고 NumPy 배열 생성과 mir_eval 호출 전에 검사한다. 초과하면 평가 오류이며 benchmark/선정을 중단한다. 이는 모델 실패나 성공한 빈 예측으로 집계하지 않는다. 샘플링·note 제거·다른 matching으로 점수를 만들지 않는다. byte/event/cell 한도는 실제 선정 데이터에서 Task2/4 gate로 확인하며 통과를 미리 가정하지 않는다. 한도를 바꿔야 하면 실행 전에 계획 revision과 독립 재평가를 적용한다.
 
 | 지표 | 용도 |
 | :--- | :--- |

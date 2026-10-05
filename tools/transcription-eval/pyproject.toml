@@ -1,0 +1,39 @@
+[project]
+name = "musicsheet-transcription-eval"
+version = "0.1.0"
+description = "Isolated reproducible transcription evaluation for MusicSheet"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "musicsheet-common",
+    "musicsheet-storage",
+    "musicsheet-pipeline",
+    "mir_eval==0.8.2",
+    "mido==1.3.3",
+    "numpy>=2,<3",
+    "httpx==0.28.1",
+    "soundfile>=0.13,<0.14",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+musicsheet-common = { path = "../../packages/common", editable = true }
+musicsheet-storage = { path = "../../packages/storage", editable = true }
+musicsheet-pipeline = { path = "../../packages/pipeline", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/musicsheet_transcription_eval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ""
+markers = ["live_evaluation: opt-in real dataset/model evaluation"]

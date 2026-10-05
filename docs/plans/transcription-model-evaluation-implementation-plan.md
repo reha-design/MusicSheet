@@ -10,7 +10,7 @@
 
 **Spec:** [사용자 승인 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md), [전사](../ai/transcription.md), [모델 경계](../ai/model-adapters.md), [정답 이벤트](../domain/note-events.md).
 
-Plan Revision3 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestration`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획의 검토/실행 확인은 대기**. 권장 방식은 기존 주 에이전트 구현＋단위별 독립 reviewer다. 독립 점수는 마지막 리뷰 기록에서 확인한다. Task1~5는 미시작이다.
+Plan Revision5 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestration`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획 R3 사용자 실행 승인: 2026-10-05 `다음 작업 진행`**. R4/5는 Task1 코드 리뷰에서 발견한 evaluator 입력·출력 자원 경계 보완이며 독립 계획 재평가를 적용한다. 기존 주 에이전트 구현＋단위별 독립 reviewer 방식이다. 독립 계획 점수는 마지막 리뷰 기록에서 확인한다. Task1은62개 테스트·독립 코드100점으로 완료, Task2~5는 미시작이다.
 
 ## Global Constraints
 
@@ -23,6 +23,7 @@ Plan Revision3 · 2026-10-05 · 기준 `7ecfd90`, branch `codex/celery-orchestra
 - 후보당36개 fresh process CPU 직렬 slot. 반복0/2: 녹음 순·각 Basic→ByteDance; 반복1: 녹음 역순·각 ByteDance→Basic. GPU 별도 조건·분모·run ID, CPU 결과로 Linux/CUDA 지원 주장 금지.
 - 추론 timeout300초·CPU 세션7200초·실패 자동 재시도0. 진단 slot별 최대1회는 정확도/36회/시간에서 제외하고 budget에는 포함. 첫 accuracy12/12 유효; 같은 모델 오류2회 재현만 운영 부적격. nondeterminism/unresolved는 검토 보류.
 - JSON8MiB/MIDI16MiB·일반 파일·비-symlink·strict wire/provenance·유한 값. 원본 note/pedal padding offset<=31초, metric에서는30초로 자름.
+- reference와 두 후보 출력 MIDI 각각 전체100,000 events 이하를 pre-mido raw scan으로 검증. note matching은 ref×pred<=1,000,000 cells를 NumPy 배열/mir_eval 전에 검사. 초과는 evaluator EvaluationLimitError(ValueError 하위타입)/invalid benchmark이며 attribution infrastructure, 모델 failure/빈 예측/선정 근거로 바꾸지 않음. truncate/sample 금지.
 - metadata 각각4MiB·ZIP directory/read 최대16MiB·member 해제2GiB·전송6GiB(재시도 포함)·해제8GiB·최소여유10GiB·HTTP 요청60초/취득30분/재시도2회. archive 전체 다운로드 금지.
 - raw/derived audio·MIDI·reference 배열·예측·ledger는 ignored `outputs/w05-evaluation/`, weights는 `models/`. tracked manifest/report는 source/license/hash/crop/metrics만 포함, dataset 재배포 없음.
 
@@ -72,9 +73,9 @@ uv --cache-dir outputs/.uv-cache run --offline --no-sync --project tools/transcr
 
 **Files:** evaluator 프로젝트 파일, `contracts.py`, `reference.py`, `metrics.py`, `__init__.py`; tests `test_environment.py`, `test_reference.py`, `test_metrics.py`; `docs/reports/transcription-evaluation-metrics-report.md`. Modify main_spec Reports.
 
-**Interfaces:** `parse_reference(path:Path)->Reference`; `scoring_events(events:Events,*,start_sec:int)->ScoredEvents`; `score_notes(reference:Events,predicted:Events,*,with_offsets:bool)->Metric`; `velocity_mae(reference:Events,predicted:Events)->VelocityMatch`; `aggregate(metrics:Sequence[Metric])->dict[str,object]`.
+**Interfaces:** `read_validated_midi_bytes(path:Path)->bytes` (bounded raw 검사, MIDI object 생성 없음); `parse_reference(path:Path)->Reference`; `scoring_events(events:Events,*,start_sec:int)->ScoredEvents`; `score_notes(reference:Events,predicted:Events,*,with_offsets:bool)->Metric`; `velocity_mae(reference:Events,predicted:Events)->VelocityMatch`; `aggregate(metrics:Sequence[Metric])->dict[str,object]`. `EvaluationLimitError(ValueError)`를 contracts에 정의해 다른 malformed/output/model error와 구분한다.
 
-- [ ] **Step1 실패 테스트:** 설치/import 게이트; synthetic MIDI tempo500000→1000000, velocity0 note-off, CC64>=64, 재타건/동시 이벤트, EOF-open/malformed/symlink, SMPTE/type2 거부. `test_duplicate_prediction_is_fp`: ref1/pred2→TP1/FP1/FN0/F1=2/3. `test_empty_reference_is_null`: F1None/FP2. `test_onset_50ms_boundary`: strictFalse 경계 포함/초과 제외. `test_key_release_and_sustain_differ`: note(.1,.5),pedal(.2,1.0)→key.5/sustain1.0, 다음 재타건.8→sustain.8. `test_crop_preserves_prior_pedal_and_censors_offset`: `[2,28)`·cap30·절단 수. `test_velocity_uses_onset_matching`: offset은 틀려도 onset pair의 MAE/count.
+- [x] **Step1 실패 테스트:** 설치/import 게이트; synthetic MIDI tempo500000→1000000, velocity0 note-off, CC64>=64, 재타건/동시 이벤트, EOF-open/malformed/symlink, SMPTE/type2 거부. `test_duplicate_prediction_is_fp`: ref1/pred2→TP1/FP1/FN0/F1=2/3. `test_empty_reference_is_null`: F1None/FP2. `test_onset_50ms_boundary`: strictFalse 경계 포함/초과 제외. `test_key_release_and_sustain_differ`: note(.1,.5),pedal(.2,1.0)→key.5/sustain1.0, 다음 재타건.8→sustain.8. `test_crop_preserves_prior_pedal_and_censors_offset`: `[2,28)`·cap30·절단 수. `test_velocity_uses_onset_matching`: offset은 틀려도 onset pair의 MAE/count. R4 회귀: `test_fixed_meta_payload_and_type_rejected`, `test_reference_event_cap_before_mido` (전 track 합계·경계값은 작은 monkeypatch cap 사용), `test_matching_cell_cap_before_arrays` (onset/offset/velocity 세 경로; 작은 cap 및 경계값). cap 초과가 downstream mido/NumPy/match_notes 호출 전에 거부됨을 spy로 확인한다.
 
 ```python
 def test_duplicate_prediction_is_fp():
@@ -84,10 +85,10 @@ def test_duplicate_prediction_is_fp():
     assert (result.tp, result.fp, result.fn) == (1, 1, 0)
     assert result.f1 == pytest.approx(2 / 3)
 ```
-- [ ] **Step2 RED 확인:** 공통 명령의 test directory를 `tools/transcription-eval/tests/test_reference.py tools/transcription-eval/tests/test_metrics.py`로 교체, config/collect-only 확인 후 t1-red 신규경로. 기대 미구현/행동 FAIL. reference 구현 전 locked sync/import 필수; evaluator_setup_failure에서 모델/data 취득 금지.
-- [ ] **Step3 구현:** 직접 dependency는 local3packages, `mir_eval==0.8.2`, `mido==1.3.3`, `numpy>=2,<3`, `httpx==0.28.1`, `soundfile>=0.13,<0.14`, dev pytest>=8. soundfile은 DOUBLE WAV intermediate I/O에만 사용한다. resolved 버전을 독립 lock에 저장. mido tempo map·channel/pitch 상태·안정 track/event 순서. 최대 matching은 pinned mir_eval `match_notes`, VelocityMatch의 정렬 입력·pair index를 보고서까지 동일하게 저장. custom matcher 금지. bool/NaN 거부, Hz 변환·빈값/null·censor/micro/macro는 R2§5/6 준수.
-- [ ] **Step4 GREEN:** 선택 테스트→full evaluator, 각각 새 t1-green/full temp. root `uv --cache-dir outputs/.uv-cache run --offline --no-sync --project . --python 3.13 pytest -q -p no:cacheprovider --basetemp D:/develop/MusicSheet/outputs/.verification-w05/t1-root --tb=short`. 원래3개 locks 불변 확인.
-- [ ] **Step5 보고/리뷰/커밋:** 정확한 명령·RED/GREEN·환경 gate와 독립5rubric 리뷰 기록. >=95 확인 후 `feat(eval): add reference and transcription metrics`.
+- [x] **Step2 RED 확인:** 공통 명령의 test directory를 `tools/transcription-eval/tests/test_reference.py tools/transcription-eval/tests/test_metrics.py`로 교체, config/collect-only 확인 후 t1-red 신규경로. 기대 미구현/행동 FAIL. reference 구현 전 locked sync/import 필수; evaluator_setup_failure에서 모델/data 취득 금지.
+- [x] **Step3 구현:** 직접 dependency는 local3packages, `mir_eval==0.8.2`, `mido==1.3.3`, `numpy>=2,<3`, `httpx==0.28.1`, `soundfile>=0.13,<0.14`, dev pytest>=8. soundfile은 DOUBLE WAV intermediate I/O에만 사용한다. resolved 버전을 독립 lock에 저장. mido tempo map·channel/pitch 상태·안정 track/event 순서. MIDI_LIMIT16MiB/MIDI_EVENT_LIMIT100000: read_validated_midi_bytes의 raw scanner가 delta/message와 EOT도 각각1event로 계산하고 track별 count를 누적해 mido 호출 전 거부. meta type0..127, fixed lengths sequence_number2/channel_prefix1/midi_port1/EOT0/tempo3/SMPTE5/time_signature4/key_signature2. MATCH_CELL_LIMIT1000000: note tuple lengths의 곱을 NumPy 배열 생성 전 검사하고 onset/offset/velocity에 공통 적용. 최대 matching은 pinned mir_eval `match_notes`, VelocityMatch의 정렬 입력·pair index를 보고서까지 동일하게 저장. custom matcher 금지. bool/NaN 거부, Hz 변환·빈값/null·censor/micro/macro는 R2§5/6 준수.
+- [x] **Step4 GREEN:** 선택 테스트→full evaluator, 각각 새 t1-green/full temp. root `uv --cache-dir outputs/.uv-cache run --offline --no-sync --project . --python 3.13 pytest -q -p no:cacheprovider --basetemp D:/develop/MusicSheet/outputs/.verification-w05/t1-root --tb=short`. 원래3개 locks 불변 확인.
+- [x] **Step5 보고/리뷰/커밋:** 정확한 명령·RED/GREEN·환경 gate와 독립5rubric 리뷰 기록. >=95 확인 후 `feat(eval): add reference and transcription metrics`.
 
 ### Task2: 데이터 취득·manifest·오디오 준비
 
@@ -129,9 +130,9 @@ def test_selection_crop_golden_lf_bytes():
 
 **Interfaces:** `async run_slot(candidate:Candidate,entry:ManifestEntry,*,repeat:int,slot_id:str,run_root:Path,cancellation:asyncio.Event)->RunRecord`; `normalize_output(candidate:Candidate,output_dir:Path,*,input_sha256:str,stop:threading.Event)->Events`; `events_hash(events:Events)->str`; `build_schedule(manifest:Manifest,candidates:Sequence[Candidate])->tuple[dict,...]`; `async run_evaluation(manifest:Manifest,candidates:Sequence[Candidate],*,run_root:Path,cancellation:asyncio.Event)->Path`; `select_model(summary:dict)->dict`; `write_report(run_dir:Path,destination:Path)->None`. 출력 검사에는 Candidate 전체를 전달해 checkpoint/source/device의 예상값도 대조한다.
 
-- [ ] **Step1 실패 테스트:** fake worker로 first12/12와 repeat failure 구분; JSON/MIDI 전체검사·provenance/hash/size/NaN/bool·padding31 경계. owned child timeout/cancel-after-output/descendant/drain, monotonic elapsed. nullable/-0/sorted/duplicate hashes·one-bit 차이→nondeterministic; 진단 성공이 실패/첫 accuracy를 대체하지 못함. 36개 순서/not_run/attribution model2회 vs OS1회 vs unresolved. hand-count micro/macro·operational recall 분모. macro Basic.88/Byte.91, micro Basic.92/Byte.88→tradeoff. CI0 교차/1pp/offset/min8/min24/speed20% 경계. invalid first·setup failure·nondeterminism은 winner 금지. 공개 보고서에 secret/raw traceback0.
+- [ ] **Step1 실패 테스트:** fake worker로 first12/12와 repeat failure 구분; JSON/MIDI 전체검사·provenance/hash/size/NaN/bool·padding31 경계. `test_output_event_cap_before_existing_validator`는 두 후보 출력 MIDI의 raw cap 초과가 기존 Basic validate_result_files/mido 및 Byte mido 호출 전에 거부됨을 spy로 확인한다. `test_evaluator_limit_invalidates_selection`은 event/cell cap의 EvaluationLimitError가 infrastructure 기록·model-only 분모 제외·invalid benchmark/no_selection으로 연결됨을 확인한다. owned child timeout/cancel-after-output/descendant/drain, monotonic elapsed. nullable/-0/sorted/duplicate hashes·one-bit 차이→nondeterministic; 진단 성공이 실패/첫 accuracy를 대체하지 못함. 36개 순서/not_run/attribution model2회 vs OS1회 vs unresolved. hand-count micro/macro·operational recall 분모. macro Basic.88/Byte.91, micro Basic.92/Byte.88→tradeoff. CI0 교차/1pp/offset/min8/min24/speed20% 경계. invalid first·setup failure·nondeterminism은 winner 금지. 공개 보고서에 secret/raw traceback0.
 - [ ] **Step2 RED:** 공통 명령의 test directory를 `tools/transcription-eval/tests/test_runner.py tools/transcription-eval/tests/test_results.py tools/transcription-eval/tests/test_determinism.py tools/transcription-eval/tests/test_selection.py tools/transcription-eval/tests/test_report.py`로 교체, config/collect-only 확인 후 신규 t4-red; actual model 없이 실패 증거 기록.
-- [ ] **Step3 실행/검사 구현:** 기존 run_owned_process/run_owned_io·shared cancellation, literal argv·소유한 unique cwd. installedpython `-I -c`로 각각 설치된 CLI main에 전달. Basic 결과는 기존 validate_result_files 후 strict schema; Byte는 evaluator에 strict wire/전체 MIDI validator를 작성하고 기존 Basic validator를 변경하지 않음. 두 모델 모두 event bounds와 input/checkpoint/lock/source를 실행 전 재검사. 생성 파일만으로 성공 처리 금지.
+- [ ] **Step3 실행/검사 구현:** 기존 run_owned_process/run_owned_io·shared cancellation, literal argv·소유한 unique cwd. installedpython `-I -c`로 각각 설치된 CLI main에 전달. 두 후보 출력 MIDI를 먼저 read_validated_midi_bytes로 raw event/meta/byte/link gate 검사한다. 이 gate는 MIDI object를 만들지 않으며 검사 bytes는 후속 validator 전에 해제한다. 그 다음 Basic은 기존 validate_result_files 후 strict schema, Byte는 evaluator의 strict wire/전체 MIDI validator를 적용한다. 기존 Basic validator는 변경하지 않음. 두 모델 모두 event bounds와 input/checkpoint/lock/source를 실행 전 재검사. evaluator event/cell cap 초과는 infrastructure·invalid benchmark로 기록해 winner를 거부하며 모델 failure로 집계하지 않는다. 생성 파일만으로 성공 처리 금지.
 - [ ] **Step4 ledger/선정 구현:** 예정slot을 먼저 저장하고 immutable per-slot JSON을 atomic write, summary에 모든 파일 hash 저장. 기존slot 덮어쓰기 금지; crash slot은 infrastructure/unresolved, fresh accuracy는 새 run ID. 원시36개와 진단을 분리, R2의 success/model-only 분모·primitive attribution 근거·상태 우선순위. 3회 normalized event hash/불일치 F1 범위; 진단은 hash 확인만 가능. bootstrap NumPy Generator(PCG64(seed20261005)),10000 paired resamples·percentile2.5/97.5 linear, 같은 pair indices 사용. R2 macro/micro/offset/speed guard와 min8/min24 준수. preflight4개 비평가 smoke·1.5배 시간 예상 gate, timeout300/총7200·진단 포함, 고정 안전 progress.
 - [ ] **Step5 GREEN/보고/리뷰/커밋:** 선택/full evaluator+root 회귀. mock 결과를 actual ML/data 성공으로 주장하지 않음. 독립>=95 뒤 `feat(eval): record reliable comparative model runs`.
 
@@ -168,3 +169,9 @@ R2§1/2/3→Task1/3, §4/5→Task1/2, §6→Task1/4, §7/8→Task3/4/5, §9/10�
 R1의 pytest cwd/config 지적은 모든 독립 프로젝트 테스트 명령에 명시적 `-c`와 repo root 기준 tests 경로를 지정해 해결했다. velocity matching의 정렬 입력·pair index와 오디오 준비 receipt의 producer/consumer 계약도 R2에 추가했다. salt 줄바꿈 지적은 원문 byte 확인으로 reviewer가 철회하여 R1 최초92점은94점으로 정정했다. R2의 마지막 minor인 골든 fixture 상대 경로는 R3에서 `2018/` prefix를 명시해 해결했다. Reviewer는 R3 전체와 골든 선정 순서를 다시 확인했다.
 
 **R3 계획 게이트 통과: 100>=95, 미해결 blocker/important0.** 서면 계획 검토와 사용자 실행 확인 전 Task1을 시작하지 않는다. 권장 실행 방식은 기존 주 에이전트 구현＋각 Task 독립 reviewer다.
+
+R4는 Task1 초기 독립 코드 리뷰92점/important2를 반영한 자원 경계 보완으로 독립 재평가를 받았다. 평가 의미/선정 데이터/후보는 바꾸지 않는다. R3 점수를 후속 버전에 재사용하지 않는다.
+
+R4 독립 계획 리뷰: 2026-10-05, `/root/w05_plan_review`, SHA256 `4BED29E9B83FD00C4B0F576A3EFD73967FF006132E9CD5726DD20DD575A81715`, 요구24/범위19/순서20/검증23/재현10=96점, blocker0/important1/minor1. important는 기존 Basic validator가 candidate MIDI를 cap 없이 mido로 읽는 선행 경로, minor는 cap 분류/선정 연결 회귀 누락이다. **점수95 이상이어도 important 때문에 미통과**다. R5에서 두 후보 출력에 raw gate를 먼저 적용하고 별도 EvaluationLimitError 및 fake-worker 회귀를 명시했다. R5의 새로운 독립 리뷰 통과 뒤에만 cap을 구현한다.
+
+R5 독립 계획 리뷰: 2026-10-05, `/root/w05_plan_review`, SHA256 `A8904152D424651C645617574237E12B9F03AA82AB384ED8DDCC302F1DE92D09`, 요구25/범위20/순서20/검증25/재현10=100점, blocker0/important0/minor0. 입력·출력 raw gate와 분류 회귀를 전체 설계/계획으로 다시 검토했다. 이 hash는 리뷰 기록 추가 전 본문이며 실행 계약을 바꾸지 않는다. **R5 계획 게이트 통과 뒤 Task1 cap 구현을 시작했다.**

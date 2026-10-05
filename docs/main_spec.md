@@ -62,7 +62,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 연결 및 최종 리뷰 완료)
 - **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1~4 각100점·전체100점 완료, Windows 실제 모델/DB·Linux 실행기/root 검증)
 - **W05 전사 모델 평가 서면 설계:** [고정 정답 subset·metric·후보 환경·선정 및 대체 정책](./superpowers/specs/2026-10-05-transcription-model-evaluation-design.md) (R2 사용자 승인, R1 지적6 important/3 minor 처리·실제 평가 미실행)
-- **W05 전사 모델 평가 실행 계획:** [평가기·데이터·격리 후보·반복 실행·실제 비교](./plans/transcription-model-evaluation-implementation-plan.md) (R3 독립100/100·미해결 지적0, 작성된 계획 사용자 검토/실행 확인 대기)
+- **W05 전사 모델 평가 실행 계획:** [평가기·데이터·격리 후보·반복 실행·실제 비교](./plans/transcription-model-evaluation-implementation-plan.md) (R5 계획100/100·Task1 코드100/100·미해결 지적0, R3 사용자 실행 승인)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -164,3 +164,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [41: W05 전사 모델 평가 서면 설계](./reports/transcription-model-evaluation-design-report.md)
 - [42: W05 전사 모델 평가 설계 R1 리뷰 처리](./reports/transcription-model-evaluation-design-review-report.md)
 - [43: W05 전사 모델 평가 실행 계획 리뷰](./reports/transcription-model-evaluation-planning-report.md)
+- [44: W05 평가 환경·MIDI 정답·점수 계산](./reports/transcription-evaluation-metrics-report.md)
