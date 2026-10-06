@@ -275,6 +275,27 @@ class StageSession:
     def _owned(self, job, attempt_id):
         return job is not None and job.status not in TERMINAL and job.active_attempt_id==attempt_id and job.current_stage==self.message.stage
 
+    async def report_progress(self, attempt_id: str, progress: int) -> Transition | None:
+        if type(progress) is not int or not 0 <= progress < 100:
+            raise ValueError("Invalid stage progress")
+        async with self._operation(), self.connection.transaction():
+            job = await self._job()
+            if not self._owned(job, attempt_id) or job.status != JobStatus.RUNNING:
+                return None
+            attempt = next((a for a in await self._attempts() if a["id"] == attempt_id), None)
+            if not attempt or attempt["status"] != "RUNNING" or attempt["generation"] != self.message.generation:
+                return None
+            reservation = await self.connection.fetchrow(
+                "/* pipeline.reservation */ SELECT (SELECT MAX(generation) FROM pipeline_outbox "
+                "WHERE job_id=$1 AND stage=$2) AS current_generation,available_at<=CURRENT_TIMESTAMP AS ready "
+                "FROM pipeline_outbox WHERE job_id=$1 AND stage=$2 AND generation=$3",
+                job.id, self.message.stage.value, self.message.generation)
+            if not reservation or reservation["current_generation"] != self.message.generation or progress <= job.stage_progress:
+                return None
+            overall = max(job.overall_progress, (STAGES.index(self.message.stage) * 100 + progress) // 6)
+            return await self._update(job, status=JobStatus.RUNNING, progress=progress,
+                                      overall=overall, active=attempt_id)
+
     async def complete(self, attempt_id, outputs):
         async with self._operation(), self.connection.transaction():
             job = await self._job()

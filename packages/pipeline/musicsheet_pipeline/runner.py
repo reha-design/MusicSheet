@@ -58,8 +58,25 @@ async def run_stage(message,*,connection,storage,providers,event_store,
             return
         cancellation=asyncio.Event()
         attempt=prepared.context.attempt_id if prepared.context else None
+        progress_open = True
+        progress_error = None
+        progress_lock = asyncio.Lock()
+
+        async def report_progress(value):
+            nonlocal progress_error
+            async with progress_lock:
+                if not progress_open:
+                    return False
+                try:
+                    transition = await session.report_progress(attempt, value)
+                except InfrastructureUnavailable as error:
+                    progress_error = error
+                    raise
+                await _publish(event_store, transition)
+                return transition is not None
 
         async def process():
+            nonlocal progress_open
             if prepared.action=="DUPLICATE":
                 await validate_artifacts(prepared.completed_outputs,job_id=message.job_id,identity=identity,
                     storage=storage,attempt_id="",existing_inputs=prepared.completed_outputs,cancellation=cancellation)
@@ -69,8 +86,18 @@ async def run_stage(message,*,connection,storage,providers,event_store,
                 storage=storage,attempt_id=attempt,existing_inputs=context.inputs,cancellation=cancellation,mode="input")
             # Providers may mutate Pydantic refs; preserve the verified DB snapshot.
             provider_inputs=tuple(ref.model_copy(deep=True) for ref in inputs)
-            ctx=StageContext(message,attempt,context.source_type,context.source_url,context.target_instrument,provider_inputs,storage,cancellation)
-            outputs=await asyncio.wait_for(provider.run(ctx),provider_timeout)
+            ctx=StageContext(message,attempt,context.source_type,context.source_url,context.target_instrument,
+                             provider_inputs,storage,cancellation,report_progress)
+            try:
+                outputs=await asyncio.wait_for(provider.run(ctx),provider_timeout)
+            except Exception:
+                if progress_error is not None:
+                    raise progress_error from None
+                raise
+            finally:
+                progress_open = False
+            if progress_error is not None:
+                raise progress_error from None
             return await validate_artifacts(outputs,job_id=message.job_id,identity=identity,storage=storage,
                 attempt_id=attempt,existing_inputs=inputs,cancellation=cancellation)
 
@@ -103,6 +130,8 @@ async def run_stage(message,*,connection,storage,providers,event_store,
             transition=None
             try:
                 outputs=work.result()
+            except InfrastructureUnavailable:
+                raise
             except InvalidArtifact:
                 transition=await session.invalidate_completed(code="ARTIFACT_INVALID") if attempt is None else await session.fail(attempt,code="ARTIFACT_INVALID",retryable=False)
             except RetryableProviderError:

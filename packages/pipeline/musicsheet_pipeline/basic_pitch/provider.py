@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from musicsheet_common import ArtifactRole
-from ..contracts import InvalidArtifact, ProviderIdentity
+from ..contracts import InfrastructureUnavailable, InvalidArtifact, ProviderIdentity
 from ..providers import PermanentProviderError
 from .audio import prepare_input
 from .process import _drain, run_owned_process
@@ -41,6 +41,8 @@ class BasicPitchProvider:
             try:
                 root = Path(directory.name)
                 audio = await prepare_input(context, root, self._settings)
+                if context.report_progress is not None:
+                    await context.report_progress(20)
                 output = root / "result"
                 process = await run_owned_process([
                     str(self._settings.python), "-I", "-c", BOOTSTRAP,
@@ -48,9 +50,15 @@ class BasicPitchProvider:
                 ], cwd=root, cancellation=context.cancellation, timeout=1800)
                 if process.returncode != 0:
                     raise PermanentProviderError()
+                if context.report_progress is not None:
+                    await context.report_progress(70)
                 files = await run_owned_io(lambda stop: validate_result_files(output, stop=stop),
                     cancellation=context.cancellation)
+                if context.report_progress is not None:
+                    await context.report_progress(85)
                 refs = await store_outputs(context, files, identity=self.identity)
+                if context.report_progress is not None:
+                    await context.report_progress(95)
                 if context.cancellation.is_set():
                     raise asyncio.CancelledError
             finally:
@@ -61,6 +69,6 @@ class BasicPitchProvider:
             return refs
         except BaseException as error:
             await rollback_outputs(context.storage, refs)
-            if isinstance(error, (asyncio.CancelledError, InvalidArtifact, TimeoutError)):
+            if isinstance(error, (asyncio.CancelledError, InfrastructureUnavailable, InvalidArtifact, TimeoutError)):
                 raise
             raise PermanentProviderError() from None
