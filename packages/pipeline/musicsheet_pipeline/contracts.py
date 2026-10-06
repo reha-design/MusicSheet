@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -87,3 +88,4 @@ class StageInput:
 class StageContext(StageInput):
     storage: ArtifactStorage = field(repr=False)
     cancellation: asyncio.Event = field(repr=False)
+    report_progress: Callable[[int], Awaitable[bool]] | None = field(default=None, repr=False, compare=False)

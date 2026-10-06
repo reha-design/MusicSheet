@@ -44,6 +44,7 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 ## 3. Canonical Specs 인덱스
 
 ### 개발 계획
+- **PR #11 기능 통합:** [운영 복구·진행률 실행 계획](./plans/pipeline-operator-tools-implementation-plan.md) (R1 독립97점, 진행률 단위99점 완료·운영 복구 진행)
 - **현재 작업 및 다음 후보:** [docs/roadmap.md](./roadmap.md)
 - **남은 작업 전체:** [docs/backlog.md](./backlog.md) (다음 작업 선택 시에만 로드)
 - **완료 작업 색인:** [docs/completed-work.md](./completed-work.md) (이력 확인 시에만 로드)
@@ -166,3 +167,6 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [43: W05 전사 모델 평가 실행 계획 리뷰](./reports/transcription-model-evaluation-planning-report.md)
 - [44: W05 평가 환경·MIDI 정답·점수 계산](./reports/transcription-evaluation-metrics-report.md)
 - [45: W05 고정 데이터·오디오·manifest 준비](./reports/transcription-evaluation-dataset-report.md)
+- [46: 현재 attempt/generation 진행률과 Basic Pitch 이정표](./reports/pipeline-operator-tools-progress-report.md)
+- [47: 운영자 정체 작업 조회·종료 및 실제 rollback 검증](./reports/pipeline-operator-tools-maintenance-report.md)
+- [48: PR #11 고유 기능 통합·계약 유지·브랜치 정리](./reports/pipeline-operator-tools-integration-report.md)

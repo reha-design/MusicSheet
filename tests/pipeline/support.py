@@ -67,6 +67,9 @@ class Connection:
     def is_closed(self):
         return self.closed
 
+    def is_in_transaction(self):
+        return self.in_transaction
+
     def add_termination_listener(self, listener):
         self.listeners.append(listener)
 
@@ -88,6 +91,8 @@ class Connection:
 
     async def fetchval(self, query, *args):
         tag = self.tag(query, args)
+        if tag == "maintenance.stale":
+            return args[0] <= datetime.now(timezone.utc)-timedelta(seconds=args[1])
         if tag == "pipeline.lock":
             if args[0] in self.db.locks and args[0] not in self.held_locks:
                 return False
@@ -128,7 +133,8 @@ class Connection:
             job, status, stage, progress, overall, active, code, message = args
             row = self.db.jobs[job]
             row.update(status=status, current_stage=stage, stage_progress=progress,
-                overall_progress=overall, active_attempt_id=active, error_code=code, error_message=message)
+                overall_progress=overall, active_attempt_id=active, error_code=code, error_message=message,
+                updated_at=datetime.now(timezone.utc))
             if status in ("COMPLETED","FAILED","CANCELED"):
                 row["completed_at"] = datetime.now(timezone.utc)
             return copy.deepcopy(row)
@@ -136,6 +142,18 @@ class Connection:
 
     async def fetch(self, query, *args):
         tag = self.tag(query, args)
+        if tag == "maintenance.scan":
+            cutoff = datetime.now(timezone.utc)-timedelta(seconds=args[0])
+            jobs = sorted((j for j in self.db.jobs.values() if j["status"] in ("PENDING","RUNNING","RETRYING","CANCEL_REQUESTED")
+                and j["updated_at"] is not None and j["updated_at"] <= cutoff), key=lambda j: (j["updated_at"],j["id"]))[:args[1]]
+            result = []
+            for j in jobs:
+                attempts = [a for a in self.db.attempts.values() if a["job_id"] == j["id"]]
+                oldest = datetime.min.replace(tzinfo=timezone.utc)
+                latest = max(attempts, key=lambda a: (a.get("started_at") is not None,a.get("started_at") or oldest,a["id"])) if attempts else None
+                summary = {"latest_"+name: latest.get(name) if latest else None for name in ("stage","attempt","generation","status","error_code")}
+                result.append(dict(j, **summary))
+            return result
         if tag == "pipeline.attempts":
             return sorted([copy.deepcopy(a) for a in self.db.attempts.values() if (a["job_id"],a["stage"])==args], key=lambda a:a["attempt"], reverse=True)
         if tag == "pipeline.inputs":
@@ -148,6 +166,19 @@ class Connection:
 
     async def execute(self, query, *args):
         tag = self.tag(query, args)
+        if tag == "maintenance.attempts.close":
+            now = datetime.now(timezone.utc)
+            for row in self.db.attempts.values():
+                if row["job_id"] == args[0] and row["status"] == "RUNNING":
+                    start = row.get("started_at") or now
+                    row.update(status="FAILED",error_code=args[1],error_detail=None,completed_at=now,
+                               duration_ms=min(2147483647,max(0,int((now-start).total_seconds()*1000))))
+            return "OK"
+        if tag == "maintenance.consume":
+            for row in self.db.outbox.values():
+                if row["job_id"] == args[0] and row["published_at"] is None:
+                    row["published_at"] = datetime.now(timezone.utc)
+            return "OK"
         if tag == "pipeline.dispatch.sent":
             next(row for row in self.db.outbox.values() if row["id"]==args[0])["published_at"]=datetime.now(timezone.utc)
             return "UPDATE 1"

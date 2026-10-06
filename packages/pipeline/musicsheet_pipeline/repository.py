@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from musicsheet_common import ArtifactRef, JobStatus, PipelineStage
 from .contracts import STAGES, InfrastructureUnavailable, StageBusy, StageInput, StageMessage, InvalidArtifact
-from .models import PipelineJob, PreparedStage, Transition, TERMINAL
+from .models import PipelineJob, PreparedStage, Transition, TERMINAL, JobObservation, RecoveryResult, validate_stale_seconds
 from .outbox import enqueue_stage
 
 _logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ _ERRORS = {
     "ARTIFACT_INVALID": "Stage artifact is unavailable or invalid",
     "INPUT_CHANGED": "Stage input configuration changed",
     "WORKER_INTERRUPTED": "Stage execution was interrupted",
+    "WORKER_STALLED": "Job activity exceeded the operator's stale threshold",
     "CANCELED": "Job was canceled",
 }
 
@@ -30,6 +31,16 @@ _ERRORS = {
 def _ids(attempt):
     value = attempt["output_artifact_ids"]
     return json.loads(value) if isinstance(value, str) else value
+
+
+def require_idle_connection(connection):
+    """A recovery transaction must commit, never merely release a savepoint."""
+    try:
+        active = connection.is_in_transaction()
+    except Exception:
+        raise InfrastructureUnavailable() from None
+    if active:
+        raise ValueError("Recovery requires an idle connection")
 
 
 class PipelineRepository:
@@ -274,6 +285,61 @@ class StageSession:
 
     def _owned(self, job, attempt_id):
         return job is not None and job.status not in TERMINAL and job.active_attempt_id==attempt_id and job.current_stage==self.message.stage
+
+    async def report_progress(self, attempt_id: str, progress: int) -> Transition | None:
+        if type(progress) is not int or not 0 <= progress < 100:
+            raise ValueError("Invalid stage progress")
+        async with self._operation(), self.connection.transaction():
+            job = await self._job()
+            if not self._owned(job, attempt_id) or job.status != JobStatus.RUNNING:
+                return None
+            attempt = next((a for a in await self._attempts() if a["id"] == attempt_id), None)
+            if not attempt or attempt["status"] != "RUNNING" or attempt["generation"] != self.message.generation:
+                return None
+            reservation = await self.connection.fetchrow(
+                "/* pipeline.reservation */ SELECT (SELECT MAX(generation) FROM pipeline_outbox "
+                "WHERE job_id=$1 AND stage=$2) AS current_generation,available_at<=CURRENT_TIMESTAMP AS ready "
+                "FROM pipeline_outbox WHERE job_id=$1 AND stage=$2 AND generation=$3",
+                job.id, self.message.stage.value, self.message.generation)
+            if not reservation or reservation["current_generation"] != self.message.generation or progress <= job.stage_progress:
+                return None
+            overall = max(job.overall_progress, (STAGES.index(self.message.stage) * 100 + progress) // 6)
+            return await self._update(job, status=JobStatus.RUNNING, progress=progress,
+                                      overall=overall, active=attempt_id)
+
+    async def fail_stalled(self, observation: JobObservation, *, stale_seconds: int) -> RecoveryResult:
+        validate_stale_seconds(stale_seconds)
+        if not isinstance(observation, JobObservation) or observation.job_id != self.message.job_id:
+            raise ValueError("Invalid job observation")
+        require_idle_connection(self.connection)
+        async with self._operation(), self.connection.transaction():
+            row = await self.connection.fetchrow(
+                "/* pipeline.job */ SELECT * FROM jobs WHERE id=$1 FOR UPDATE", observation.job_id)
+            if row is None:
+                return RecoveryResult(False, "NOT_FOUND")
+            job = PipelineJob.from_row(row)
+            if job.status in TERMINAL:
+                return RecoveryResult(False, "NOT_ELIGIBLE")
+            if (job.status, job.current_stage, row["updated_at"], job.active_attempt_id) != (
+                observation.status, observation.current_stage, observation.updated_at, observation.active_attempt_id):
+                return RecoveryResult(False, "OBSERVATION_CHANGED")
+            stale = await self.connection.fetchval(
+                "/* maintenance.stale */ SELECT $1::timestamptz <= CURRENT_TIMESTAMP - "
+                "$2::double precision * INTERVAL '1 second'", observation.updated_at, stale_seconds)
+            if not stale:
+                return RecoveryResult(False, "NOT_STALE")
+            canceled = job.status == JobStatus.CANCEL_REQUESTED
+            code = "CANCELED" if canceled else "WORKER_STALLED"
+            await self.connection.execute(
+                "/* maintenance.attempts.close */ UPDATE stage_attempts SET status='FAILED',error_code=$2,"
+                "error_detail=NULL,completed_at=CURRENT_TIMESTAMP,"
+                "duration_ms=LEAST(2147483647,GREATEST(0,EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP-started_at))*1000))::int "
+                "WHERE job_id=$1 AND status='RUNNING'", job.id, code)
+            transition = await self._update(job, status=JobStatus.CANCELED if canceled else JobStatus.FAILED, code=code)
+            await self.connection.execute(
+                "/* maintenance.consume */ UPDATE pipeline_outbox SET published_at=CURRENT_TIMESTAMP "
+                "WHERE job_id=$1 AND published_at IS NULL", job.id)
+            return RecoveryResult(True, "CHANGED", transition)
 
     async def complete(self, attempt_id, outputs):
         async with self._operation(), self.connection.transaction():

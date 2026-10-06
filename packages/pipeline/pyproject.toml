@@ -7,6 +7,7 @@ dependencies = ["musicsheet-common", "musicsheet-storage", "asyncpg>=0.31.0", "r
 
 [project.scripts]
 musicsheet-dispatch = "musicsheet_pipeline.cli:main"
+musicsheet-maintenance = "musicsheet_pipeline.maintenance_cli:main"
 
 [build-system]
 requires = ["hatchling"]

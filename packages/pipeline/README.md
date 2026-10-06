@@ -1,6 +1,6 @@
 # MusicSheet pipeline
 
-Python 3.13 orchestration is separate from the API and model environments. Runtime providers default to an empty registry: registered work fails with `PROVIDER_NOT_CONFIGURED` until later provider implementation. W03 test providers remain in tests. No actual YouTube download, inference or score rendering is implemented here.
+Python 3.13 orchestration is separate from the API and model environments. Runtime providers default to an empty registry: registered work fails with `PROVIDER_NOT_CONFIGURED` for an unconfigured stage. Explicit Basic Pitch configuration enables the implemented TRANSCRIBE provider using the separate Python3.12 worker; see the [W04 implementation report](../../docs/reports/basic-pitch-pipeline-implementation-report.md). W03 test providers remain in tests. Actual YouTube download, separation and score rendering remain later work.
 
 The API atomically inserts its DOWNLOAD outbox reservation with the new job (and upload metadata). It requires migration v2, applied explicitly with the API environment's `musicsheet-migrate`. The dispatcher publishes a row and only then commits `published_at`. Broker outage leaves registration available and reservations pending. Publish-before-commit failure can deliver duplicates; advisory ownership and completed attempt fingerprints fence duplicate computation. Infrastructure delivery retries are unlimited; provider attempts are capped at three per stage with durable 5/10 second reservations.
 
@@ -27,6 +27,17 @@ Past PENDING rows without attempts or reservations stay dormant until an explici
 ```sh
 uv run --project . --locked --python 3.13 musicsheet-dispatch --recover-pending
 ```
+
+For explicitly finalizing abandoned work, the finite maintenance CLI needs only `DATABASE_URL`; `REDIS_URL` is optional for the terminal event. Scan is read-only and never opens Redis. Public recovery functions require an idle connection with no outer transaction and own the actual commit; active transactions are rejected before locks or events. The CLI opens a fresh connection per command. Keep the five observation fields from scan and pass them unchanged to fail-stalled. An absent active attempt is the literal `none`:
+
+```sh
+uv run --project . --locked --python 3.13 musicsheet-maintenance scan --stale-seconds 7200 --limit 100
+uv run --project . --locked --python 3.13 musicsheet-maintenance fail-stalled \
+  --job-id "$JOB_ID" --observed-status RUNNING --observed-stage DOWNLOAD \
+  --observed-updated-at "$OBSERVED_UPDATED_AT" --observed-attempt-id none --stale-seconds 7200
+```
+
+Scan orders stale nonterminal jobs by updated_at/id and excludes NULL timestamps. Age is1–2147483647 seconds and limit1–1000. The latest attempt summary contains stage/attempt/generation/status/error_code only. Termination uses the worker's nonblocking advisory lock plus a row lock; a changed timestamp, status, stage or active attempt refuses the operation. Refresh scan after any refusal. Cancellation finishes as CANCELED; other eligible jobs finish FAILED/WORKER_STALLED. It closes all RUNNING attempts, consumes unpublished outbox reservations and retains history/artifacts in one transaction. Already delivered messages observe terminal status and skip. Exit codes:0 success,1 infrastructure/interruption,2 input/configuration,3 unchanged. Diagnostics never echo dependency exceptions. Redis event failure preserves the committed DB result; inspect DB state if delivery or cleanup fails after commit. Help requires no environment or connections.
 
 JSON serialization only, late ACK, reject-on-worker-loss and prefetch1 are configured. Broker visibility is3600 seconds, so recovery of lost deliveries can wait that long. Database connect/command timeouts are2/5 seconds; broker socket/connect timeouts2 seconds. A failed infrastructure retry publish waits5 seconds before requeueing the current delivery. Event publication uses the shared W02 bounded stream after DB commit; event loss logs a fixed warning and never rolls back committed work. SSE replay cannot restore an event that was never published.
 
