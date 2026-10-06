@@ -11,6 +11,8 @@ from uuid import uuid4
 import asyncpg
 from musicsheet_common import ArtifactRef, ArtifactRole
 from musicsheet_storage import ArtifactStorage
+from musicsheet_pipeline.contracts import StageMessage
+from musicsheet_pipeline.outbox import enqueue_stage
 
 from musicsheet_api.jobs.artifacts import ArtifactRepository
 from musicsheet_api.jobs.models import JobRecord
@@ -131,6 +133,7 @@ async def create_upload_job(
                         connection=connection,
                     )
                     await ArtifactRepository(pool).add(artifact, connection=connection)
+                    await enqueue_stage(connection,StageMessage(job_id,"DOWNLOAD",1))
                 return job_record
 
             metadata_task = asyncio.create_task(register_metadata())

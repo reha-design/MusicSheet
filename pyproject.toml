@@ -7,6 +7,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "musicsheet-common",
     "musicsheet-storage",
+    "musicsheet-pipeline",
 ]
 
 [dependency-groups]
@@ -15,14 +16,15 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/common", "packages/storage"]
+members = ["packages/common", "packages/storage", "packages/pipeline"]
 
 [tool.uv.sources]
 musicsheet-common = { workspace = true }
 musicsheet-storage = { workspace = true }
+musicsheet-pipeline = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-m 'not ml_integration'"
-markers = ["ml_integration: runs the isolated Basic Pitch model and requires its runtime"]
+addopts = "-m 'not ml_integration and not pipeline_db_integration'"
+markers = ["ml_integration: runs the isolated Basic Pitch model and requires its runtime", "celery_integration: opt-in actual Linux workers with disposable DB and Redis", "pipeline_db_integration: opt-in pipeline checks against a guarded disposable PostgreSQL database"]

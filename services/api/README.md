@@ -11,7 +11,7 @@ Set-Location services/api
 uv sync --locked --python 3.13
 
 $env:DATABASE_URL = "postgresql://musicsheet:password@localhost:5432/musicsheet"
-$env:REDIS_URL = "redis://localhost:6379/0"
+$env:REDIS_URL = "redis://localhost:6379/2"
 $env:LOCAL_STORAGE_DIR = "../../outputs"
 
 uv run --locked --python 3.13 musicsheet-api
@@ -29,11 +29,55 @@ $env:DATABASE_URL = "postgresql://musicsheet_user:<password>@localhost:5432/musi
 uv run --locked --python 3.13 musicsheet-migrate
 ```
 
-The command applies migration version 1 (`jobs`, `stage_attempts`, and `artifacts`) and records it in `schema_migrations`. Repeating the command skips recorded versions. Migration DDL and its ledger entry commit together, and concurrent commands serialize through a PostgreSQL advisory lock. The CLI prints applied/current versions on success and a generic failure message on error; it does not print the connection URL, host, credentials, or raw driver exception. Replace `<password>` with the local Compose password from your configuration.
+The command applies migration version 1 (`jobs`, `stage_attempts`, and `artifacts`) and version 2 (pipeline outbox, attempt generation/output references, execution ownership), recording each in `schema_migrations`. Repeating it skips recorded versions. Existing records are preserved; invalid or duplicate attempt history stops the v2 upgrade. Migration DDL and its ledger entry commit together, and concurrent commands serialize through a PostgreSQL advisory lock. The CLI prints applied/current versions on success and a generic failure message on error; it does not print the connection URL, host, credentials, or raw driver exception. Replace `<password>` with the local Compose password from your configuration. W03 registration atomically adds the first DOWNLOAD reservation; a separate dispatcher and Linux workers execute it. See [pipeline operations](../../packages/pipeline/README.md). Providers are not yet configured by default.
 
 The API opens an optional database pool at startup when `DATABASE_URL` is set. If the URL is missing or PostgreSQL is unavailable, startup and `/health/live` still work; `app.state.db_pool` is `None`. An opened pool closes on shutdown. Schema migrations are never run during API startup.
 
-The W01 REST API registers YouTube jobs without contacting YouTube, accepts bounded multipart audio uploads, returns job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, and streams artifact downloads. `JobRepository` supports job creation, lookup, progress updates, and conditional cancellation; `ArtifactRepository` supports transactional insert and job-scoped list/lookup. Upload defaults to 100 MiB per file and accepts WAV, MP3, M4A, FLAC, and OGG. Downloads include the recorded content length; a mid-stream storage error ends the response with a short body and logs only a generic warning. Jobs remain `PENDING` until Celery dispatch is implemented; cancellation remains `CANCEL_REQUESTED` until a worker processes it. W01 does not fetch media or run models. See the [API contract](../../docs/backend/api.md) for response and failure details. `stage_attempts` persistence, SSE, and pipeline dispatch are not implemented.
+The W01 REST API registers YouTube jobs without contacting YouTube, accepts bounded multipart audio uploads, returns job snapshots, records cooperative cancellation requests, lists job-scoped artifacts, and streams artifact downloads. `JobRepository` supports job creation, lookup, progress updates, and conditional cancellation; `ArtifactRepository` supports transactional insert and job-scoped list/lookup. Upload defaults to 100 MiB per file and accepts WAV, MP3, M4A, FLAC, and OGG. Downloads include the recorded content length; a mid-stream storage error ends the response with a short body and logs only a generic warning. Jobs remain `PENDING` until Celery dispatch is implemented; cancellation remains `CANCEL_REQUESTED` until a worker processes it. W01 does not fetch media or run models. W02 adds the SSE transport and progress publisher described below. See the [API contract](../../docs/backend/api.md) for response and failure details. `stage_attempts` repository operations and pipeline dispatch are not implemented.
+
+## Job progress SSE
+
+With a registered job, PostgreSQL available, and application Redis configured through `REDIS_URL` (DB 2 in the example), subscribe from PowerShell:
+
+```powershell
+curl.exe -N http://127.0.0.1:8000/api/v1/jobs/<job-uuid>/events
+curl.exe -N -H "Last-Event-ID: <redis-milliseconds>-<sequence>" http://127.0.0.1:8000/api/v1/jobs/<job-uuid>/events
+```
+
+The first request replays all retained events. The second replays IDs strictly after the supplied Redis ID, then continues with new events. Frames use `event: progress`, a Redis `id`, and JSON `JobProgressEvent` data. Empty 15-second reads emit heartbeat comments. A malformed/duplicate header or future ID returns 422; an unknown job returns 404; initial DB/Redis failures return generic 503. A failure after streaming starts emits one ID-less `stream_error` event, then closes.
+
+Browser clients listen to the named event:
+
+```javascript
+const events = new EventSource(`/api/v1/jobs/${jobId}/events`);
+events.addEventListener('progress', event => {
+  const progress = JSON.parse(event.data);
+  // Render only events at least as recent as the last REST snapshot.
+});
+events.addEventListener('stream_error', () => {
+  // EventSource reconnects with the last progress ID; refresh the REST snapshot.
+});
+events.addEventListener('open', () => {
+  // Read GET /api/v1/jobs/{jobId}; close events once REST reports a terminal state.
+});
+```
+
+PostgreSQL is authoritative. Refresh the snapshot on first connection/reconnect and compare timestamps so older replay cannot replace newer state. Trimmed/deleted events cannot be recovered. Terminal progress frames keep the stream open; clients call `events.close()` when REST confirms COMPLETED, FAILED, or CANCELED. Clients may also poll REST so completion is discovered if terminal event publication fails.
+
+`musicsheet_api.events.RedisEventStore` exposes `publish(JobProgressEvent)`, `initial_read(job_id, cursor)`, and blocking `read(job_id, cursor)` through compatibility exports from `musicsheet_pipeline.events`. It uses an externally owned async Redis client. W03 workers publish only after PostgreSQL commits, including observed cancellation; REST registration/cancellation do not directly publish. Without a running worker, subscriptions may receive only heartbeat comments. Storage uses `job:{UUID}:events` with `payload` JSON and approximate `MAXLEN ~ 100`. No consumer group distributes events between browsers.
+
+DB commit and XADD are not atomic; there is no outbox. MAXLEN limits each job's history, but total job count is unbounded and no Stream TTL policy is implemented. Production cleanup/reconciliation belongs to later operations work. See [Streams contract](../../docs/backend/redis-streams.md).
+
+### Opt-in Redis tests
+
+From the repository root, explicitly select a test Redis endpoint:
+
+```powershell
+$env:MUSICSHEET_TEST_REDIS_URL = "redis://localhost:6379/2"
+uv run --project services/api --python 3.13 pytest services/api/tests/integration/test_redis_events.py -m redis_integration -q
+```
+
+Without this variable, the seven live Redis tests skip. With it configured, connection or ACL failures fail the tests using generic text. Tests create UUID job keys and delete only those keys; they never run FLUSHDB/FLUSHALL. CLIENT LIST permission is required to observe server-side blocked XREAD readers by their unique client names; returned client details are not printed. The tests verify publish/replay, blocked reads, independent readers, trim, deleted latest IDs, an empty BLOCK timeout, and the SSE route with a mocked PostgreSQL lookup. They do not establish a combined live PostgreSQL/Redis end-to-end result.
 
 ### Opt-in live integration tests
 

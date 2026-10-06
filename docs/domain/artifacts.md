@@ -39,6 +39,8 @@ class ArtifactRef(BaseModel):
 
 `RAW_TRANSCRIPTION`은 provider provenance와 schema version, `RawNoteEvent[]`, `PedalEvent[]`를 담는 `TranscriptionResult` JSON envelope다. 저장 단계에서 기존 `CONTROL_EVENTS` artifact가 필요하면 해당 envelope의 pedal 목록을 별도 추출한다. 분리된 파일이 있더라도 envelope는 worker 결과의 검증 가능한 원본이다.
 
+`LocalStorage.put`은 `.wav` 확장자(대소문자 구분 없음)의 `mime_type`을 OS MIME 등록값과 관계없이 `audio/wav`로 반환한다. 이는 파일 이름에 따른 저장 metadata 규칙이며 오디오 내용 검증이나 MIME sniffing이 아니다. 다른 확장자는 기존 OS MIME 추정값을 사용하고, 알 수 없으면 `application/octet-stream`을 반환한다. 이미 등록된 아티팩트 metadata는 변경하지 않는다.
+
 ---
 
 ## 2. 멱등성 검증 원칙 (SHA-256 Caching)

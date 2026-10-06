@@ -119,7 +119,10 @@ class LocalStorage(ArtifactStorage):
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
 
-        mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        mime_type = (
+            "audio/wav" if Path(filename).suffix.lower() == ".wav"
+            else mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        )
         return ArtifactRef(
             id=str(uuid4()),
             job_id=job_id,

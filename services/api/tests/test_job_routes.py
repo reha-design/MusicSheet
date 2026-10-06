@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
+from contextlib import asynccontextmanager
 
 from fastapi.testclient import TestClient
 import pytest
@@ -54,6 +55,15 @@ class FakeConnection:
         self.cancel_row = cancel_row
         self.lookup_row = None if lookup_missing else (lookup_row or job_row())
         self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+    @asynccontextmanager
+    async def transaction(self):
+        yield
+
+    async def execute(self,query,*args):
+        self.calls.append((query,args))
+        assert "INSERT INTO pipeline_outbox" in query
+        return "INSERT 0 1"
 
     async def fetchrow(self, query: str, *args: object) -> dict[str, Any] | None:
         self.calls.append((query, args))

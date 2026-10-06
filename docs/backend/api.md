@@ -17,7 +17,7 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 | `DELETE` | `/api/v1/jobs/{job_id}` | — | Request cancellation by setting `CANCEL_REQUESTED` where allowed. |
 | `GET` | `/api/v1/jobs/{job_id}/artifacts` | — | Return artifact metadata and API-relative download URLs. |
 | `GET` | `/api/v1/jobs/{job_id}/artifacts/{artifact_id}/content` | — | Stream the artifact bytes after verifying job/artifact association. |
-| `GET` | `/api/v1/jobs/{job_id}/events` | `Last-Event-ID` optional | Future W02: SSE stream with replay from Redis Streams. |
+| `GET` | `/api/v1/jobs/{job_id}/events` | `Last-Event-ID` optional | SSE progress stream with replay from Redis Streams. |
 | `GET` | `/health/live` | — | Process liveness. |
 | `GET` | `/health/ready` | — | PostgreSQL, Redis, and storage availability. |
 | `GET` | `/health/detail` | — | Best-effort API host GPU, FFmpeg, and MuseScore diagnostics. |
@@ -59,11 +59,14 @@ The API accepts one source per job. Job creation stores a durable `PENDING` job 
 
 `GET /api/v1/jobs/{job_id}/artifacts` queries PostgreSQL metadata for that job and returns relative download routes. It returns `404` for an unknown job. `GET /api/v1/jobs/{job_id}/artifacts/{artifact_id}/content` queries by both IDs before opening the stored artifact, so an ID from a different job cannot be used through this route. Bytes stream through `ArtifactStorage.open_read`; the API does not expose the storage URI.
 
-## 4. SSE streaming (future W02)
+## 4. SSE streaming
 
-- Browser clients may use `EventSource('/api/v1/jobs/{job_id}/events')`.
-- On reconnect, `Last-Event-ID` replays events retained in Redis Streams.
-- This endpoint is not part of the W01 implementation.
+- `GET /api/v1/jobs/{job_id}/events` validates a UUID and job existence before streaming. Unknown jobs return 404; DB/Redis failures return generic 503 before the response starts. Invalid/duplicate `Last-Event-ID` or a future cursor returns 422.
+- Browser clients use `EventSource('/api/v1/jobs/{job_id}/events')` and `addEventListener('progress', ...)`. A progress frame contains its Redis `id` and a one-line JSON `JobProgressEvent` in `data`. No header starts replay at `0-0`; reconnect replays only retained IDs after `Last-Event-ID`.
+- HTTP headers are `Content-Type: text/event-stream`, `Cache-Control: no-cache`, and `X-Accel-Buffering: no`. Empty 15-second blocking reads send a heartbeat comment. A dependency/data failure after HTTP 200 sends one ID-less `stream_error` event with a generic detail, then closes.
+- Clients synchronize the REST snapshot on initial connection and reconnect; timestamps prevent older replay events from replacing newer snapshot state. Trimmed/deleted history cannot be recovered. See the [canonical event contract](redis-streams.md).
+- Terminal progress events do not close the stream. Clients close EventSource once the REST state is terminal. Disconnect/cancellation cancels pending reads without closing the app-owned Redis client.
+- W02 implements the publisher module and SSE transport. REST registration/cancellation and workers do not publish automatically until W03 connects them.
 
 ## 5. Processing boundary
 

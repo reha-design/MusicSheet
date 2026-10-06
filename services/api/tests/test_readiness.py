@@ -130,7 +130,7 @@ def test_redis_client_is_shared_and_closed_at_shutdown(
     redis_client = FakeRedis()
     created_urls: list[str] = []
 
-    def fake_from_url(url: str) -> FakeRedis:
+    def fake_from_url(url: str, **kwargs: object) -> FakeRedis:
         created_urls.append(url)
         return redis_client
 
@@ -200,7 +200,7 @@ def test_redis_client_construction_failure_does_not_block_startup(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fail_to_create_client(url: str) -> object:
+    def fail_to_create_client(url: str, **kwargs: object) -> object:
         raise ValueError(f"bad credentials in {url}")
 
     monkeypatch.setattr(app_module.Redis, "from_url", fail_to_create_client)

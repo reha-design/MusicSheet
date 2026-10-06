@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/architecture/job-pipeline.md`  
 > **관련 문서:** [docs/domain/job-state.md](../domain/job-state.md), [docs/backend/celery.md](../backend/celery.md)
 >
-> **구현 상태:** 목표 파이프라인 설계입니다. 현재 저장소에는 pipeline worker가 없습니다.
+> **구현 상태:** `packages/pipeline`에 Celery 단계 전달·실행 worker가 구현됐고, 테스트 provider로 실제 Linux worker8개 시나리오를 검증했습니다. Basic Pitch TRANSCRIBE는 opt-in 제품 registry로 연결해 Windows 실제 모델·DB 등록을 확인했습니다. 나머지 다운로드·분리·후처리·렌더링 provider와 Linux Celery 실제 모델 실행은 후속 범위입니다. [W04 제품 검증](../reports/basic-pitch-pipeline-implementation-report.md)과 [Linux worker 검증](../reports/celery-live-verification-report.md)을 구분해서 참조하세요.
 
 ---
 

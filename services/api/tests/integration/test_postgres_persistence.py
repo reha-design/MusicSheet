@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from musicsheet_api.app import create_app
 from musicsheet_api.config import Settings
 from musicsheet_api.jobs.repository import JobRepository
-from musicsheet_api.migrations.runner import Migration, apply_migrations
+from musicsheet_api.migrations.runner import MIGRATIONS, Migration, apply_migrations
 
 
 pytestmark = pytest.mark.integration
@@ -71,7 +71,13 @@ def clean_database(database_url):
 
 @pytest.fixture
 def migrated_database(clean_database):
-    assert _run(apply_migrations(clean_database)) == [1]
+    assert _run(apply_migrations(clean_database)) == [1, 2]
+    return clean_database
+
+
+@pytest.fixture
+def initial_migrated_database(clean_database):
+    assert _run(apply_migrations(clean_database, migrations=MIGRATIONS[:1])) == [1]
     return clean_database
 
 
@@ -164,9 +170,9 @@ _COLUMNS = {
 }
 
 
-def test_initial_migration_creates_all_canonical_tables_indexes_foreign_keys_and_column_metadata(migrated_database):
+def test_initial_migration_creates_all_canonical_tables_indexes_foreign_keys_and_column_metadata(initial_migrated_database):
     async def check():
-        connection = await asyncpg.connect(migrated_database)
+        connection = await asyncpg.connect(initial_migrated_database)
         try:
             tables = await connection.fetch(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
@@ -264,9 +270,12 @@ def test_migration_is_repeatable(migrated_database):
     async def check():
         connection = await asyncpg.connect(migrated_database)
         try:
-            assert await connection.fetchval("SELECT count(*) FROM schema_migrations") == 1
-            assert await connection.fetchval("SELECT version FROM schema_migrations") == 1
-            assert await connection.fetchval("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'") == 4
+            versions = await connection.fetch("SELECT version FROM schema_migrations ORDER BY version")
+            assert [row["version"] for row in versions] == [1, 2]
+            tables = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            assert {row["tablename"] for row in tables} == {
+                "jobs", "stage_attempts", "artifacts", "schema_migrations", "pipeline_outbox"
+            }
         finally:
             await connection.close()
 
@@ -278,11 +287,15 @@ def test_concurrent_migration_runners_apply_once(clean_database):
         results = await asyncio.gather(
             apply_migrations(clean_database), apply_migrations(clean_database)
         )
-        assert sorted(results) == [[], [1]]
+        assert sorted(results) == [[], [1, 2]]
         connection = await asyncpg.connect(clean_database)
         try:
-            assert await connection.fetchval("SELECT count(*) FROM schema_migrations WHERE version = 1") == 1
-            assert await connection.fetchval("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'") == 4
+            versions = await connection.fetch("SELECT version FROM schema_migrations ORDER BY version")
+            assert [row["version"] for row in versions] == [1, 2]
+            tables = await connection.fetch("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            assert {row["tablename"] for row in tables} == {
+                "jobs", "stage_attempts", "artifacts", "schema_migrations", "pipeline_outbox"
+            }
         finally:
             await connection.close()
 
