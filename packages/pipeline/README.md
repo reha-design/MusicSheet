@@ -1,6 +1,6 @@
 # MusicSheet pipeline
 
-Python 3.13 orchestration is separate from the API and model environments. Runtime providers default to an empty registry: registered work fails with `PROVIDER_NOT_CONFIGURED` until later provider implementation. W03 test providers remain in tests. No actual YouTube download, inference or score rendering is implemented here.
+Python 3.13 orchestration is separate from the API and model environments. Runtime providers default to an empty registry: registered work fails with `PROVIDER_NOT_CONFIGURED` for an unconfigured stage. Explicit Basic Pitch configuration enables the implemented TRANSCRIBE provider using the separate Python3.12 worker; see the [W04 implementation report](../../docs/reports/basic-pitch-pipeline-implementation-report.md). W03 test providers remain in tests. Actual YouTube download, separation and score rendering remain later work.
 
 The API atomically inserts its DOWNLOAD outbox reservation with the new job (and upload metadata). It requires migration v2, applied explicitly with the API environment's `musicsheet-migrate`. The dispatcher publishes a row and only then commits `published_at`. Broker outage leaves registration available and reservations pending. Publish-before-commit failure can deliver duplicates; advisory ownership and completed attempt fingerprints fence duplicate computation. Infrastructure delivery retries are unlimited; provider attempts are capped at three per stage with durable 5/10 second reservations.
 

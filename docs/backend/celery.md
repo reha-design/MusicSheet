@@ -3,7 +3,7 @@
 > **Canonical Owner:** `docs/backend/celery.md`  
 > **관련 문서:** [docs/architecture/job-pipeline.md](../architecture/job-pipeline.md)
 >
-> **구현 상태:** `packages/pipeline/musicsheet_pipeline`에 Celery 앱·여섯 task·durable outbox dispatcher·실행 엔진이 구현됐습니다. [운영 명령](../../packages/pipeline/README.md)을 참조하세요. 제품 provider registry는 비어 있어 실제 다운로드·AI·렌더링은 후속 범위입니다. 테스트 provider를 사용한 Docker Linux prefork worker8개 시나리오는 [실제 검증](../reports/celery-live-verification-report.md)을 통과했습니다. 테스트 visibility/복구 scan 조건은 운영과 다릅니다. 아래 코드는 목표 예시이며 실제 설정은 factory 코드가 기준입니다. Redis Streams는 SSE 이벤트용이며 Celery 브로커 큐와 별도 역할입니다.
+> **구현 상태:** `packages/pipeline/musicsheet_pipeline`에 Celery 앱·여섯 task·durable outbox dispatcher·실행 엔진이 구현됐습니다. [운영 명령](../../packages/pipeline/README.md)을 참조하세요. provider registry는 기본 비활성이며 명시적 설정의 [W04 Basic Pitch TRANSCRIBE](../reports/basic-pitch-pipeline-implementation-report.md)는 구현됐습니다. 실제 다운로드·분리·렌더링은 후속 범위입니다. 테스트 provider를 사용한 Docker Linux prefork worker8개 시나리오는 [실제 검증](../reports/celery-live-verification-report.md)을 통과했습니다. 테스트 visibility/복구 scan 조건은 운영과 다릅니다. 아래 코드는 목표 예시이며 실제 설정은 factory 코드가 기준입니다. Redis Streams는 SSE 이벤트용이며 Celery 브로커 큐와 별도 역할입니다.
 >
 > **W03 승인 설계:** [DB outbox와 단계 실행 계약](../superpowers/specs/2026-10-03-celery-orchestration-design.md), [실행 계획](../plans/celery-orchestration-implementation-plan.md).
 

@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**PR #11 기능 통합**: [실행 계획](plans/pipeline-operator-tools-implementation-plan.md) R1 독립97점 통과. 단계 진행률 및 운영자 멈춘 작업 조회·종료를 현재 pipeline 구조에 통합하고 기존 PR/브랜치를 정리합니다. W05 작업은 이후 이어갑니다.
+**PR #11 기능 통합**: [실행 계획](plans/pipeline-operator-tools-implementation-plan.md) R1 독립97점, 진행률/운영 복구/전체 리뷰 각각99점으로 구현·검증 완료. 새 PR 병합과 기존 PR/브랜치·소유 검증 환경 정리를 진행합니다. W05 작업은 이후 이어갑니다.
 
 **W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)와 실행 계획 R3를 사용자 승인받았습니다. 코드 리뷰에서 보완한 [실행 계획 R5](plans/transcription-model-evaluation-implementation-plan.md)는 독립100점입니다. Task1 평가 환경·MIDI 정답·점수 계산은62개 테스트와 코드 독립100점으로 완료했습니다 ([Task1 보고서](reports/transcription-evaluation-metrics-report.md)). Task2의 실제 고정 MAESTRO12개·오디오·manifest 준비는128개 테스트·독립 코드100점으로 완료했습니다 ([Task2 보고서](reports/transcription-evaluation-dataset-report.md)). Task3 ByteDance worker·checkpoint가 다음이고, 실제 모델 비교·기본 모델 결정은 아직 수행하지 않았습니다.
 

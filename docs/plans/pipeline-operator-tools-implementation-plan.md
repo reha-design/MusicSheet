@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. 구현은 주 에이전트가 수행하고 AGENTS.md에 따라 각 단위를 독립 reviewer가 평가한다.
 
-**Revision:** R1 · 2026-10-06. **상태:** 독립 계획97점·Task1/Task2 구현 각각99점 통과, 전체 독립 리뷰·PR 통합 대기. 리뷰 후 상태/ledger만 갱신하며 리뷰한 실행 내용은 아래 기록의 hash로 식별한다.
+**Revision:** R1 · 2026-10-06. **상태:** 독립 계획97점·Task1/Task2/전체 구현 각각99점 통과, PR 통합·정리 단계. 리뷰 후 상태/ledger만 갱신하며 리뷰한 실행 내용은 아래 기록의 hash로 식별한다.
 
 **Goal:** PR #11의 운영 복구 및 진행률 기능을 현재 main 구조에 맞춰 통합하고 기존 PR/브랜치를 정리한다.
 
@@ -62,11 +62,11 @@
 
 ## 전체 검증·통합
 
-- [ ] 전용 Docker PostgreSQL16/Redis7 container를 작업 고유 이름으로 생성하고 DB를 `musicsheet_test` 및 `MUSICSHEET_DISPOSABLE_TEST_DB_V1` marker로 한정한다. 기존 API migration runner로 v1/v2를 명시적으로 적용한다. 다른 DB/container는 변경하지 않는다.
-- [ ] live: `uv run --project services/api --offline --no-sync --python 3.13 pytest services/api/tests/integration/test_operator_tools.py -q -ra`를 전용 URL 설정으로 실행하며 skip0을 요구한다. Redis key는 생성 job UUID만 삭제한다. DB marker가 없으면 쓰기를 거부한다.
-- [ ] root: `uv run --project . --offline --no-sync --python 3.13 pytest tests -q -ra -m 'not ml_integration and not celery_integration'`; API: `uv run --project services/api --offline --no-sync --python 3.13 pytest services/api/tests -q -ra`. 환경 부재 skip과 실제 검증을 구분한다.
-- [ ] Linux에서도 변경된 순수 async/DB 코드의 회귀를 실행하고, 실제 Celery 실행은 기존 검증과 이번 검증을 혼동하지 않는다. 추가 라이브러리/모델 설치를 하지 않는다.
-- [ ] 전체 독립 리뷰 >=95/지적0과 report/main_spec 색인을 확인한다. PR #11 head `2bc50a12ea704dd6580fcd7827b03602b2d71337`의 후보 중 두 기능을 통합했고 timeout 설정 노출/손상 event 건너뛰기는 계약 대안으로 후속 후보라는 처리를 보고서에 기록한다.
+- [x] 전용 Docker PostgreSQL16/Redis7 container를 작업 고유 이름으로 생성하고 DB를 `musicsheet_test` 및 `MUSICSHEET_DISPOSABLE_TEST_DB_V1` marker로 한정한다. 기존 API migration runner로 v1/v2를 명시적으로 적용한다. 다른 DB/container는 변경하지 않는다.
+- [x] live: `uv run --project services/api --offline --no-sync --python 3.13 pytest services/api/tests/integration/test_operator_tools.py -q -ra`를 전용 URL 설정으로 실행하며 skip0을 요구한다. Redis key는 생성 job UUID만 삭제한다. DB marker가 없으면 쓰기를 거부한다.
+- [x] root: `uv run --project . --offline --no-sync --python 3.13 pytest tests -q -ra -m 'not ml_integration and not celery_integration'`; API: `uv run --project services/api --offline --no-sync --python 3.13 pytest services/api/tests -q -ra`. 환경 부재 skip과 실제 검증을 구분한다.
+- [x] Linux에서도 변경된 순수 async/DB 코드의 회귀를 실행하고, 실제 Celery 실행은 기존 검증과 이번 검증을 혼동하지 않는다. 추가 라이브러리/모델 설치를 하지 않는다.
+- [x] 전체 독립 리뷰 >=95/지적0과 report/main_spec 색인을 확인한다. PR #11 head `2bc50a12ea704dd6580fcd7827b03602b2d71337`의 후보 중 두 기능을 통합했고 timeout 설정 노출/손상 event 건너뛰기는 계약 대안으로 후속 후보라는 처리를 보고서에 기록한다.
 - [ ] commit/push/새 PR 생성 후 attach_artifact, 최신 diff/check 확인 및 병합. main을 fast-forward로 동기화하고, 새 구현 보존을 확인한 뒤 PR #11 close와 원격 redis branch 삭제. main clean 및 열린 PR/남은 branch를 확인한다.
 - [ ] 이 작업의 container·임시 환경은 소유한 이름/절대 경로를 확인하고 정리한다. 최종 보고에 실제 검증 결과와 제한을 명시한다.
 
@@ -80,5 +80,6 @@
 - 실행 방식: 사용자 `이후작업 진행`에 따라 현재 session에서 주 에이전트가 실행하며, 단위별 독립 review는 사용자 AGENTS.md 요구를 적용한다.
 - Task1 완료: RED23fail → 집중89pass(Windows/Linux), 실DB/Redis1pass·skip0, root334pass/11skip/14deselected, API232pass/26skip. `/root/operator_progress_review` 독립 **99/100** (25+25+24+15+10), 2026-10-06, 미해결 지적0. 범위/hash/minor처리는 [progress report](../reports/pipeline-operator-tools-progress-report.md) 참조.
 - Task2 최초 독립94점 (23+24+23+15+9), important1: outer transaction의 savepoint 해제 후 terminal event를 발행하는 문제를 실제 DB에서 재현. R1 commit 후 발행 요구를 지키기 위해 idle connection 조건을 공개 maintenance/session 경계에서 강제했고 RED2fail/GREEN2pass 및 실DB1건을 추가했다. signature/schema/범위 변경은 없다. 수정 후 집중121pass(Windows/Linux), 실DB8pass/skip0, root394pass/11skip/14deselected, API232pass/33skip. 독립 재리뷰 **99/100** (25+25+24+15+10),2026-10-06, 미해결 지적0; [maintenance report](../reports/pipeline-operator-tools-maintenance-report.md)에 범위/hash/처리 기록.
+- 전체 `/root/operator_final_integration_review`,2026-10-06: 독립 **99/100** (25+25+24+15+10), 미해결 blocker/important/minor0. base1b3a1e3 → HEAD26d5028 + staged문서5개,24파일/+1596/-9, binary diff SHA256 `88c179f9f92b5ebd249b6b0c41458c99f211da8123fed6be178a2b3da06ad07d`. 독립 집중149pass 및 실DB8pass/skip0, progress→운영거부→취소→최종상태 연속 probe 통과. 정확한 범위/fingerprint는 [통합 보고서](../reports/pipeline-operator-tools-integration-report.md) 참조. 이후 변경은 상태/ledger 및 완료 색인이다.
 
 Baseline: Windows root **308pass/11skip/14deselected**, API **232pass/25skip** (2026-10-06). root DB opt-in2 skip, Linux 경계4 및 symlink5 skip; API DB/Redis opt-in25 skip. API는 기존 deprecation/cache 경고2개. Docker29.7.2 사용 가능.

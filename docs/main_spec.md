@@ -169,3 +169,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [45: W05 고정 데이터·오디오·manifest 준비](./reports/transcription-evaluation-dataset-report.md)
 - [46: 현재 attempt/generation 진행률과 Basic Pitch 이정표](./reports/pipeline-operator-tools-progress-report.md)
 - [47: 운영자 정체 작업 조회·종료 및 실제 rollback 검증](./reports/pipeline-operator-tools-maintenance-report.md)
+- [48: PR #11 고유 기능 통합·계약 유지·브랜치 정리](./reports/pipeline-operator-tools-integration-report.md)

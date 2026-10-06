@@ -50,6 +50,8 @@
 
 사양: [런타임](infrastructure/runtime.md), [컨테이너](infrastructure/docker.md), [헬스 체크](infrastructure/health-check.md)
 
+선택 검토 후보: PR #11의 `CELERY_VISIBILITY_TIMEOUT` 환경 설정 노출 및 손상 Redis entry 건너뛰기. 현재 세 visibility 설정3600과 손상 batch 오류 계약은 유지한다. 실제 운영 요구가 확인되면 세 설정의 일관성 또는 event 손실·재접속 동작을 별도 사양·계획·독립 점수 게이트로 검토한다. 이번 [운영 도구 통합](reports/pipeline-operator-tools-integration-report.md)의 미완료 필수 기능으로 취급하지 않는다.
+
 ## W12: S3 스토리지 확장
 
 상태: `Planned` · 권장 선행 작업: LocalStorage 사용 흐름 검증 완료
