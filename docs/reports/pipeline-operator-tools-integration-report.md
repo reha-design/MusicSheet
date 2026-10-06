@@ -2,7 +2,7 @@
 
 2026-10-06 · base main `1b3a1e3fab426f8456ef9de630547b8fae315e4d` · 구현 branch `codex/pipeline-operator-tools`.
 
-상태: 계획 독립97점·Task1/Task2/전체 구현 각각 독립99점으로 구현·검증 완료. GitHub 통합과 소유 환경 정리 단계다. 열린 PR 개수로 작업 완료를 판정하지 않는다.
+상태: 완료. 계획 독립97점·Task1/Task2/전체 구현 각각 독립99점. [PR #13](https://github.com/reha-design/MusicSheet/pull/13)을 병합하고 기존 PR/브랜치와 소유 환경을 정리했다. 완료 판단은 기능별 통합·실제 검증·독립 리뷰·main tree 확인에 근거하며 열린 PR 개수만으로 판정하지 않는다.
 
 ## 통합 범위와 기존 PR 처리
 
@@ -72,4 +72,7 @@ Linux 집중은 `docker exec`의 PYTHONPATH를 `/repo/packages/common:/repo/pack
 - 전체 독립 리뷰: `/root/operator_final_integration_review`,2026-10-06, **99/100** (25+25+24+15+10), blocker0/important0/minor0. base1b3a1e3 → HEAD26d5028 + staged문서5개,24파일/+1596/-9. 전체 binary diff SHA256 `88c179f9f92b5ebd249b6b0c41458c99f211da8123fed6be178a2b3da06ad07d`, staged문서diff `16ba5aafe8d4b810d9571815c3f3ebc36a642b99e7c2a4df80334f83244d298d`.
 - 독립 전체 검증: 집중149pass (직접 Python2.80초 및 uv offline/no-sync/no-cache2.62초), 실제 operator8pass/skip0/3.29초. 동일 job의 scan→worker progress→LOCK_HELD→OBSERVATION_CHANGED→취소 재조회→CANCELED commit/event→outbox소비→늦은 delivery/progress SKIP probe를 통과하고 소유 job/연결을 회수했다. migration/HTTP/task/queue/event 구현과 uv lock4개 변경0을 확인했다.
 - 최종 리뷰 당시 통합 보고서 SHA256 `41F230ED5D4E04BBDCE993549DCA72C636C14C7B5A00257B0E925A1A24CB2AC4`, 실행 계획 `542930D0804230ED7852C663FFD24D104C7AC2FBA8904D2B853D8CE68E8B729F`, 설계R1 `4A74C4DCCE868C19E91D60D71DBC319F36CB039143EF1E376B6C8B68A9715D18`. 이후 변경은 평가/상태 ledger 및 완료 색인이다.
-- 새 PR 생성·병합, main sync, 기존 PR11 close/원격 branch 삭제, 소유 환경 정리: 대기.
+- [새 PR #13](https://github.com/reha-design/MusicSheet/pull/13): head `7f82cf26ba99fcefe177f0294588579e895ec98c`,24파일/+1599/-9. MERGEABLE/CLEAN 및 정확한 HEAD를 확인하고 `--merge --match-head-commit`으로 병합했다. GitHub status check/reviewDecision은 없었으며 CI 통과로 주장하지 않는다. 로컬 독립 점수·검증 증거를 사용했다.
+- merge commit `2720fcda49fc0293abf58cc7cafa2965da626ecb`, mergedAt2026-10-06T13:11:23Z (KST22:11:23). main fast-forward 후 `git diff --exit-code 7f82cf2 HEAD`와 feature ancestry 검사 exit0으로 검증한 tree 보존을 확인했다. 코드가 같은 tree이므로 새 테스트 재실행으로 수치를 늘리지 않았다.
+- 원본 PR #11 head와 bundle 완전한 이력을 재검증한 뒤 CLOSED(closedAt2026-10-06T13:11:57Z). 원격 `codex/redis-streams-sse`/`codex/pipeline-operator-tools` 및 병합된 local feature branch를 삭제했다. 열린PR0, local/remote branch main만 남았다.
+- 소유한 container3개, anonymousvolume2개, network1개를 삭제했다. Linux mount가 workspace read-only bind임을 확인했고 파일을 삭제하지 않았다. 기존 study_postgres는 그대로 실행 중이다. 원본 bundle/audit/requirements/owner 기록은 로컬 outputs에 보존한다. 이후 마지막 문서 commit은 이 상태 ledger와 roadmap/completed-work 색인만 변경한다.
