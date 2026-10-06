@@ -28,6 +28,17 @@ Past PENDING rows without attempts or reservations stay dormant until an explici
 uv run --project . --locked --python 3.13 musicsheet-dispatch --recover-pending
 ```
 
+For explicitly finalizing abandoned work, the finite maintenance CLI needs only `DATABASE_URL`; `REDIS_URL` is optional for the terminal event. Scan is read-only and never opens Redis. Public recovery functions require an idle connection with no outer transaction and own the actual commit; active transactions are rejected before locks or events. The CLI opens a fresh connection per command. Keep the five observation fields from scan and pass them unchanged to fail-stalled. An absent active attempt is the literal `none`:
+
+```sh
+uv run --project . --locked --python 3.13 musicsheet-maintenance scan --stale-seconds 7200 --limit 100
+uv run --project . --locked --python 3.13 musicsheet-maintenance fail-stalled \
+  --job-id "$JOB_ID" --observed-status RUNNING --observed-stage DOWNLOAD \
+  --observed-updated-at "$OBSERVED_UPDATED_AT" --observed-attempt-id none --stale-seconds 7200
+```
+
+Scan orders stale nonterminal jobs by updated_at/id and excludes NULL timestamps. Age is1–2147483647 seconds and limit1–1000. The latest attempt summary contains stage/attempt/generation/status/error_code only. Termination uses the worker's nonblocking advisory lock plus a row lock; a changed timestamp, status, stage or active attempt refuses the operation. Refresh scan after any refusal. Cancellation finishes as CANCELED; other eligible jobs finish FAILED/WORKER_STALLED. It closes all RUNNING attempts, consumes unpublished outbox reservations and retains history/artifacts in one transaction. Already delivered messages observe terminal status and skip. Exit codes:0 success,1 infrastructure/interruption,2 input/configuration,3 unchanged. Diagnostics never echo dependency exceptions. Redis event failure preserves the committed DB result; inspect DB state if delivery or cleanup fails after commit. Help requires no environment or connections.
+
 JSON serialization only, late ACK, reject-on-worker-loss and prefetch1 are configured. Broker visibility is3600 seconds, so recovery of lost deliveries can wait that long. Database connect/command timeouts are2/5 seconds; broker socket/connect timeouts2 seconds. A failed infrastructure retry publish waits5 seconds before requeueing the current delivery. Event publication uses the shared W02 bounded stream after DB commit; event loss logs a fixed warning and never rolls back committed work. SSE replay cannot restore an event that was never published.
 
 Artifact validation runs owned worker threads and reads64KiB chunks. Cancellation stops new reads and drains the current read before closing; it cannot forcibly interrupt stalled OS file I/O. Providers must cooperate with cancellation; adapters own termination of subprocesses/threads. Files written before a failed transaction can remain orphaned for later cleanup.

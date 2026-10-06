@@ -50,7 +50,15 @@ class PipelineStage(str, Enum):
  RETRYING ──(retry limit exceeded)──► FAILED
 ```
 
-The API accepts cancellation requests only while a job is `PENDING`, `RUNNING`, or `RETRYING`. The conditional database update cannot replace a terminal state. `CANCEL_REQUESTED` is cooperative: a worker later records `CANCELED`; without a worker, the job remains in the requested state.
+The API accepts cancellation requests only while a job is `PENDING`, `RUNNING`, or `RETRYING`. The conditional database update cannot replace a terminal state. `CANCEL_REQUESTED` is cooperative: a worker later records `CANCELED`; without a worker, the job remains in the requested state until an operator explicitly finalizes a stale observation.
+
+### 운영자 정체 작업 종료
+
+공개 `fail_stalled`/`StageSession.fail_stalled`는 이 복구 transaction의 commit을 직접 소유하므로 외부 transaction이 없는 idle connection을 요구한다. 활성 transaction은 잠금·쓰기·event 발행 전에 ValueError로 거부한다. CLI는 명령마다 새 connection을 생성해 이 조건을 충족한다.
+
+`musicsheet-maintenance scan`은 서버 시간으로 `updated_at`이 지정 시간 이상 지난 비최종 작업을 조회한다. 기본7200초, 범위1~2147483647초; limit 기본100, 범위1~1000. NULL timestamp는 제외하고 updated_at/id 오름차순으로 정렬한다. 최신 attempt는 started_at DESC NULLS LAST/id DESC로 선택한다. source URL, artifact URI, error_detail은 출력하지 않는다.
+
+`fail-stalled`는 job_id/status/current_stage/updated_at/active_attempt_id의 조회값을 요구한다. 현재 worker와 같은 job advisory lock을 얻고 row lock 안에서 모든 관측값과 서버 기준 정체 시간을 재검사한다. 잠금 경합, 관측값 변화, 최신 활동, 최종 상태 또는 없는 작업은 무변경으로 반환한다. CANCEL_REQUESTED는 CANCELED로, 나머지 비최종 상태는 FAILED/WORKER_STALLED로 종료한다. 모든 RUNNING attempt를 FAILED로 닫고 active id를 해제하며 미발행 outbox에 published_at을 기록한다. 완료 이력과 아티팩트는 보존한다. 이 변경은 한 transaction이며 이미 발행된 메시지는 최종 상태 검사에서 SKIP된다. DB commit 후 기존 Redis terminal event를 발행하고 Redis 장애는 커밋 결과를 되돌리지 않는다.
 
 ---
 

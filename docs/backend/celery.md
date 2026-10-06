@@ -50,3 +50,7 @@ runner는 실행 중인 provider의 `StageContext.report_progress`에 async call
 동시 callback의 DB 기록과 이벤트 발행을 직렬화한다. DB commit 후 기존 Redis `payload` 이벤트를 발행하며 Redis 실패는 DB 상태를 되돌리지 않는다. DB 소유권·연결 장애는 InfrastructureUnavailable로 실행 경계에 전달된다.
 
 Basic Pitch는 입력 준비20, 모델 실행70, 결과 검증85, 파일 저장95의 처리 이정표를 보고한다. 이 수치는 시간 비율이나 전사 정확도가 아니며, 결과 metadata 공개와 다음 단계 예약은 기존 runner 완료 transaction에서 수행한다.
+
+## 4. 운영자 정체 작업 점검
+
+`musicsheet-maintenance scan`/`fail-stalled`는 기존 PostgreSQL stage session의 job advisory lock을 재사용한다. 별도 orchestration이나 task namespace를 만들지 않는다. scan은 읽기 전용이고 종료는 필수 관측값5개와 정체 시간을 잠금 안에서 재검사한다. 상태 전이·attempt 종료·outbox 소비의 원자성 및 무변경 이유는 [Job 상태 계약](../domain/job-state.md#운영자-정체-작업-종료), 환경·exit code·명령은 [pipeline README](../../packages/pipeline/README.md)를 따른다. API의 cancel 요청과 worker가 없는 CANCEL_REQUESTED를 운영자가 명시적으로 CANCELED로 마무리하는 명령은 별도 동작이다.

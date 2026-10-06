@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. 구현은 주 에이전트가 수행하고 AGENTS.md에 따라 각 단위를 독립 reviewer가 평가한다.
 
-**Revision:** R1 · 2026-10-06. **상태:** 독립 계획97점·Task1 구현99점 통과, Task2 착수. 리뷰 후 상태/ledger만 갱신하며 리뷰한 실행 내용은 아래 기록의 hash로 식별한다.
+**Revision:** R1 · 2026-10-06. **상태:** 독립 계획97점·Task1/Task2 구현 각각99점 통과, 전체 독립 리뷰·PR 통합 대기. 리뷰 후 상태/ledger만 갱신하며 리뷰한 실행 내용은 아래 기록의 hash로 식별한다.
 
 **Goal:** PR #11의 운영 복구 및 진행률 기능을 현재 main 구조에 맞춰 통합하고 기존 PR/브랜치를 정리한다.
 
@@ -43,22 +43,22 @@
 
 **Interfaces:** `StageContext.report_progress: Callable[[int], Awaitable[bool]] | None = None`; `StageSession.report_progress(attempt_id: str, progress: int) -> Transition | None`. 기존 StageContext 생성자의 인자 순서는 보존한다.
 
-- [ ] Step1 — `test_progress.py`에 0~99 검증, 반복/역행 무변경, stale id/generation, 취소/최종 상태, 동시 callback, provider 종료 후 호출, DB rollback 및 Redis 실패 테스트를 작성한다. fake는 실제 rollback snapshot을 유지한다.
-- [ ] Step2 — `uv run --project . --offline --no-sync --python 3.13 pytest tests/pipeline/test_progress.py -q` RED를 확인한다. 없거나 미연결 callback 때문에 실패해야 한다.
-- [ ] Step3 — canonical owner에 callback 계약을 반영하고 session의 progress 전이, runner callback 연결 및 수명/직렬화, Basic Pitch 처리 이정표 20/70/85/95를 구현한다. callback은 provider가 await한다. 갱신은 RUNNING job/attempt 및 active id/stage/generation을 검증하고 전체 진행률을 감소시키지 않는다.
-- [ ] Step4 — 집중 progress/runner/repository/Basic Pitch 회귀를 GREEN으로 확인한다. 실제 DB/Redis 테스트에 진행률 commit와 payload 읽기, stale generation 무변경을 추가한다.
-- [ ] Step5 — 독립 구현 reviewer가 rubric25/25/25/15/10로 >=95 및 지적0을 확인한다. 정확한 리뷰 범위/hash/검증 결과를 progress report와 이 계획에 기록하고 관련 파일만 commit한다.
+- [x] Step1 — `test_progress.py`에 0~99 검증, 반복/역행 무변경, stale id/generation, 취소/최종 상태, 동시 callback, provider 종료 후 호출, DB rollback 및 Redis 실패 테스트를 작성한다. fake는 실제 rollback snapshot을 유지한다.
+- [x] Step2 — `uv run --project . --offline --no-sync --python 3.13 pytest tests/pipeline/test_progress.py -q` RED를 확인한다. 없거나 미연결 callback 때문에 실패해야 한다.
+- [x] Step3 — canonical owner에 callback 계약을 반영하고 session의 progress 전이, runner callback 연결 및 수명/직렬화, Basic Pitch 처리 이정표 20/70/85/95를 구현한다. callback은 provider가 await한다. 갱신은 RUNNING job/attempt 및 active id/stage/generation을 검증하고 전체 진행률을 감소시키지 않는다.
+- [x] Step4 — 집중 progress/runner/repository/Basic Pitch 회귀를 GREEN으로 확인한다. 실제 DB/Redis 테스트에 진행률 commit와 payload 읽기, stale generation 무변경을 추가한다.
+- [x] Step5 — 독립 구현 reviewer가 rubric25/25/25/15/10로 >=95 및 지적0을 확인한다. 정확한 리뷰 범위/hash/검증 결과를 progress report와 이 계획에 기록하고 관련 파일만 commit한다.
 
 ## Task 2: 운영자 scan 및 안전한 종료 CLI
 
 **Interfaces:** `StalledJob`은 job_id/status/current_stage/updated_at/active_attempt_id 및 최신 attempt 요약을 제공한다. `JobObservation(job_id, status, current_stage, updated_at, active_attempt_id)`는 UUID/enum/aware timestamp를 검증한다. `scan_stalled(connection, *, stale_seconds=7200, limit=100) -> tuple[StalledJob, ...]`; `fail_stalled(connection, observation, *, stale_seconds=7200, event_store=None) -> RecoveryResult`는 changed/reason/transition을 반환한다. `StageSession.fail_stalled(observation, *, stale_seconds) -> RecoveryResult`가 잠금·transaction 경계 안의 전이를 소유한다. 공개 maintenance 모듈은 private session method를 직접 호출하지 않는다.
 
-- [ ] Step1 — bounded scan, NULL timestamp, 민감 필드 제외, worker lock, timestamp/status/stage/active id 변경, NOT_FOUND/NOT_STALE/NOT_ELIGIBLE, 취소 승리, 모든 RUNNING attempt 종료 및 미발행 outbox 소비, 완료 이력/아티팩트 보존, commit/마지막 쓰기 rollback, Redis 실패 테스트를 작성한다.
-- [ ] Step2 — `uv run --project . --offline --no-sync --python 3.13 pytest tests/pipeline/test_maintenance.py tests/pipeline/test_maintenance_cli.py -q` RED를 확인한다.
-- [ ] Step3 — scan/observation/result와 StageSession 종료 전이를 구현한다. 기존 stage_session lock의 cancellation/cleanup을 재사용하며 generation1 placeholder는 단계 실행을 시작하지 않는다. 새 WORKER_STALLED 고정 오류 메시지로 실패를 기록한다.
-- [ ] Step4 — `musicsheet-maintenance scan` 및 `fail-stalled` script를 등록한다. 관측 인자5개를 요구하고 null active id는 문자열 none으로 입력한다. `PipelineSettings`는 database만 필요, broker 필수 검사를 호출하지 않는다. Redis 미설정이면 생략한다. help/no-connect, 잘못된 UUID/time/enum/age/limit, secret exception, CLI exit/cleanup을 확인한다.
-- [ ] Step5 — 집중 테스트와 실제 PostgreSQL 두 세션 lock/CAS/취소/rollback, 기존 메시지의 최종 상태 SKIP 및 실제 Redis terminal payload를 검증한다. root/API 전체 회귀와 `uv lock --check --offline`를 실행한다.
-- [ ] Step6 — 독립 단위 리뷰 >=95/지적0 후 maintenance report와 계획에 정확한 범위/hash/증거를 기록하고 atomic commit한다.
+- [x] Step1 — bounded scan, NULL timestamp, 민감 필드 제외, worker lock, timestamp/status/stage/active id 변경, NOT_FOUND/NOT_STALE/NOT_ELIGIBLE, 취소 승리, 모든 RUNNING attempt 종료 및 미발행 outbox 소비, 완료 이력/아티팩트 보존, commit/마지막 쓰기 rollback, Redis 실패 테스트를 작성한다.
+- [x] Step2 — `uv run --project . --offline --no-sync --python 3.13 pytest tests/pipeline/test_maintenance.py tests/pipeline/test_maintenance_cli.py -q` RED를 확인한다.
+- [x] Step3 — scan/observation/result와 StageSession 종료 전이를 구현한다. 기존 stage_session lock의 cancellation/cleanup을 재사용하며 generation1 placeholder는 단계 실행을 시작하지 않는다. 새 WORKER_STALLED 고정 오류 메시지로 실패를 기록한다.
+- [x] Step4 — `musicsheet-maintenance scan` 및 `fail-stalled` script를 등록한다. 관측 인자5개를 요구하고 null active id는 문자열 none으로 입력한다. `PipelineSettings`는 database만 필요, broker 필수 검사를 호출하지 않는다. Redis 미설정이면 생략한다. help/no-connect, 잘못된 UUID/time/enum/age/limit, secret exception, CLI exit/cleanup을 확인한다.
+- [x] Step5 — 집중 테스트와 실제 PostgreSQL 두 세션 lock/CAS/취소/rollback, 기존 메시지의 최종 상태 SKIP 및 실제 Redis terminal payload를 검증한다. root/API 전체 회귀와 `uv lock --check --offline`를 실행한다.
+- [x] Step6 — 독립 단위 리뷰 >=95/지적0 후 maintenance report와 계획에 정확한 범위/hash/증거를 기록하고 atomic commit한다.
 
 ## 전체 검증·통합
 
@@ -79,5 +79,6 @@
 - minor3 처리: 최신 attempt는 started_at DESC NULLS LAST/id DESC로 결정하고 실제 DB 필터·정렬·limit 검증에 eligible/terminal/NULL을 함께 넣는다. Linux 경로/명령/runtime fingerprint는 통합 보고서에 남긴다. 기존 요구와 인터페이스를 바꾸는 사항은 아니다.
 - 실행 방식: 사용자 `이후작업 진행`에 따라 현재 session에서 주 에이전트가 실행하며, 단위별 독립 review는 사용자 AGENTS.md 요구를 적용한다.
 - Task1 완료: RED23fail → 집중89pass(Windows/Linux), 실DB/Redis1pass·skip0, root334pass/11skip/14deselected, API232pass/26skip. `/root/operator_progress_review` 독립 **99/100** (25+25+24+15+10), 2026-10-06, 미해결 지적0. 범위/hash/minor처리는 [progress report](../reports/pipeline-operator-tools-progress-report.md) 참조.
+- Task2 최초 독립94점 (23+24+23+15+9), important1: outer transaction의 savepoint 해제 후 terminal event를 발행하는 문제를 실제 DB에서 재현. R1 commit 후 발행 요구를 지키기 위해 idle connection 조건을 공개 maintenance/session 경계에서 강제했고 RED2fail/GREEN2pass 및 실DB1건을 추가했다. signature/schema/범위 변경은 없다. 수정 후 집중121pass(Windows/Linux), 실DB8pass/skip0, root394pass/11skip/14deselected, API232pass/33skip. 독립 재리뷰 **99/100** (25+25+24+15+10),2026-10-06, 미해결 지적0; [maintenance report](../reports/pipeline-operator-tools-maintenance-report.md)에 범위/hash/처리 기록.
 
 Baseline: Windows root **308pass/11skip/14deselected**, API **232pass/25skip** (2026-10-06). root DB opt-in2 skip, Linux 경계4 및 symlink5 skip; API DB/Redis opt-in25 skip. API는 기존 deprecation/cache 경고2개. Docker29.7.2 사용 가능.
