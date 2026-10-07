@@ -4,7 +4,7 @@
 
 ## 진행 중
 
-**W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)와 실행 계획 R3를 사용자 승인받았습니다. 코드 리뷰에서 보완한 [실행 계획 R5](plans/transcription-model-evaluation-implementation-plan.md)는 독립100점입니다. Task1 평가 환경·MIDI 정답·점수 계산은62개 테스트와 코드 독립100점으로 완료했습니다 ([Task1 보고서](reports/transcription-evaluation-metrics-report.md)). Task2의 실제 고정 MAESTRO12개·오디오·manifest 준비는128개 테스트·독립 코드100점으로 완료했습니다 ([Task2 보고서](reports/transcription-evaluation-dataset-report.md)). Task3 ByteDance worker·checkpoint가 다음이고, 실제 모델 비교·기본 모델 결정은 아직 수행하지 않았습니다.
+**W05 — 기본 전사 모델 결정**: [서면 설계 R2](superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)와 실행 계획 R3를 사용자 승인받았습니다. Task1/2는 각각 독립 코드100점으로 완료했습니다 ([점수 계산](reports/transcription-evaluation-metrics-report.md), [고정 MAESTRO12개 준비](reports/transcription-evaluation-dataset-report.md)). Task3도 [실행 계획 R7](plans/transcription-model-evaluation-implementation-plan.md) 독립99점·코드 재리뷰100점/미해결 지적0으로 완료했습니다. 격리 ByteDance worker·공식 checkpoint·Windows CPU30초 실제 smoke·1개 실제 opt-in 테스트를 통과했고, 초기94점의 MIDI 의미/다운로드 deadline 지적을 보완했습니다. worker71개·평가기147개 회귀 및 captured smoke 바이트 보존을 확인했습니다 ([Task3 보고서](reports/piano-amt-evaluation-worker-report.md)). 다음은 Task4 runner/선정이며 Task5 실제 모델 비교·기본 모델 결정은 아직 수행하지 않았습니다.
 
 ## 다음 작업 후보
 

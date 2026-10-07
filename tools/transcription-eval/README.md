@@ -54,3 +54,17 @@ and 16000 Hz mono inputs contain exactly 661500 and 480000 frames. The tracked
 manifest contains paths and hashes; audio, MIDI and reference arrays stay under
 ignored `outputs/`. Partial Range acquisition verifies CRC and per-member SHA256,
 without claiming verification of the full 101 GB archive's published SHA256.
+
+Task3 provides `prepare_checkpoint(destination: Path) -> dict[str, object]` in
+`musicsheet_transcription_eval.checkpoint`. It prepares the fixed Zenodo4034264
+Note_pedal checkpoint under an absolute directory, checking official metadata,
+license, exact bytes/MD5 and the computed SHA256. It rechecks cached files without
+network, preserves invalid existing files, and cleans only its own `.part` file.
+The 4 MiB metadata/180 MiB transfer/60-second HTTP I/O inactivity/10-minute overall
+limits are independent of MAESTRO acquisition. Async streaming interrupts pending
+headers/body reads at the overall deadline and closes resources and owned partials.
+Call this synchronous function outside an active event loop for uncached downloads;
+an active loop is rejected before creating a coroutine or starting network/file work.
+A valid cache still returns without network. This preparation module imports no model.
+Run the [isolated worker](../../services/ml/piano-amt-worker/README.md) separately
+with the returned checkpoint SHA256; the comparison runner remains Task4.
