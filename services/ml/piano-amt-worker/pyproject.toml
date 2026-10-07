@@ -1,0 +1,40 @@
+[project]
+name = "musicsheet-piano-amt-worker"
+version = "0.1.0"
+description = "Isolated pinned CPU piano AMT evaluation worker"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "piano-transcription-inference==0.0.6",
+    "torch==2.10.0",
+    "numpy>=2,<3",
+    "librosa>=0.11,<0.12",
+    "soundfile>=0.13,<0.14",
+    "torchlibrosa==0.1.0",
+    "mido==1.3.3",
+    "setuptools<81",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+piano-amt-worker = "musicsheet_piano_amt_worker.cli:main"
+
+[tool.uv.sources]
+piano-transcription-inference = { git = "https://github.com/qiuqiangkong/piano_transcription_inference", rev = "0226e74cbc805660e34bbd6a8fed2083890ebb88" }
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[build-system]
+requires = ["uv_build>=0.10.11,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ""
+markers = ["live_model: opt-in installed model/checkpoint smoke"]
