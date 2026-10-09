@@ -9,7 +9,7 @@
 
 | 모델 | 대상 악기 | 주요 특징 | 실행 방식 및 큐 |
 | :--- | :--- | :--- | :--- |
-| **ByteDance Piano AMT** (Kong et al.) | 피아노 전용 | 벨로시티·서스테인 페달 출력 후보. 실제 지원 범위는 동일한 fixture로 검증 필요 | Python·PyTorch·CUDA 조합 미확정. 호환성 검증 후 실행 환경과 큐 결정 |
+| **ByteDance Piano AMT** (Kong et al.) | 피아노 전용 | W05 고정 solo piano subset 정확도 선정. 벨로시티·페달 출력 평가 완료 | 평가용 Windows Python 3.12 + PyTorch 2.10 CPU 독립 CLI 검증. 제품 연결 대기; 제품 큐·CUDA 검증은 후속 |
 | **Spotify Basic Pitch** | 범용 악기 / 피아노 | 다성부 전사와 pitch bend MIDI 출력. worker JSON note contract는 pitch bend detail을 보존하지 않음 | Windows Python 3.12 + ONNX CPU 독립 CLI와 opt-in TRANSCRIBE 제품 연결·DB 등록 검증 완료. upstream 공식 지원과 기본 모델 채택은 별도 |
 
 ### 실행환경 경계
@@ -55,4 +55,4 @@ Canonical Audio (44.1kHz Stereo)
 
 ## 5. W05 모델 평가 설계
 
-[W05 서면 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)는 R1 조건부 승인 리뷰를 반영해 사용자 승인을 받은 목표 설계다. 비상업 연구·개인 개발 범위의 MAESTRO test12개 고정 구간에서 두 후보의 정확도·시간·실패를 비교한다. 상세 metric/정답/선정 계약은 설계에서, 작업 순서·검증 명령·독립 점수는 [실행 계획](../plans/transcription-model-evaluation-implementation-plan.md)에서 관리한다. 실제 비교와 기본 모델 선정, ByteDance 제품 연결은 아직 완료되지 않았다.
+[W05 서면 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md)에 따라 비상업 연구·개인 개발용 MAESTRO test12개 고정 구간에서 두 후보를 실제 Windows CPU72회 비교했다. Piano AMT가 `selected_for_subset`으로 선정됐고 제품 상태는 **`selected_pending_integration`**이다. 현재 제품은 기존 opt-in Basic Pitch를 사용한다. [실제 결과·지원 범위](../reports/transcription-model-evaluation-report.md)와 [검증된 수치·선정 원장 보고서](../evaluations/transcription-model-selection.md)를 참조한다. 상세 metric/정답/선정 계약은 설계, 작업·독립 게이트는 [실행 계획](../plans/transcription-model-evaluation-implementation-plan.md)에서 관리한다. ByteDance 제품 연결은 별도 후속 작업이다.

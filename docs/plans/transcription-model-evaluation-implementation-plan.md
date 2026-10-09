@@ -10,7 +10,7 @@
 
 **Spec:** [사용자 승인 설계 R2](../superpowers/specs/2026-10-05-transcription-model-evaluation-design.md), [전사](../ai/transcription.md), [모델 경계](../ai/model-adapters.md), [정답 이벤트](../domain/note-events.md).
 
-Plan Revision7 · 2026-10-07 · Task3 기준 `f518ee1`, branch `codex/w05-piano-amt-worker`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획 R3 사용자 실행 승인: 2026-10-05 `다음 작업 진행`**. R4/5는 Task1 자원 경계, R6은 Task3 공식 중첩 state 검증, R7은 Task3 독립 코드94점/important2의 MIDI 의미 검증과 취득 hard deadline 보완이다. 각 현재 버전은 별도 독립 계획 평가를 적용한다. 기존 주 에이전트 구현＋단위별 독립 reviewer 방식이다. Task1/2/3는 각각 독립 코드100점으로 완료했고 Task3 R7 계획은 독립99점이다. Task4는 상세 계획 R3 독립100점·최종 코드100점으로 완료했고 Task5는 미시작이다.
+Plan Revision7 · 2026-10-07 · Task3 기준 `f518ee1`, branch `codex/w05-piano-amt-worker`. 설계 R2 사용자 승인: 수정본 제시 뒤 `진행` 응답. **작성된 계획 R3 사용자 실행 승인: 2026-10-05 `다음 작업 진행`**. R4/5는 Task1 자원 경계, R6은 Task3 공식 중첩 state 검증, R7은 Task3 독립 코드94점/important2의 MIDI 의미 검증과 취득 hard deadline 보완이다. 각 현재 버전은 별도 독립 계획 평가를 적용한다. 기존 주 에이전트 구현＋단위별 독립 reviewer 방식이다. Task1/2/3는 각각 독립 코드100점으로 완료했고 Task3 R7 계획은 독립99점이다. Task4는 상세 계획 R3 독립100점·최종 코드100점으로 완료했다. Task5 상세 계획 R1 독립99점 승인 후 최초 실제 CPU72회 성공·Piano subset 선정 결과를 기록했고 Task5 단위100점과 별도 전체 W05100점/B0I0M0으로 실제 평가·선정을 완료했다.
 
 ## Global Constraints
 
@@ -144,14 +144,16 @@ def test_selection_crop_golden_lf_bytes():
 
 ### Task5: 실제 비교·최종 검증·결정 기록
 
+진행: [상세 계획 R1](w05-task5-live-comparison-plan.md) 독립99점/B0I0 승인 후 최초 실제 CPU 세션을 한 번 실행했다. 예정72개·preflight4개 전부 성공, 24개 후보/구간 조합3회 동일 hash, `selected_for_subset`/`piano_amt`/`selected_pending_integration`. full root394/API232/Basic46/Piano71/evaluator265pass와 실제 captured 원장 검증11pass를 확인했다. [결과보고서](../reports/transcription-model-evaluation-report.md). 독립 단위100점·별도 전체 W05100점/B0I0M0으로 평가·선정을 완료했고 통합 감사 기록을 이어간다.
+
 **Files:** evaluator tests `test_live_evaluation.py` (opt-in, 기본 skip), `docs/evaluations/transcription-model-selection.md`, `docs/reports/transcription-model-evaluation-report.md`; modify evaluatorREADME, canonical transcription/model-adapters는 상태·결정 링크만, roadmap/completed-work/main_spec.
 
 **Interfaces:** 목표 CLI `transcription-eval run --manifest <tracked> --input-root <ignored> --basic-python <abs> --piano-python <abs> --checkpoint <abs> --checkpoint-sha256 <hex> --output-root <ignored>`→run dir; `transcription-eval report --run-dir <ignored/run-id> --output <tracked report>`→summary hash. `--help`로 모든 목표 명령을 확인한다.
 
-- [ ] **Step1 테스트:** report의 frozen manifest/candidate/slotcount/hash/지표 설명. 실제 설정된 opt-in test는 source/defaultoptions/두 파일/first12·총72 예정slot 상태 확인. 누락 환경은 명시적 skip이며 benchmark PASS로 표시하지 않음. 추가 시 이미 GREEN인 integration은 그대로 기록하고 가짜 RED 금지.
-- [ ] **Step2 준비 gate/실행:** evaluator locked sync/import·전체 unit, 12개 input/reference hash freeze, workerCPU lock/checkpoint, 비평가 smoke4개/예상 시간. 목표CLI 한 번의 초기 CPU 세션, silent rerun/adaptive crop 없음. 도구가 계속 실행 중이면<=60초마다 완료/잔여slot·마지막 상태 진행 알림. 중단/revision은 원시ledger 유지·새ID. 불가 후보는 unmeasured/partial/no_selection, W05 미완료. GPU는 준비된 별도 환경과 분리 명령/receipt가 있을 때만 optional 실행.
-- [ ] **Step3 최종 검증:** 전체 evaluator/Byte/root/API/기존 Basic worker offline/no-sync suite·매회 새 basetemp. 각 명령은 `pytest -c <project>/pyproject.toml <project>/tests`와 collect-only/config 확인을 사용한다. root는 `-c pyproject.toml tests`/3.13, API`services/api`/3.13, old worker`services/ml/basic-pitch-worker`/3.12, Byte`services/ml/piano-amt-worker`/3.12, evaluator`tools/transcription-eval`/3.13. 각 `uv lock --check --offline --project <path>`와 기존3lockhash 불변. diffcheck/links/추적 바이너리 없음. Linux는 실제 수행한 unit/process 증거만, 소유 child/.part 정리·ignored data/receipt 재현용 보존·공유 서비스 변경 없음.
-- [ ] **Step4 보고/선정/리뷰:** first12 onset/sustain/key-release·P/R/F1/macro/micro/velocityMAE pair·CI/censor, 원시36·진단·reliability/determinism·CPU RTF/median/nearest-rankp95·thread/device/version/source/license/한계. R2 상태/fallback 경계, Byte winner는 selected_pending_integration·제품 selector 불변. 두 후보 유효 CPU 비교+결정 근거가 있어야 W05 완료; 미측정/해결 안 된 상태는 roadmap 진행 중 유지. Task5 독립>=95와 전체 변경 fresh review>=95·미해결 important0, 전체 리뷰는 단위 gate를 대체하지 않음.
+- [x] **Step1 테스트:** report의 frozen manifest/candidate/slotcount/hash/지표 설명. 실제 설정된 opt-in test는 source/defaultoptions/두 파일/first12·총72 예정slot 상태 확인. 누락 환경은 명시적 skip이며 benchmark PASS로 표시하지 않음. 추가 시 이미 GREEN인 integration은 그대로 기록하고 가짜 RED 금지.
+- [x] **Step2 준비 gate/실행:** evaluator locked sync/import·전체 unit, 12개 input/reference hash freeze, workerCPU lock/checkpoint, 비평가 smoke4개/예상 시간. 목표CLI 한 번의 초기 CPU 세션, silent rerun/adaptive crop 없음. 도구가 계속 실행 중이면<=60초마다 완료/잔여slot·마지막 상태 진행 알림. 중단/revision은 원시ledger 유지·새ID. 불가 후보는 unmeasured/partial/no_selection, W05 미완료. GPU는 준비된 별도 환경과 분리 명령/receipt가 있을 때만 optional 실행.
+- [x] **Step3 최종 검증:** 전체 evaluator/Byte/root/API/기존 Basic worker offline/no-sync suite·매회 새 basetemp. 각 명령은 `pytest -c <project>/pyproject.toml <project>/tests`와 collect-only/config 확인을 사용한다. root는 `-c pyproject.toml tests`/3.13, API`services/api`/3.13, old worker`services/ml/basic-pitch-worker`/3.12, Byte`services/ml/piano-amt-worker`/3.12, evaluator`tools/transcription-eval`/3.13. 각 `uv lock --check --offline --project <path>`와 기존3lockhash 불변. diffcheck/links/추적 바이너리 없음. Linux는 실제 수행한 unit/process 증거만, 소유 child/.part 정리·ignored data/receipt 재현용 보존·공유 서비스 변경 없음.
+- [x] **Step4 보고/선정/리뷰:** first12 onset/sustain/key-release·P/R/F1/macro/micro/velocityMAE pair·CI/censor, 원시36·진단·reliability/determinism·CPU RTF/median/nearest-rankp95·thread/device/version/source/license/한계. R2 상태/fallback 경계, Byte winner는 selected_pending_integration·제품 selector 불변. 두 후보 유효 CPU 비교+결정 근거가 있어야 W05 완료; 미측정/해결 안 된 상태는 roadmap 진행 중 유지. Task5 독립>=95와 전체 변경 fresh review>=95·미해결 important0, 전체 리뷰는 단위 gate를 대체하지 않음.
 - [ ] **Step5 커밋:** `docs(amt): record fixed transcription model comparison`, 실제 integration/docs만 명시 stage. models/audio/MIDI/reference 배열/secret 없음. 각 단위/전체 리뷰의 rubric·날짜·SHA·지적 처리 기록.
 
 ## 자기 검토·실행 전달
