@@ -12,6 +12,7 @@ def test_locked_environment_and_process_boundary():
 import sys
 import musicsheet_common, musicsheet_storage, musicsheet_pipeline
 import musicsheet_transcription_eval
+from musicsheet_transcription_eval import runner, session, results, determinism, selection, report, cli
 from musicsheet_pipeline.basic_pitch.process import run_owned_process
 from musicsheet_pipeline.basic_pitch.result import validate_result_files
 assert not any(name.split('.')[0] in {'torch','tensorflow','onnxruntime','basic_pitch','piano_transcription_inference'} for name in sys.modules)

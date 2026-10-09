@@ -19,8 +19,9 @@ Windows ACL regression also needs PowerShell 7 (`pwsh`); it skips on other
 platforms or when that probe runtime is absent. Preparation itself needs no
 PowerShell subprocess.
 
-The W05 R5 plan defines dataset, worker and runner steps. Real model comparison
-and model selection are still pending.
+The W05 plan defines dataset, worker and runner steps. Task4 adds comparative
+execution and verified reporting; real model comparison and model selection
+remain Task5 and have not been performed.
 
 Prepare the fixed twelve MAESTRO v3/v2 test recordings (noncommercial research
 only, CC-BY-NC-SA-4.0). Supply an installed FFmpeg executable explicitly:
@@ -67,4 +68,38 @@ Call this synchronous function outside an active event loop for uncached downloa
 an active loop is rejected before creating a coroutine or starting network/file work.
 A valid cache still returns without network. This preparation module imports no model.
 Run the [isolated worker](../../services/ml/piano-amt-worker/README.md) separately
-with the returned checkpoint SHA256; the comparison runner remains Task4.
+with the returned checkpoint SHA256.
+
+## Comparative CPU execution and verified report
+
+Install both isolated workers and FFmpeg before execution. `run` never installs
+packages, downloads assets, or changes the product provider. Use absolute paths:
+
+```powershell
+uv --cache-dir outputs/.uv-cache run --offline --no-sync --project tools/transcription-eval --python 3.13 transcription-eval run --manifest D:/develop/MusicSheet/docs/evaluations/maestro-w05-manifest.json --input-root D:/develop/MusicSheet/outputs/w05-evaluation/task2-20261006 --basic-python D:/develop/MusicSheet/services/ml/basic-pitch-worker/.venv/Scripts/python.exe --piano-python D:/develop/MusicSheet/services/ml/piano-amt-worker/.venv/Scripts/python.exe --checkpoint "D:/develop/MusicSheet/models/w05/CRNN_note_F1=0.9677_pedal_F1=0.9186.pth" --checkpoint-sha256 c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141 --output-root D:/develop/MusicSheet/outputs/w05-evaluation/task5 --ffmpeg C:/ffmpeg-6.0-essentials_build/ffmpeg-6.0-essentials_build/bin/ffmpeg.exe
+uv --cache-dir outputs/.uv-cache run --offline --no-sync --project tools/transcription-eval --python 3.13 transcription-eval report --run-dir D:/develop/MusicSheet/outputs/w05-evaluation/task5/cpu-REPLACE_WITH_PRINTED_RUN_ID --output D:/develop/MusicSheet/docs/evaluations/new-comparison-report.md
+```
+
+These are Task5 execution instructions, not evidence of an executed benchmark.
+`run` prints its new `cpu-<uuid>` directory name and summary SHA256. An omitted
+`--ffmpeg` resolves an installed executable on PATH. Output roots stay under
+repository `outputs`; CLI reports stay under `docs`. Existing runs/reports are
+never replaced or resumed. Keep all run artifacts to verify a report later.
+
+Four fresh non-scoring preflight runs use repeated/cropped CC0 audio. A failed
+preflight or excessive CPU estimate leaves all 72 benchmark slots `not_run`.
+Each candidate has 36 scheduled slots; only its first 12 measure accuracy.
+Repetitions and optional diagnostics preserve the first failure and all raw
+denominators. Limits are 300 seconds/slot and 7200 seconds/session, including
+preflight execution and diagnostics. Cancellation drains owned processes/I/O
+before recording remaining slots as `not_run`.
+
+Reports revalidate summary/artifact hashes and reconstruct the selection from
+immutable records. Size-limited raw files remain preserved but explicitly
+unverified, forcing `no_selection`. Generic worker exit3/4 remains unresolved;
+repetition alone is not proof of a model cause. A Piano choice is
+`selected_pending_integration`, without changing Basic Pitch product settings.
+Exit status: 0 recorded session/report (including no selection), 4 setup/report
+failure, 130 cancellation, and 2 argument parsing failure.
+
+Task4 evidence and limitations are in the [runner report](../../docs/reports/transcription-evaluation-runner-report.md).

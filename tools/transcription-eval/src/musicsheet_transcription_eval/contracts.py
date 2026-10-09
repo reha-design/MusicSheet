@@ -249,3 +249,145 @@ class Manifest:
         for value in self.metadata_hashes.values(): hash_value(value)
         if type(self.source_receipt) is not dict:
             raise ValueError("missing source receipt")
+
+
+CANDIDATE_SOURCES = {"basic_pitch": "049dc8a01a170c2370d7b246ec1c2067e060c3bf",
+                     "piano_amt": "0226e74cbc805660e34bbd6a8fed2083890ebb88"}
+CANDIDATE_VERSIONS = {"basic_pitch": "0.4.0", "piano_amt": "0.0.6"}
+
+
+@dataclass(frozen=True)
+class Candidate:
+    id: str
+    python: Path
+    device: str
+    checkpoint: Path
+    checkpoint_sha256: str
+    lock_sha256: str
+    source_commit: str
+    lock: Path
+    runtime: dict
+
+    def __post_init__(self):
+        if self.id not in CANDIDATE_SOURCES or self.device != "cpu" or self.source_commit != CANDIDATE_SOURCES[self.id]:
+            raise ValueError("invalid candidate identity")
+        for path in (self.python, self.checkpoint, self.lock):
+            if not isinstance(path, Path) or not path.is_absolute() or ".." in path.parts:
+                raise ValueError("absolute candidate path required")
+        hash_value(self.checkpoint_sha256); hash_value(self.lock_sha256)
+        runtime = self.runtime
+        if type(runtime) is not dict or set(runtime) != {"python_version", "package_version", "source_commit", "backend", "backend_version", "threads"}:
+            raise ValueError("invalid runtime receipt")
+        if type(runtime["backend_version"]) is not str or re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}(?:\+[a-z0-9.]+)?", runtime["backend_version"]) is None:
+            raise ValueError("invalid backend version")
+        if self.id == "piano_amt" and runtime["backend_version"] != "2.10.0+cpu": raise ValueError("CPU torch required")
+        version = runtime["python_version"]
+        if type(version) is not list or len(version) != 3 or any(type(n) is not int or n < 0 for n in version) or version[:2] != [3, 12]:
+            raise ValueError("candidate Python 3.12 required")
+        if runtime["package_version"] != CANDIDATE_VERSIONS[self.id] or runtime["source_commit"] != self.source_commit:
+            raise ValueError("candidate runtime mismatch")
+        expected_backend = "onnx_cpu" if self.id == "basic_pitch" else "torch_cpu"
+        expected_threads = None if self.id == "basic_pitch" else {"intra": 1, "interop": 1}
+        if runtime["backend"] != expected_backend or runtime["threads"] != expected_threads or (
+            expected_threads is not None and any(type(v) is not int for v in runtime["threads"].values())
+        ):
+            raise ValueError("invalid CPU runtime")
+
+
+STATUSES = {"success", "model_error", "timeout", "output_invalid", "setup_failed", "cancelled", "not_run", "interrupted"}
+ERROR_CODES = {"worker_exit_2", "worker_exit_3", "worker_exit_4", "worker_exit_unknown", "output_invalid",
+               "slot_timeout", "setup_invalid", "runner_failure", "evaluation_limit", "cancelled", "budget_stop",
+               "preflight_failure", "budget_preflight_failure", "interrupted", "verified_model_prediction",
+               "verified_model_inference"}
+EVIDENCE_CODES = {"input_verified", "environment_verified", "owned_process_cleaned", "cause_unavailable",
+                  "model_cause_verified", "cause_native_prediction", "cause_inference_exception", "synthetic_evidence"}
+
+
+def validate_metrics(value):
+    """Validate both native asdict output and JSON-reloaded success metrics."""
+    def fields(item, names):
+        if type(item) is not dict or set(item) != set(names): raise ValueError("invalid metric fields")
+    def sequence(item):
+        if type(item) not in (tuple, list): raise ValueError("invalid metric sequence")
+        return item
+    fields(value, ("onset", "key_release", "sustain", "velocity", "censored"))
+    metrics = {}
+    for name in ("onset", "key_release", "sustain"):
+        fields(value[name], Metric.__dataclass_fields__); metrics[name] = Metric(**value[name])
+    onset = metrics["onset"]
+    if any(m.tp + m.fp != onset.tp + onset.fp for m in metrics.values()) or (
+        metrics["key_release"].tp + metrics["key_release"].fn != onset.tp + onset.fn):
+        raise ValueError("inconsistent metric populations")
+    velocity = value["velocity"]; fields(velocity, VelocityMatch.__dataclass_fields__)
+    arrays = {}
+    for name in ("reference_sorted", "prediction_sorted"):
+        notes = []
+        for note in sequence(velocity[name]):
+            fields(note, Note.__dataclass_fields__); event = Note(**note)
+            if not 2 <= event.onset < 28 or event.offset > 30: raise ValueError("invalid scoring note")
+            notes.append(event)
+        key = lambda n: (n.pitch, n.onset, n.offset, n.velocity is not None, n.velocity or 0.0)
+        if notes != sorted(notes, key=key): raise ValueError("unsorted velocity input")
+        arrays[name] = tuple(notes)
+    pairs = tuple(tuple(sequence(pair)) for pair in sequence(velocity["pairs"]))
+    match = VelocityMatch(velocity["mae"], pairs, **arrays)
+    if len(match.pairs) != onset.tp or len(match.reference_sorted) != onset.tp + onset.fn or len(match.prediction_sorted) != onset.tp + onset.fp:
+        raise ValueError("inconsistent velocity populations")
+    censored = value["censored"]; fields(censored, ("reference_key_release", "reference_sustain", "predicted"))
+    integer(censored["predicted"], 0, onset.tp + onset.fp)
+    for name in ("key_release", "sustain"):
+        integer(censored["reference_" + name], 0, metrics[name].tp + metrics[name].fn)
+
+
+@dataclass(frozen=True)
+class RunRecord:
+    slot_id: str
+    recording_id: str
+    candidate_id: str
+    repeat: int
+    diagnostic_for: str | None
+    status: str
+    attribution: str | None
+    error_code: str | None
+    elapsed_sec: float | None
+    events_sha256: str | None
+    output_dir: Path | None
+    started: bool = False
+    exit_code: int | None = None
+    evidence: tuple[str, ...] = ()
+    files: dict[str, str] | None = None
+    metrics: dict | None = None
+
+    def __post_init__(self):
+        for identity in (self.slot_id, self.diagnostic_for):
+            if identity is not None and (type(identity) is not str or re.fullmatch(r"[a-z0-9_-]{1,160}", identity) is None):
+                raise ValueError("invalid slot identity")
+        hash_value(self.recording_id); integer(self.repeat, 0, 2)
+        if self.candidate_id not in CANDIDATE_SOURCES or self.status not in STATUSES or self.attribution not in {None, "model", "infrastructure", "unresolved"}:
+            raise ValueError("invalid run classification")
+        if type(self.started) is not bool or self.error_code is not None and self.error_code not in ERROR_CODES:
+            raise ValueError("invalid run evidence")
+        if type(self.evidence) is not tuple or any(code not in EVIDENCE_CODES for code in self.evidence):
+            raise ValueError("invalid evidence code")
+        if self.exit_code is not None and type(self.exit_code) is not int:
+            raise ValueError("invalid exit code")
+        if self.elapsed_sec is not None: finite(self.elapsed_sec)
+        if self.events_sha256 is not None: hash_value(self.events_sha256)
+        if self.output_dir is not None and (not isinstance(self.output_dir, Path) or not self.output_dir.is_absolute()):
+            raise ValueError("invalid output path")
+        if self.status == "success" and (not self.started or self.attribution is not None or self.error_code is not None or
+                self.elapsed_sec is None or self.events_sha256 is None or self.output_dir is None or self.exit_code != 0):
+            raise ValueError("incomplete success record")
+        if self.status == "success": validate_metrics(self.metrics)
+        if self.status != "success" and (self.attribution is None or self.error_code is None or self.events_sha256 is not None or self.metrics is not None):
+            raise ValueError("invalid failure record")
+        if self.status == "not_run" and (self.started or self.elapsed_sec is not None or self.output_dir is not None):
+            raise ValueError("invalid unstarted record")
+        if self.attribution == "model" and ("model_cause_verified" not in self.evidence or
+                self.error_code not in {"verified_model_prediction", "verified_model_inference"}):
+            raise ValueError("primitive model cause required")
+        if self.files is not None:
+            if type(self.files) is not dict: raise ValueError("invalid artifact hashes")
+            for name, digest in self.files.items():
+                if type(name) is not str or not name: raise ValueError("invalid artifact path")
+                hash_value(digest)
