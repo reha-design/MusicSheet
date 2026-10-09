@@ -81,4 +81,8 @@ Task5 최종 문서 변경 재확인: 동일 reviewer **100/100,B0/I0/M0**, tree
 
 전체 reviewer 독립 증거: captured/selection/metrics/reference/determinism **96pass/27.15초**, Piano worker full **71pass1skip/0.76초**. 원본 MIDI12개 전체 파싱→crop/scoring으로 frozen reference12/12 일치, 최초24개 직접 재채점24/24 일치, summary hash·macro·CPU36 samples/median/p95 재집계 일치를 확인했다. 새 basetemp `whole-review-tests-20261010-a`/`whole-review-worker-20261010-a`를 사용했고 추론·다운로드·실제 benchmark 재실행은 하지 않았다. 미해결 지적0으로 W05 평가·선정 완료를 승인했다.
 
-이후 변경은 실제 리뷰 점수·완료 색인·통합 감사 기록뿐이다. 계획 점수와 구현 점수는 모델 F1과 서로 다른 값이다. PR·병합 SHA와 branch 정리 결과는 실제 통합 후 아래에 기록한다.
+이후 변경은 실제 리뷰 점수·완료 색인·통합 감사 기록뿐이다. 계획 점수와 구현 점수는 모델 F1과 서로 다른 값이다.
+
+통합 완료: 구현 commit `2da58f1a1e0e81e0ed1e49926e8f046b0434c8b3`, [PR #16](https://github.com/reha-design/MusicSheet/pull/16), merge commit `1945f5251b47a49b4dae4685c1c166fc1dd764b4`, `2026-10-09T22:50:35Z`(KST2026-10-10 07:50:35). PR의 정확한 head·MERGEABLE/CLEAN을 확인하고 match-head-commit으로 병합했다. GitHub status checks는 없었으며 이를 CI 통과로 표현하지 않는다. main fast-forward 후 feature와 전체 tree 차이0, 최종 독립 검토본과 evaluator/worker 코드 차이0을 확인했다.
+
+정확한 local/remote feature head와 main ancestry를 확인한 뒤 `codex/w05-live-comparison`을 양쪽에서 삭제했다. 열린 PR0, 남은 branch는 main/origin main이다. `core.autocrlf=false`로 전환·동기화했으며5lock/frozen manifest 물리 hash와 live test 코드 hash가 보존됐다. 원장·가중치·데이터·기존 PR11 복구 bundle도 보존했다. 완료 색인과 상위 계획의 마지막 commit 체크를 갱신하고 감사 기록을 main에 저장한다. W05 평가·선정은 완료했으며 Piano 제품 적용은 계속 별도 후속 작업이다.

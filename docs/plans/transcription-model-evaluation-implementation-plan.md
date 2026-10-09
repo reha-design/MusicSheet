@@ -144,7 +144,7 @@ def test_selection_crop_golden_lf_bytes():
 
 ### Task5: 실제 비교·최종 검증·결정 기록
 
-진행: [상세 계획 R1](w05-task5-live-comparison-plan.md) 독립99점/B0I0 승인 후 최초 실제 CPU 세션을 한 번 실행했다. 예정72개·preflight4개 전부 성공, 24개 후보/구간 조합3회 동일 hash, `selected_for_subset`/`piano_amt`/`selected_pending_integration`. full root394/API232/Basic46/Piano71/evaluator265pass와 실제 captured 원장 검증11pass를 확인했다. [결과보고서](../reports/transcription-model-evaluation-report.md). 독립 단위100점·별도 전체 W05100점/B0I0M0으로 평가·선정을 완료했고 통합 감사 기록을 이어간다.
+진행: [상세 계획 R1](w05-task5-live-comparison-plan.md) 독립99점/B0I0 승인 후 최초 실제 CPU 세션을 한 번 실행했다. 예정72개·preflight4개 전부 성공, 24개 후보/구간 조합3회 동일 hash, `selected_for_subset`/`piano_amt`/`selected_pending_integration`. full root394/API232/Basic46/Piano71/evaluator265pass와 실제 captured 원장 검증11pass를 확인했다. [결과보고서](../reports/transcription-model-evaluation-report.md). 독립 단위100점·별도 전체 W05100점/B0I0M0으로 평가·선정을 완료했다. 구현2da58f1·PR #16 병합1945f52·main 동기화와 생성한 branch 정리를 완료했다.
 
 **Files:** evaluator tests `test_live_evaluation.py` (opt-in, 기본 skip), `docs/evaluations/transcription-model-selection.md`, `docs/reports/transcription-model-evaluation-report.md`; modify evaluatorREADME, canonical transcription/model-adapters는 상태·결정 링크만, roadmap/completed-work/main_spec.
 
@@ -154,7 +154,7 @@ def test_selection_crop_golden_lf_bytes():
 - [x] **Step2 준비 gate/실행:** evaluator locked sync/import·전체 unit, 12개 input/reference hash freeze, workerCPU lock/checkpoint, 비평가 smoke4개/예상 시간. 목표CLI 한 번의 초기 CPU 세션, silent rerun/adaptive crop 없음. 도구가 계속 실행 중이면<=60초마다 완료/잔여slot·마지막 상태 진행 알림. 중단/revision은 원시ledger 유지·새ID. 불가 후보는 unmeasured/partial/no_selection, W05 미완료. GPU는 준비된 별도 환경과 분리 명령/receipt가 있을 때만 optional 실행.
 - [x] **Step3 최종 검증:** 전체 evaluator/Byte/root/API/기존 Basic worker offline/no-sync suite·매회 새 basetemp. 각 명령은 `pytest -c <project>/pyproject.toml <project>/tests`와 collect-only/config 확인을 사용한다. root는 `-c pyproject.toml tests`/3.13, API`services/api`/3.13, old worker`services/ml/basic-pitch-worker`/3.12, Byte`services/ml/piano-amt-worker`/3.12, evaluator`tools/transcription-eval`/3.13. 각 `uv lock --check --offline --project <path>`와 기존3lockhash 불변. diffcheck/links/추적 바이너리 없음. Linux는 실제 수행한 unit/process 증거만, 소유 child/.part 정리·ignored data/receipt 재현용 보존·공유 서비스 변경 없음.
 - [x] **Step4 보고/선정/리뷰:** first12 onset/sustain/key-release·P/R/F1/macro/micro/velocityMAE pair·CI/censor, 원시36·진단·reliability/determinism·CPU RTF/median/nearest-rankp95·thread/device/version/source/license/한계. R2 상태/fallback 경계, Byte winner는 selected_pending_integration·제품 selector 불변. 두 후보 유효 CPU 비교+결정 근거가 있어야 W05 완료; 미측정/해결 안 된 상태는 roadmap 진행 중 유지. Task5 독립>=95와 전체 변경 fresh review>=95·미해결 important0, 전체 리뷰는 단위 gate를 대체하지 않음.
-- [ ] **Step5 커밋:** `docs(amt): record fixed transcription model comparison`, 실제 integration/docs만 명시 stage. models/audio/MIDI/reference 배열/secret 없음. 각 단위/전체 리뷰의 rubric·날짜·SHA·지적 처리 기록.
+- [x] **Step5 커밋:** `docs(amt): record fixed transcription model comparison`, 실제 integration/docs만 명시 stage. models/audio/MIDI/reference 배열/secret 없음. 각 단위/전체 리뷰의 rubric·날짜·SHA·지적 처리 기록.
 
 ## 자기 검토·실행 전달
 
