@@ -4,6 +4,8 @@
 > **관련 문서:** [docs/ai/separation.md](./separation.md), [docs/ai/transcription.md](./transcription.md)
 >
 > **구현 상태:** 아래 ABC는 목표 인터페이스 예시입니다. 제품 실행은 비동기 `StageProvider` 계약을 사용하며 명시적 설정에서 Basic Pitch TRANSCRIBE provider를 등록합니다. Windows 실제 모델·PostgreSQL 등록과 Linux 실행기·root 회귀를 검증했습니다. 기본 registry는 비활성이며 다른 단계 provider·Linux 실제 모델 운영은 후속 범위입니다. [W04 검증 보고서](../reports/basic-pitch-pipeline-implementation-report.md)를 참조하세요.
+>
+> **W05 선정 상태:** 실제 고정 피아노 subset CPU 비교에서 Piano AMT를 `selected_for_subset`으로 선정했습니다. 제품 상태는 `selected_pending_integration`이며 위 provider 계약/registry는 바꾸지 않았습니다. [비교 결과와 제품 연결 경계](../reports/transcription-model-evaluation-report.md)를 참조하세요.
 
 ---
 

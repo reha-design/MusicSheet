@@ -62,8 +62,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - **Basic Pitch worker 구현 기준 설계:** [백엔드·AI 실행환경 분리 설계](./superpowers/specs/2026-09-26-basic-pitch-worker-design.md)
 - **W04 Basic Pitch 제품 파이프라인 설계:** [입력 변환·독립 CLI 호출·JSON/MIDI 검증과 취소](./superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md) (Revision 1, 사용자 서면 설계 승인, 제품 연결 및 최종 리뷰 완료)
 - **W04 Basic Pitch 제품 연결 실행 계획:** [프로세스 수명·결과/저장·provider·실제 모델/DB 검증](./plans/basic-pitch-pipeline-implementation-plan.md) (R4 독립100점·미해결 지적0개, Task1~4 각100점·전체100점 완료, Windows 실제 모델/DB·Linux 실행기/root 검증)
-- **W05 전사 모델 평가 서면 설계:** [고정 정답 subset·metric·후보 환경·선정 및 대체 정책](./superpowers/specs/2026-10-05-transcription-model-evaluation-design.md) (R2 사용자 승인, R1 지적6 important/3 minor 처리·실제 평가 미실행)
-- **W05 전사 모델 평가 실행 계획:** [평가기·데이터·격리 후보·반복 실행·실제 비교](./plans/transcription-model-evaluation-implementation-plan.md) (R7 계획99/100·Task1/2/3 코드100/100·Task4/5 미시작, R3 사용자 실행 승인)
+- **W05 전사 모델 평가 서면 설계:** [고정 정답 subset·metric·후보 환경·선정 및 대체 정책](./superpowers/specs/2026-10-05-transcription-model-evaluation-design.md) (R2 사용자 승인·실제 Windows CPU72회 성공·Piano AMT subset 선정/제품 연결 대기)
+- **W05 전사 모델 평가 실행 계획:** [평가기·데이터·격리 후보·반복 실행·실제 비교](./plans/transcription-model-evaluation-implementation-plan.md) (Task1–5 코드100점·Task5 계획99점·별도 전체100점/B0I0M0·실제 평가/선정 완료, R3 사용자 실행 승인)
 
 ### Architecture
 - **전체 시스템 구조:** [docs/architecture/system.md](./architecture/system.md)
@@ -172,3 +172,4 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [48: PR #11 고유 기능 통합·계약 유지·브랜치 정리](./reports/pipeline-operator-tools-integration-report.md)
 - [49: W05 격리 Piano AMT worker·공식 checkpoint·Windows CPU smoke](./reports/piano-amt-evaluation-worker-report.md)
 - [50: W05 비교 실행·결정성·검증 원장·선정 보고서](./reports/transcription-evaluation-runner-report.md)
+- [51: W05 실제 CPU72회 비교·Piano AMT subset 선정](./reports/transcription-model-evaluation-report.md)

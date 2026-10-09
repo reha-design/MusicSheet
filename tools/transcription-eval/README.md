@@ -20,8 +20,9 @@ platforms or when that probe runtime is absent. Preparation itself needs no
 PowerShell subprocess.
 
 The W05 plan defines dataset, worker and runner steps. Task4 adds comparative
-execution and verified reporting; real model comparison and model selection
-remain Task5 and have not been performed.
+execution and verified reporting. Task5 records the first actual CPU session;
+its observed outcome is documented in the
+[evaluation report](../../docs/reports/transcription-model-evaluation-report.md).
 
 Prepare the fixed twelve MAESTRO v3/v2 test recordings (noncommercial research
 only, CC-BY-NC-SA-4.0). Supply an installed FFmpeg executable explicitly:
@@ -80,11 +81,21 @@ uv --cache-dir outputs/.uv-cache run --offline --no-sync --project tools/transcr
 uv --cache-dir outputs/.uv-cache run --offline --no-sync --project tools/transcription-eval --python 3.13 transcription-eval report --run-dir D:/develop/MusicSheet/outputs/w05-evaluation/task5/cpu-REPLACE_WITH_PRINTED_RUN_ID --output D:/develop/MusicSheet/docs/evaluations/new-comparison-report.md
 ```
 
-These are Task5 execution instructions, not evidence of an executed benchmark.
+These are reproduction instructions; use a fresh output root for any new session.
 `run` prints its new `cpu-<uuid>` directory name and summary SHA256. An omitted
 `--ffmpeg` resolves an installed executable on PATH. Output roots stay under
 repository `outputs`; CLI reports stay under `docs`. Existing runs/reports are
 never replaced or resumed. Keep all run artifacts to verify a report later.
+
+The captured-session test never launches a model. By default it skips explicitly.
+Set `MUSICSHEET_W05_LIVE=1` and `MUSICSHEET_W05_RUN_DIR` to the absolute captured
+run directory, then run `tests/test_live_evaluation.py` with this project's explicit
+pytest configuration. Missing configuration skips; an invalid configured run fails.
+It verifies the frozen inputs, candidates, native output provenance/default options,
+both output files, 72 scheduled terminal states and first-run populations. A passing
+integrity check can describe a partial or `no_selection` session; it does not mean
+that a comparison succeeded or that a product default was selected. Restore the
+environment after running it, and do not enable other workers' live tests by accident.
 
 Four fresh non-scoring preflight runs use repeated/cropped CC0 audio. A failed
 preflight or excessive CPU estimate leaves all 72 benchmark slots `not_run`.
