@@ -95,7 +95,7 @@ CLI `run --manifest --input-root --basic-python --piano-python --checkpoint --ch
 - [x] 최소 runner/session/report/CLI 구현 후 선택 GREEN. metric event/cell cap→infrastructure invalidbenchmark, output검증후cancel, partial/crashrecord·기존root/파일보존을 검사한다.
 - [x] evaluator 전체와 root 회귀, CLIhelp/import no models, diffcheck/docslinks/5locks+manifest 불변. 검증 parent 먼저 생성하고 매번 새 절대basetemp/config/testpath를 사용한다. 기본 Windows suite 증거만 지원 주장한다.
 - [x] 보고서/상위Task4체크/README/index/roadmap에 RED/GREEN/정확명령/실제범위/계획·코드score기록. 전체 staged파일 SHA snapshot으로 독립 코드리뷰>=95/B0I0. 문제 수정 시 새 RED/GREEN·재리뷰. 그 뒤 원자적 commit `feat(eval): record reliable comparative model runs`.
-- [ ] 기존 사용자 통합 요청에 따라 PR/merge/동일tree·main동기화/작업branch정리. Task5는 시작하지 않는다.
+- [x] 기존 사용자 통합 요청에 따라 PR/merge/동일tree·main동기화/작업branch정리. Task5는 시작하지 않는다.
 
 ### 실행 명령과 합격 기준
 
@@ -120,3 +120,5 @@ Expected RED: missing Task4 symbols/modules/behavior, fixture/setup/permission e
 ## 독립 코드 게이트
 
 2026-10-09 `/root/w05_task4_final_review`: 최초89점(22/21/23/14/9),B0/I4/M0, tree `f5126e51dfd37ffe83cd57412ee9a2415705214d`. 수치1pp 경계·MIDI byte cap 귀속·metrics 전체 strict 검증·필수 공개 지표 누락을 RED/GREEN으로 보완했다. 최종 재평가 **100점(25/25/25/15/10),B0/I0/M0**,22파일/tree `30f31010de484ac965ba63af91e6ff9f4e8da26f`, snapshot SHA256 `023901AB80E56EA07C15EEDCDC9362BF528FF976B8E31CCD5ECF9E1F19F9C7A4`. 최종evaluator255pass77.42초, root394pass17skip8deselected28.08초. 리뷰어 독립254pass75.56초·최종 경계24pass5.47초. 세부 지적 처리와 재현 명령은 [결과보고서](../reports/transcription-evaluation-runner-report.md)에 있다. Task5 실제 비교는 시작하지 않았다.
+
+통합: [PR #15](https://github.com/reha-design/MusicSheet/pull/15) MERGED, 구현 `f35ea797f44adfb509f15be4905e5c56a94a711c`/merge `38900ad223effa68347bfb19770f09696a5b8b31`. main 동일 tree·baseline5lock/manifest·feature ancestry 확인 후 local/remote 작업branch를 정리했다. 남은branch main만, Task5 미시작.

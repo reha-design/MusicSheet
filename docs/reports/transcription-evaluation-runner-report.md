@@ -67,3 +67,7 @@ metadata-only 확인: Python3.12.13, Basic Pitch0.4.0/source `049dc8a01a170c2370
 범위 판단: 실제72회 비교는 Task5, Linux/CUDA 모델 지원은 별도 실제 증거가 필요하다. 모든 파일과 checksum을 함께 다시 작성하는 공격자에 대한 서명 진본성은 이번 계약에 없다. 원장 hash는 바이트 일관성 검증이며 신뢰된 발행자 인증을 주장하지 않는다. 해당 요구가 생기면 별도 신뢰 anchor와 실행/계획 검토가 필요하다. strict 수치 계약은 이 한계와 관계없이 강제한다.
 
 최종 독립 재평가: 2026-10-09 `/root/w05_task4_final_review`, **100/100** (25/25/25/15/10),B0/I0/M0. BASE 대비 staged22파일 전체/tree `30f31010de484ac965ba63af91e6ff9f4e8da26f`, raw snapshot SHA256 `023901AB80E56EA07C15EEDCDC9362BF528FF976B8E31CCD5ECF9E1F19F9C7A4`. reviewer 독립254pass/75.56초와 최종 변경 경계24pass/5.47초, 구현자 최종전체255pass/77.42초를 구분해 확인했다. 미해결 지적0으로 통합 승인했다. 이후 변경은 이 점수·실제 결과·완료 체크와 통합 감사 기록뿐이다. 계획100점과 코드100점은 서로 별도 게이트이며 모델 F1이 아니다.
+
+통합 완료: 구현 commit `f35ea797f44adfb509f15be4905e5c56a94a711c`, [PR #15](https://github.com/reha-design/MusicSheet/pull/15), merge commit `38900ad223effa68347bfb19770f09696a5b8b31`,2026-10-09T12:25:56Z(KST21:25:56). 정확한 PR HEAD/MERGEABLE/CLEAN을 확인하고 match-head-commit 병합했다. GitHub status check는 없었으며 CI 통과로 주장하지 않는다. main fast-forward 후 feature와 전체 tree 차이0, 최종 리뷰 code와 evaluator 차이0을 확인했다. 같은 코드의 검증 결과를 유지하고 불필요한 모델/테스트 재실행으로 수치를 늘리지 않았다.
+
+병합 ancestry와 정확한 local/remote head를 대조한 뒤 `codex/w05-comparative-runner`를 로컬·원격에서 삭제했다. 열린PR0, 남은 branch는 main/origin main이다. main 전환에는 `core.autocrlf=false`를 사용했고5lock+고정manifest의 물리 SHA도 baseline과 일치했다. ignored 입력/가중치/검증 원장과 기존 PR11 복구 bundle은 보존했다. Docker/공유 서비스는 변경하지 않았다. Task5 실제 비교·기본 모델 결정은 계속 미수행 상태다.
