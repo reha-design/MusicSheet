@@ -44,6 +44,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 ## 3. Canonical Specs 인덱스
 
 ### 개발 계획
+- **FFmpeg 프로젝트 전용 적용:** [설치·환경·변환 계획](./plans/ffmpeg-project-setup-plan.md) — 9.0.2 portable 설치·환경 적용·실제 PCM 변환 검증
+- **W06-0 음원 분리 선행 검증:** [승인 계획](./plans/w06-separation-preflight-plan.md) · [Proposed 제품 연결 초안](./superpowers/specs/2026-10-15-separation-integration-design.md) — 과거 FFmpeg 미확보 중단 증거 보존, 현재 FFmpeg 준비 후 CPU 실추론 재개 대기
 - **PR #11 기능 통합:** [운영 복구·진행률 실행 계획](./plans/pipeline-operator-tools-implementation-plan.md) (R1 독립97점, 진행률 단위99점 완료·운영 복구 진행)
 - **현재 작업 및 다음 후보:** [docs/roadmap.md](./roadmap.md)
 - **남은 작업 전체:** [docs/backlog.md](./backlog.md) (다음 작업 선택 시에만 로드)
@@ -121,6 +123,8 @@ AI Agent는 작업 시작 시 이 문서의 라우팅 규칙과 [현재 현황](
 - [005: Basic Pitch worker 전용 Python 3.12 예외 (승인됨, PoC smoke 검증 완료)](./adr/005-basic-pitch-python-312-exception.md)
 
 ### Reports (작업 결과보고서)
+- **FFmpeg 설치·적용:** [프로젝트 전용 바이너리·두 설정·자식 환경·실제 WAV 변환](./reports/ffmpeg-project-setup-report.md) — Demucs 모델 추론은 후속
+- **W06-0 선행 검증 보고:** [환경 중단 증거·QC 후보 조사·제품 연결 대기](./reports/w06-separation-preflight-report.md) — 모델 실행0회, W06 완료 아님
 - [현재 구현 현황 브리핑 (2026-10-01, 기준 `148040c`)](./reports/current-implementation-briefing.md)
 - [01: 베이스라인 구축 작업 결과보고서 (Task 1~3)](./reports/baseline-execution-report.md)
 - [02: 런타임 단일화 작업 결과보고서 (Python 3.12 일원화)](./reports/python-312-unification-report.md)

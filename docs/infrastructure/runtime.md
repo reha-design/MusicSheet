@@ -36,15 +36,17 @@ PyTorch CUDA 휠과 모델별 의존성은 현재 workspace 및 `uv.lock`에 포
 
 아래 명령은 저장소 루트에서 사용합니다. DB migration과 연결 환경 설정은 서비스 README를 먼저 확인합니다. 실제 Celery worker는 Linux/WSL2 환경에서 실행하고 Windows에서는 단위·eager 검증을 수행합니다. 제품 provider가 미구성인 단계는 명시적 실패하며 이 명령만으로 실제 모델이나 전체 pipeline 지원을 주장하지 않습니다.
 
+로컬 `.env`를 준비한 뒤 `--env-file .env`로 명시적으로 로드합니다. API/worker 코드는 환경 파일을 자동 로드하지 않습니다. Windows FFmpeg는 [프로젝트 전용 설치 보고서](../reports/ffmpeg-project-setup-report.md)와 [README의 자식 셸 실행 절차](../../README.md#프로젝트-전용-ffmpeg)를 따릅니다. `FFMPEG_EXECUTABLE`은 모델 실행, `FFMPEG_BIN`은 API 진단에 사용하며 같은 절대 실행 파일을 지정합니다. Linux/WSL2에서는 해당 환경에서 실행 가능한 별도 경로가 필요합니다.
+
 ```bash
 # 터미널 1: FastAPI 게이트웨이
-uv run --project services/api --python 3.13 musicsheet-api
+uv run --env-file .env --project services/api --python 3.13 musicsheet-api
 
 # 터미널 2: CPU Worker
-uv run --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker -Q cpu_io_queue,cpu_render_queue -c 4 -l info
+uv run --env-file .env --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker -Q cpu_io_queue,cpu_render_queue -c 4 -l info
 
 # 터미널 3: AI 단계 큐 (큐 이름은 GPU 모델 설치나 사용을 의미하지 않음)
-uv run --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker -Q gpu_ai_queue -c 1 -l info
+uv run --env-file .env --project . --python 3.13 celery -A musicsheet_pipeline.celery_app worker -Q gpu_ai_queue -c 1 -l info
 ```
 
 모델별 실행환경은 해당 모델의 호환성 검증과 ADR을 따릅니다. Basic Pitch 독립 설치·실행 명령은 [worker README](../../services/ml/basic-pitch-worker/README.md), 제품 연결은 [W04 승인 설계](../superpowers/specs/2026-10-04-basic-pitch-pipeline-design.md)와 [실행 계획](../plans/basic-pitch-pipeline-implementation-plan.md)을 따릅니다. 절대 경로 설정과 각5초의 Python/FFmpeg probe는 구현됐으며 요청 실행 중 uv 설치·다운로드를 수행하지 않습니다.

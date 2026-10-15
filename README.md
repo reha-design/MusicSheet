@@ -92,6 +92,29 @@ MusicSheet/
 
 ## 다음 개발 단계
 
+### 프로젝트 전용 FFmpeg
+
+Windows portable FFmpeg9.0.2 설치와 환경 적용은 [설치 보고서](docs/reports/ffmpeg-project-setup-report.md)를 참조합니다. 실행 파일은 gitignored `outputs/tools/ffmpeg/9.0.2/bin/`에 두고, 로컬 `.env`의 `FFMPEG_EXECUTABLE`(모델 실행)과 `FFMPEG_BIN`(API 진단)을 같은 `ffmpeg.exe` 절대경로로 지정합니다. 설치 경로에 공백이 있으므로 `.env` 값은 따옴표로 감싼 forward-slash 경로를 사용합니다. 바이너리·로컬 환경 파일은 저장소에 포함되지 않습니다.
+
+애플리케이션은 `.env`를 자동 로드하지 않습니다. 저장소 루트에서 `uv run --env-file .env --project ...`로 명시적으로 로드합니다. 이름으로 `ffmpeg`·`ffprobe`를 호출하는 W06/Demucs 명령은 다음처럼 프로젝트 전용 자식 PowerShell에서 실행합니다.
+
+```powershell
+uv run --no-project --no-sync --env-file .env -- pwsh -NoProfile
+# 새 자식 PowerShell에서 실행:
+$expected = [IO.Path]::GetFullPath((Join-Path (Get-Location) 'outputs/tools/ffmpeg/9.0.2/bin/ffmpeg.exe'))
+foreach ($key in @('FFMPEG_EXECUTABLE', 'FFMPEG_BIN')) {
+    $value = [Environment]::GetEnvironmentVariable($key)
+    if (-not $value -or -not [IO.Path]::IsPathFullyQualified($value) -or [IO.Path]::GetFullPath($value) -ne $expected) {
+        throw "FFmpeg configuration mismatch: $key"
+    }
+}
+$env:PATH = (Split-Path -Parent $expected) + [IO.Path]::PathSeparator + $env:PATH
+Get-Command ffmpeg, ffprobe -CommandType Application
+# 이 자식 셸에서 W06 실행. 종료하면 PATH 변경도 종료됩니다.
+```
+
+일반 API 실행 예시는 `uv run --env-file .env --project services/api --python 3.13 musicsheet-api`입니다. 상속된 환경변수와 로컬 설정이 충돌하면 해당 셸의 값을 먼저 확인합니다. 사용자·시스템 PATH는 변경하지 않습니다. FFmpeg 준비는 Demucs 실제 모델 검증이나 전사 provider 활성화를 뜻하지 않습니다.
+
 ### Basic Pitch TRANSCRIBE 연결
 
 제품 전사 provider는 명시적으로 활성화합니다. 먼저 `uv sync --locked --project services/ml/basic-pitch-worker --python 3.12`로 독립 worker를 설치하고 FFmpeg를 설치합니다. `.env.example`의 `TRANSCRIPTION_PROVIDER=basic-pitch`, `BASIC_PITCH_PYTHON`, `FFMPEG_EXECUTABLE`을 설정하며 두 실행기 경로는 절대 경로여야 합니다. 기본값은 비활성입니다. 작업 실행 중 설치·다운로드는 하지 않습니다.
